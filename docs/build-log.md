@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Dishes are data: twelve dishes, five appliances, three menu styles
+
+**Why:** the plan's change E4 and the menu-styles item. `'salad' | 'burger'` was hard-coded in the schemas, the arrival roll, the challenges and the panels, so a new dish meant editing a dozen files. Now `DISHES` in `src/management/types.ts` is the single table, and everything else reads it.
+
+**What changed:**
+- **Twelve dishes in three styles** (Garden, Grill, Noodle), four each, with a cost, a fair price, a cook time, an appliance, a challenge name and a look. The first two (garden salad, sunset burger) are unchanged, so every calibrated bot night is identical.
+- **Three new appliances** (stock pot, wok range, brick oven), drawn from the same boxes and cylinders as the rest of the room. No new model files, no new asset source.
+- **Appliances unlock dishes.** The menu panel groups dishes by style; a dish whose appliance is not on the floor shows what it needs and what that costs. Opening the doors with such a dish switched on is refused with the appliance named.
+- **Price cap raised from $60 to $80**, because a greedy steak menu asks about $78. The cap lives in one constant (`PRICE_MAX`) used by the schemas, the action log and the engine.
+- **Old saves still load.** The menu schema fills in any dish a save does not mention as off at its fair price, so no migration step is needed and the schema version stays 1. The golden hashes changed because the state now carries twelve menu entries; the reports did not (the bot calibration tests pass unchanged).
+- Daily challenges can now name any dish ("Sell 4 bowls of ramen"). The roll only includes a new dish when it is on the menu, so a salad-and-burger menu draws the same goals as before.
+
+**Refused:** choosing a style at the very start with a different starter kitchen. It would invalidate the calibrated bots and the replay fixtures for a day-one decision the shop already makes (buy the pot, get the soup). The three styles are earned by building toward them instead. Plan section 6 still lists the research meter, which comes next.
+
+**Code:** `src/management/types.ts`, `daily-challenges.ts`, `Panels.tsx`, `InteriorsPanel.tsx`, `FurnitureView.tsx`, `social.ts`; tests in `src/test/dishes.test.ts` and `menu-panel.browser.test.tsx`.
+
 ## 2026-11-18 — End of night: awards, kitchen card, company value, and explicit Reddit actions
 
 **Why:** the plan asks for a result worth sharing and for Reddit features used honestly. Nothing here gates play, and nothing posts without a tap and a preview.

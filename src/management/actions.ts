@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DAY_LENGTH, furnitureKind } from './types';
+import { DAY_LENGTH, DISH_IDS, PRICE_MAX, PRICE_MIN, furnitureKind } from './types';
 
 /**
  * The planning actions an owner takes between services. The engine reports each accepted one, the client queues and sends
@@ -18,7 +18,7 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...planning, kind: z.literal('sell'), id: z.number().int() }),
   z.object({ ...planning, kind: z.literal('hire'), role: z.enum(['chef', 'server']) }),
   z.object({ ...planning, kind: z.literal('train'), id: z.number().int() }),
-  z.object({ ...planning, kind: z.literal('dish'), dish: z.enum(['salad', 'burger']), enabled: z.boolean(), price: z.number().int().min(10).max(60) }),
+  z.object({ ...planning, kind: z.literal('dish'), dish: z.enum(DISH_IDS), enabled: z.boolean(), price: z.number().int().min(PRICE_MIN).max(PRICE_MAX) }),
   z.object({ ...planning, kind: z.literal('expand') }),
   z.object({ ...planning, kind: z.literal('loan') }),
   z.object({ ...planning, kind: z.literal('claim'), id: z.string().max(40) }),

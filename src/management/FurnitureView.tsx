@@ -5,9 +5,14 @@ import { Batch, Box, Cylinder, Sphere, type InstanceSpec } from '@/scene/Primiti
 import { GeneratedProp } from '@/scene/GeneratedModel';
 import { MODELS } from '@/game/assets';
 import { Food } from '@/scene/Food';
-import { CATALOG, CELL, type Dish, type Furniture } from './types';
+import { CATALOG, CELL, DISHES, type Dish, type Furniture } from './types';
 
-export function Meal({ dish }: { dish: Dish }) { return <Suspense fallback={<Cylinder radius={.25} height={.04} />}><GeneratedProp asset={MODELS[dish]} size={.55} dimension="width" /></Suspense>; }
+/** Salads and burgers keep their models. Every other dish is a plate or a bowl in its own colour, built from the same primitives. */
+export function Meal({ dish }: { dish: Dish }) {
+  const { look, tint } = DISHES[dish];
+  if (look === 'bowl') return <group><Cylinder position={[0, .08, 0]} radius={.26} bottom={.16} height={.16} color="#F6E7CA" /><Cylinder position={[0, .17, 0]} radius={.22} height={.03} color={tint} /></group>;
+  return <Suspense fallback={<Cylinder radius={.25} height={.04} />}><GeneratedProp asset={MODELS[look]} size={.55} dimension="width" /></Suspense>;
+}
 
 export const FurnitureBody = memo(function FurnitureBody({ kind }: { kind: Furniture['kind'] }) {
   const cloth = useMemo<InstanceSpec[]>(() => Array.from({ length: 24 }, (_, i) => ({ position: [(i % 6) * .28 - .7, 1.025, Math.floor(i / 6) * .28 - .42], scale: [.28, .02, .28], color: (i + Math.floor(i / 6)) % 2 ? '#FFF2D7' : '#DC533C' })), []);
@@ -17,6 +22,9 @@ export const FurnitureBody = memo(function FurnitureBody({ kind }: { kind: Furni
   </group>;
   if (kind === 'grill') return <Suspense fallback={<Box position={[0, .5, 0]} size={[1.2, 1, 1.2]} color="#233D3B" />}><GeneratedProp asset={MODELS.grill} size={1.06} /></Suspense>;
   if (kind === 'prep') return <><Box position={[0, .47, 0]} size={[1.26, .94, 1.22]} color="#275A55" /><Box position={[0, .97, 0]} size={[1.35, .12, 1.3]} color="#F6E7CA" /><Box position={[0, 1.055, .06]} size={[.8, .055, .65]} color="#b88854" /><Box position={[0, .63, .625]} size={[.35, .04, .03]} color="#F2B743" /><group position={[-.18, 1.09, 0]} scale={.6}><Food item={{ kind: 'tomato', state: 'raw' }} /></group><group position={[.35, 1.05, -.35]} scale={.6}><Food item={{ kind: 'lettuce', state: 'raw' }} /></group></>;
+  if (kind === 'pot') return <><Box position={[0, .47, 0]} size={[1.2, .94, 1.16]} color="#275A55" /><Box position={[0, .97, 0]} size={[1.3, .12, 1.26]} color="#F6E7CA" /><Cylinder position={[0, 1.3, 0]} radius={.42} bottom={.36} height={.55} color="#8b9690" /><Cylinder position={[0, 1.58, 0]} radius={.36} height={.03} color="#e08a43" />{[-.46, .46].map(x => <Box key={x} position={[x, 1.38, 0]} size={[.14, .06, .06]} color="#233D3B" />)}</>;
+  if (kind === 'wok') return <><Box position={[0, .47, 0]} size={[1.2, .94, 1.16]} color="#233D3B" /><Box position={[0, .97, 0]} size={[1.3, .12, 1.26]} color="#3c4942" /><Cylinder position={[0, 1.2, 0]} radius={.5} bottom={.22} height={.3} color="#4a4f4d" /><Cylinder position={[0, 1.36, 0]} radius={.46} height={.03} color="#c4793a" /><Box position={[.78, 1.28, 0]} size={[.5, .06, .08]} color="#73513d" /></>;
+  if (kind === 'oven') return <><Box position={[0, .5, 0]} size={[1.3, 1, 1.2]} color="#B76544" /><Cylinder position={[0, 1.2, 0]} radius={.5} bottom={.62} height={.5} color="#c47852" /><Box position={[0, .62, .62]} size={[.62, .46, .04]} color="#2b2321" /><Box position={[0, .62, .64]} size={[.46, .3, .02]} color="#F2B743" /><Cylinder position={[.38, 1.62, -.2]} radius={.09} height={.5} color="#73513d" /></>;
   if (kind === 'plant') return <><Cylinder position={[0, .28, 0]} radius={.32} bottom={.23} height={.56} color="#B76544" /><Cylinder position={[0, .56, 0]} radius={.35} height={.1} color="#F0AB70" /><Cylinder position={[0, 1, 0]} radius={.055} height={1.1} color="#765739" />{Array.from({ length: 9 }, (_, i) => <Sphere key={i} position={[Math.sin(i * 2.4) * .25, 1.2 + i % 3 * .17, Math.cos(i * 2.4) * .25]} scale={[.3, .4, .26]} color={['#557647', '#789753', '#9ba665'][i % 3]} />)}</>;
   if (kind === 'divider') return <><Box position={[0, .27, 0]} size={[1.25, .54, .43]} color="#224F4A" />{[-.4, 0, .4].map(x => <group key={x}><Box position={[x, 1, 0]} size={[.045, 1.4, .045]} color="#A8794C" /><Sphere position={[x, 1, 0]} scale={[.29, .6, .19]} color="#678347" /></group>)}</>;
   return <><Cylinder position={[0, .07, 0]} radius={.32} height={.14} color="#224F4A" /><Cylinder position={[0, 1.1, 0]} radius={.045} height={2.1} color="#224F4A" /><Cylinder position={[0, 2.02, 0]} radius={.33} bottom={.43} height={.46} color="#F2B743" /><Sphere position={[0, 1.78, 0]} scale={[.13, .13, .13]} color="#fff0ba" /></>;

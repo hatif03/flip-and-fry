@@ -1,12 +1,13 @@
-import { DISHES, type Dish, type RestaurantState } from './types';
+import { DISHES, DISH_IDS, STYLE_NAMES, type RestaurantState } from './types';
 
 /** Text rules for the things a player can post. Pure and shared, so the preview the player confirms is exactly what the server sends. */
 export const NOTE_MAX = 80;
 
-/** The house style the comment names. Menu styles (Garden, Grill, Noodle) refine this later; for now it follows the enabled dishes. */
+/** The house style the comment names: the styles of the dishes on the menu, in menu order ("Garden & Grill"). */
 export function houseStyle(state: Pick<RestaurantState, 'menu'>): string {
-  const on = (Object.keys(DISHES) as Dish[]).filter(d => state.menu[d].enabled);
-  return on.length === 2 ? 'Garden & Grill' : on[0] === 'burger' ? 'Grill' : 'Garden';
+  const styles = [...new Set(DISH_IDS.filter(d => state.menu[d].enabled).map(d => DISHES[d].style))];
+  const names = styles.map(s => STYLE_NAMES[s]);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}` : names[0] ?? 'Garden';
 }
 
 /** The canned receipt comment. No score is invented here: every figure comes from the replayed night. */

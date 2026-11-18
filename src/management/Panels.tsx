@@ -1,15 +1,15 @@
 import { type ReactNode } from 'react';
-import { Armchair, ChefHat, Flame, Leaf, Lamp, Fence, Plus, Minus, Star, UserPlus, ArrowUpRight, Trash2, TrendingUp, Check, Award, Coins, UtensilsCrossed, ArrowRight } from 'lucide-react';
+import { Armchair, ChefHat, Flame, Leaf, Lamp, Fence, LockKeyhole, Soup, CookingPot, Utensils, Plus, Minus, Star, UserPlus, ArrowUpRight, Trash2, TrendingUp, Check, Award, Coins, UtensilsCrossed, ArrowRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { GOALS, restaurant } from './engine';
-import { DISHES, capacity, comfort, staffWage, type FurnitureKind, type RestaurantState } from './types';
+import { CATALOG, DISHES, DISH_IDS, PRICE_MAX, PRICE_MIN, STYLE_NAMES, capacity, comfort, staffWage, stationName, type FurnitureKind, type MenuStyle, type RestaurantState } from './types';
 
 import { DailyChallenges } from './DailyChallenges';
 import { challengeBonus } from './daily-challenges';
 import { money } from './format';
 import { WeeklyRevenue } from './WeeklyRevenue';
-const furnitureIcons = { table: Armchair, prep: ChefHat, grill: Flame, plant: Leaf, divider: Fence, lamp: Lamp };
+const furnitureIcons = { table: Armchair, prep: ChefHat, grill: Flame, pot: CookingPot, wok: Utensils, oven: Flame, plant: Leaf, divider: Fence, lamp: Lamp };
 export type Panel = 'build' | 'team' | 'menu' | 'ledger';
 export type Action = (error: string | null) => void;
 export function SmallButton({ children, onClick, disabled, className, label }: { children: ReactNode; onClick: () => void; disabled?: boolean; className?: string; label?: string }) {
@@ -19,7 +19,7 @@ export function FurnitureArt({ kind }: { kind: FurnitureKind }) {
   const Icon = furnitureIcons[kind];
   return <div className={cn('relative flex h-20 items-center justify-center overflow-hidden rounded-xl', kind === 'table' ? 'bg-[#eed4ad]' : kind === 'plant' || kind === 'divider' ? 'bg-[#d9dfbb]' : 'bg-[#e6dbbe]')}>
     <div className="absolute bottom-3 h-3 w-16 rounded-[50%] bg-ink/10" />
-    <Icon strokeWidth={1.25} className={cn('relative size-12 drop-shadow-[0_3px_0_#fff2d7]', kind === 'grill' ? 'text-tomato' : kind === 'lamp' ? 'fill-gold/40 text-ink' : 'text-teal')} />
+    <Icon strokeWidth={1.25} className={cn('relative size-12 drop-shadow-[0_3px_0_#fff2d7]', kind === 'grill' || kind === 'oven' ? 'text-tomato' : kind === 'lamp' ? 'fill-gold/40 text-ink' : 'text-teal')} />
   </div>;
 }
 export function TeamPanel({ state, action }: { state: RestaurantState; action: Action }) {
@@ -31,10 +31,16 @@ export function TeamPanel({ state, action }: { state: RestaurantState; action: A
     <h3 className="mb-3 mt-5 text-lg">A helping hand</h3><div className="grid grid-cols-2 gap-2">{(['chef', 'server'] as const).map(role => <SmallButton key={role} disabled={!editable || state.staff.length >= 6 || state.cash < 150} onClick={() => action(restaurant.hire(role))} className="flex-col gap-1 py-3"><UserPlus size={20} /><span>Hire {role}</span><span className="text-xs text-ink/50">$150 + daily wage</span></SmallButton>)}</div><p className="mt-3 text-xs text-ink/60">Chefs need a free workstation. Servers deliver dishes and clear every table automatically.</p></>;
 }
 export function MenuPanel({ state, action }: { state: RestaurantState; action: Action }) {
-  return <>{state.phase === 'service' && <Notice>Use Build → Close for renovation to update tomorrow’s menu.</Notice>}<p className="text-sm text-ink/65">A small menu, made beautifully. Prices above the suggested price may turn guests away.</p><div className="mt-4 space-y-4">{(['salad', 'burger'] as const).map(dish => {
-    const recipe = DISHES[dish], item = state.menu[dish], editable = state.phase === 'planning';
-    return <div key={dish} className="overflow-hidden rounded-2xl border border-ink/10 bg-white/40"><div className={cn('flex items-center gap-3 p-4', dish === 'salad' ? 'bg-[#e1e4c8]' : 'bg-[#f0d4b2]')}><div className="grid size-14 place-items-center rounded-full bg-paper/70">{dish === 'salad' ? <Leaf className="size-8 text-teal" /> : <Flame className="size-8 text-tomato" />}</div><div className="flex-1"><h3 className="text-xl">{recipe.name}</h3><p className="mt-0.5 text-xs font-bold text-ink/55">{recipe.seconds}s prep · {recipe.station === 'prep' ? 'Prep counter' : 'Charcoal grill'}</p></div><Switch aria-label={`Offer ${recipe.name}`} checked={item.enabled} disabled={!editable} onCheckedChange={checked => action(restaurant.setDish(dish, checked, item.price))} /></div><div className="p-4"><p className="mb-4 text-xs leading-relaxed text-ink/65">{recipe.description}</p><div className="flex items-center justify-between"><div><p className="text-[10px] font-extrabold uppercase tracking-widest text-ink/50">Your price</p><p className="font-display text-3xl">{money(item.price)}</p></div><div className="flex gap-2"><SmallButton label={`Lower ${recipe.name} price`} disabled={!editable || item.price <= 10} onClick={() => action(restaurant.setDish(dish, item.enabled, item.price - 2))}><Minus size={16} /></SmallButton><SmallButton label={`Raise ${recipe.name} price`} disabled={!editable || item.price >= 60} onClick={() => action(restaurant.setDish(dish, item.enabled, item.price + 2))}><Plus size={16} /></SmallButton></div></div><div className="mt-3 flex justify-between border-t border-ink/10 pt-3 text-xs"><span>Ingredients {money(recipe.cost)}</span><span className="font-extrabold text-teal">{money(item.price - recipe.cost)} / dish before wages</span></div><p className="mt-2 text-[11px] text-ink/50">Suggested price: {money(recipe.fair)}{item.price > recipe.fair ? ' · Some guests may decline' : ''}</p></div></div>;
-  })}</div></>;
+  const editable = state.phase === 'planning';
+  return <>{state.phase === 'service' && <Notice>Use Build → Close for renovation to update tomorrow’s menu.</Notice>}<p className="text-sm text-ink/65">A small menu, made beautifully. Prices above the suggested price may turn guests away. New appliances in the shop unlock new dishes.</p>
+    {(Object.keys(STYLE_NAMES) as MenuStyle[]).map(style => <section key={style} aria-label={`${STYLE_NAMES[style]} dishes`} className="mt-5">
+      <h3 className="mb-2 text-lg">{STYLE_NAMES[style]}</h3>
+      <div className="space-y-3">{DISH_IDS.filter(dish => DISHES[dish].style === style).map(dish => {
+        const recipe = DISHES[dish], item = state.menu[dish], owned = state.furniture.some(f => f.kind === recipe.station);
+        if (!owned && !item.enabled) return <div key={dish} className="flex items-center gap-3 rounded-2xl border border-dashed border-ink/20 bg-white/20 p-3 text-ink/60"><LockKeyhole size={18} className="shrink-0" aria-hidden /><div className="min-w-0 flex-1"><p className="text-sm font-extrabold">{recipe.name}</p><p className="text-[11px]">Needs a {stationName(recipe.station)} ({money(CATALOG[recipe.station].price)} in the shop)</p></div></div>;
+        return <div key={dish} className="overflow-hidden rounded-2xl border border-ink/10 bg-white/40"><div className="flex items-center gap-3 p-4" style={{ background: `${recipe.tint}33` }}><div className="grid size-14 place-items-center rounded-full bg-paper/70" style={{ color: recipe.tint }}>{recipe.station === 'grill' || recipe.station === 'oven' ? <Flame className="size-8" /> : recipe.station === 'prep' ? <Leaf className="size-8" /> : <Soup className="size-8" />}</div><div className="flex-1"><h4 className="font-display text-xl">{recipe.name}</h4><p className="mt-0.5 text-xs font-bold text-ink/55">{recipe.seconds}s prep · {CATALOG[recipe.station].name}</p></div><Switch aria-label={`Offer ${recipe.name}`} checked={item.enabled} disabled={!editable} onCheckedChange={checked => action(restaurant.setDish(dish, checked, item.price))} /></div><div className="p-4"><p className="mb-4 text-xs leading-relaxed text-ink/65">{recipe.description}</p><div className="flex items-center justify-between"><div><p className="text-[10px] font-extrabold uppercase tracking-widest text-ink/50">Your price</p><p className="font-display text-3xl">{money(item.price)}</p></div><div className="flex gap-2"><SmallButton label={`Lower ${recipe.name} price`} disabled={!editable || item.price <= PRICE_MIN} onClick={() => action(restaurant.setDish(dish, item.enabled, item.price - 2))}><Minus size={16} /></SmallButton><SmallButton label={`Raise ${recipe.name} price`} disabled={!editable || item.price >= PRICE_MAX} onClick={() => action(restaurant.setDish(dish, item.enabled, item.price + 2))}><Plus size={16} /></SmallButton></div></div><div className="mt-3 flex justify-between border-t border-ink/10 pt-3 text-xs"><span>Ingredients {money(recipe.cost)}</span><span className="font-extrabold text-teal">{money(item.price - recipe.cost)} / dish before wages</span></div><p className="mt-2 text-[11px] text-ink/50">Suggested price: {money(recipe.fair)}{item.price > recipe.fair ? ' · Some guests may decline' : ''}</p></div></div>;
+      })}</div>
+    </section>)}</>;
 }
 export function LedgerPanel({ state, action, onReport, focusChallenges = false }: { state: RestaurantState; action: Action; onReport: (day: number) => void; focusChallenges?: boolean }) {
   const today = state.totals;

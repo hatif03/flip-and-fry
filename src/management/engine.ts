@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -231,7 +231,7 @@ export class RestaurantEngine {
   setDish(dish: Dish, enabled: boolean, price: number): string | null {
     if (this.state.phase !== 'planning') return 'Set tomorrow’s menu after closing.';
     if (!enabled && !Object.entries(this.state.menu).some(([key, value]) => key !== dish && value.enabled)) return 'Keep at least one dish on the menu.';
-    this.state.menu[dish] = { enabled, price: Math.max(10, Math.min(60, Math.round(price))) }; this.record({ tick: 0, kind: 'dish', dish, enabled, price: this.state.menu[dish].price }); this.changed(); return null;
+    this.state.menu[dish] = { enabled, price: Math.max(PRICE_MIN, Math.min(PRICE_MAX, Math.round(price))) }; this.record({ tick: 0, kind: 'dish', dish, enabled, price: this.state.menu[dish].price }); this.changed(); return null;
   }
   expand(): string | null {
     if (this.state.phase !== 'planning') return 'Build the extension before opening.';
@@ -256,7 +256,7 @@ export class RestaurantEngine {
   readiness(): string[] {
     const errors: string[] = [];
     if (!capacity(this.state)) errors.push('Build at least one bistro table.');
-    for (const dish of ['salad', 'burger'] as const) if (this.state.menu[dish].enabled && !this.state.furniture.some(f => f.kind === DISHES[dish].station)) errors.push(`Add a ${DISHES[dish].station === 'prep' ? 'prep counter' : 'grill'} for ${DISHES[dish].name.toLowerCase()}, or remove it from the menu.`);
+    for (const dish of DISH_IDS) if (this.state.menu[dish].enabled && !this.state.furniture.some(f => f.kind === DISHES[dish].station)) errors.push(`Add a ${stationName(DISHES[dish].station)} for ${DISHES[dish].name.toLowerCase()}, or remove it from the menu.`);
     if (this.state.cash < this.operatingCost() + 30) errors.push(`Keep $${this.operatingCost() + 30} for wages, rent and starting ingredients.`);
     const layout = layoutError(this.state.furniture, width(this.state)); if (layout) errors.push(layout);
     return errors;
@@ -302,7 +302,7 @@ export class RestaurantEngine {
     const s = this.state; if (s.phase !== 'service') return 'The doors are closed.';
     const guest = s.guests.find(g => g.id === guestId); if (!guest || guest.stage !== 'waiting') return 'That ticket is already being cooked.';
     if (s.guests.some(g => g.owner)) return 'Finish the dish you are cooking first.';
-    const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + (DISHES[guest.dish].station === 'prep' ? 'prep counter' : 'grill') + ' is busy.';
+    const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + stationName(DISHES[guest.dish].station) + ' is busy.';
     const cost = dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
     guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost;
     this.record({ tick: this.tickCount(), kind: 'claimTicket', guestId }); this.changed(`You are cooking ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
@@ -343,7 +343,7 @@ export class RestaurantEngine {
       if (!selected && !s.dirty.includes(`${table.id}:${seat}`) && !s.guests.some(g => g.tableId === table.id && g.seat === seat && g.stage !== 'leaving')) selected = { table, seat };
     }
     if (!selected) { s.totals.missed++; this.event = 'A guest found no free seat. More tables or faster clearing would help.'; return; }
-    const dishes = (['salad', 'burger'] as const).filter(dish => s.menu[dish].enabled);
+    const dishes = DISH_IDS.filter(dish => s.menu[dish].enabled);
     const fx = this.fx;
     let dish = dishes[Math.floor(this.random() * dishes.length)]; if (!dish) return;
     // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.

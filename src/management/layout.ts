@@ -11,7 +11,7 @@ export function localPoint(item: Furniture, x: number, z: number): Point {
 }
 export function accessPoints(item: Furniture): Point[] {
   if (item.kind === 'table') return [localPoint(item, 0, 2), localPoint(item, 1, 2)];
-  if (item.kind === 'prep' || item.kind === 'grill') return [localPoint(item, 0, 1)];
+  if (CATALOG[item.kind].category === 'Kitchen') return [localPoint(item, 0, 1)];
   return [];
 }
 export const seatPoint = (item: Furniture, seat: number): Point => localPoint(item, seat === 0 ? .08 : .92, 1.05);
