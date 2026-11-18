@@ -29,7 +29,7 @@ export function postContent(date: string) {
     headline,
     title: `Today on the roof · ${formatDate(date)}`,
     // postData is limited to 2 KB and is readable by the splash with no server call.
-    postData: { date, headline: headline.id, title: headline.title },
+    postData: { date, headline: headline.id, title: headline.title, blurb: headline.blurb },
     textFallback: `# Flip and Fry — ${formatDate(date)}\n\n**${headline.title}**\n\n${headline.blurb}\n\nOpen this post in the Reddit app or on new Reddit to run your rooftop restaurant. Today's headline changes the whole night, and your restaurant is still there tomorrow.`,
   };
 }

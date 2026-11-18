@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The inline card and the app icon
+
+**Why:** plan sections 11 and 13.6. The feed card is the first thing anyone sees, and the listing needs a square icon under 500 KB.
+
+**What changed:**
+- **The splash now tells today's story from the post itself.** `src/client/splash-text.ts` builds the eyebrow (date), the headline title and its blurb from the post's own data (`context.postData`), so the card needs no server call and nothing to load. The daily post's data gained the `blurb` (still well under 400 bytes of the 2 KB limit; a test checks all seven weekdays). A kitchen post shows the kitchen's name and "stop by as a guest". Missing or odd data falls back to the plain card, and every value is set as text. The old placeholder round trip to `/api/init` is gone. The card has the pixel icon, the pixel typeface (a Latin-only Pixelify Sans face, about 8 KB), square edges and the same hard-shadow button as the game.
+- **The icon** (`public/icon-pixel.png`, 1024 px, 8 KB) is the existing chef-hat icon reduced to a 64 by 64 grid in the game's own colours (`tools/make-icon.mjs`), and is set as `marketingAssets.icon` in `devvit.json`. The original is 1.1 MB, over the 500 KB limit, so it moved out of `public/` (it was being shipped to every player) to `tools/source/icon-original.png`.
+
+**For the author to look at:** the pixel icon is a mechanical reduction, so a few specks of shading remain on the hat; redrawing it by hand with Codixel is the preview-first step the plan calls for, and `tools/make-icon.mjs` is the placeholder until then. The original icon's origin is listed as "to confirm" in `docs/assets-provenance.md`.
+
+**Needs Reddit to confirm:** that `context.postData` is populated in the inline entry (the code falls back cleanly if not), and the card on a real feed.
+
+**Code:** `src/client/{splash.html,splash.css,splash.ts,splash-text.ts}`, `src/server/core/daily-post.ts`, `devvit.json`, `tools/make-icon.mjs`; tests in `src/test/splash-text.test.ts`.
+
 ## 2026-11-19 — The pixel look reaches the interface (first part of the UI kit)
 
 **Why:** plan section 13.5. The 3D scene was pixelated and the cards, buttons and headings around it were soft and rounded, which read as two different games.

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { createDailyHeadline } from '@/management/daily-headline';
 import { CLAIM_STALE_MS, POSTS_KEY, postContent, rollDay, type PostApi } from '@/server/core/daily-post';
 import { FakeStore } from './fake-store';
 
@@ -77,7 +78,7 @@ describe('failures', () => {
 describe('post content', () => {
   it('carries the headline in postData (under 2 KB) so the splash needs no server call', () => {
     const c = postContent(DATE);
-    expect(c.postData).toEqual({ date: DATE, headline: 'rain', title: 'Rain on the roof' }); expect(JSON.stringify(c.postData).length).toBeLessThan(2048);
+    expect(c.postData).toEqual({ date: DATE, headline: 'rain', title: 'Rain on the roof', blurb: createDailyHeadline(DATE).blurb }); expect(JSON.stringify(c.postData).length).toBeLessThan(2048);
     expect(c.title).toBe('Today on the roof · Wed 9 Dec');
   });
   it('has a text fallback for old Reddit and search that names the date and headline and never mentions Reddit branding', () => {

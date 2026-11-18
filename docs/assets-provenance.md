@@ -31,3 +31,9 @@ All of these files were once loaded from remote URLs and were copied into `publi
 ## Not used
 
 No payments, no outside HTTP, no blob storage, no remote fonts or images, no user-supplied images.
+
+## Added later
+
+| File | What | Origin | To confirm |
+|---|---|---|---|
+| `public/icon-pixel.png` | App icon and apple-touch icon | Reduced by `tools/make-icon.mjs` from `tools/source/icon-original.png` (not shipped) | Where the original icon came from, and whether it was generated |
