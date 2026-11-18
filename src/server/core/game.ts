@@ -5,6 +5,7 @@ import { houseStyle } from '../../management/social';
 import { evaluateStars, packScore } from '../../management/stars';
 import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
 import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse } from '../../shared/api';
+import { pendingBonus, spendBonus } from './arcade';
 import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
 
@@ -92,11 +93,13 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
   const log = actionLogSchema.safeParse(actions); if (!log.success) return fail(400, 'Invalid action log.');
   const loaded = await loadPark(deps, user); if ('status' in loaded) return loaded;
   let snapshot: RestaurantState | null = null;
+  const bonus = await pendingBonus(deps, user); // research earned in the Test Kitchen, applied once with this open
   const result = await casUpdate<Park>(deps.store, keys.park(user.id), current => {
     const park = current ?? loaded;
     if (park.rev !== rev) return { error: 'Your restaurant changed in another tab. Reload to continue.' };
     const applied = applyPlanning(park.state, log.data);
     if ('error' in applied) return { error: applied.error };
+    applied.state.research.points += bonus;
     const blocked = openError(applied.state);
     if (blocked) return { error: blocked };
     snapshot = applied.state;
@@ -104,6 +107,7 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
   }, { ttlSeconds: TTL.park, now: deps.now });
   if ('error' in result) return casFail(result);
   if (!snapshot) return fail(400, 'Could not open.');
+  await spendBonus(deps, user, bonus);
   // Neighbors who have the post open come over. They live only in this service's snapshot: the park itself never holds them.
   snapshot = { ...(snapshot as RestaurantState), visitors: await pickVisitors(deps, user.id) };
   const entry: StoredOpen = { snapshot, parkRev: result.value.rev, openedAt: deps.now() };

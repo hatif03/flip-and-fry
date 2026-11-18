@@ -36,3 +36,14 @@ describe('keeping the Test Kitchen on the server', () => {
     await connectArcade(http); expect(saveProgress({ solo: [1, 0, 0], coop: [0, 0, 0] })).toBe(true); expect(saveOutfits(emptyArcade().outfits)).toBe(true);
   });
 });
+
+describe('the research bonus message', () => {
+  it('tells the player once a save earned research, and says nothing otherwise', async () => {
+    const earned: number[] = []; let bonus = 5;
+    const reply: Http = async (method) => method === 'GET' ? { status: 200, body: serverSave } : { status: 200, body: { bonus } };
+    const { flush } = await connectArcade(reply, 600, n => earned.push(n));
+    saveProgress({ solo: [180, 0, 0], coop: [0, 0, 0] }); await flush(); expect(earned).toEqual([5]);
+    bonus = 0; saveProgress({ solo: [190, 0, 0], coop: [0, 0, 0] }); await flush(); expect(earned).toEqual([5]);
+    bonus = 'x' as unknown as number; saveProgress({ solo: [195, 0, 0], coop: [0, 0, 0] }); await flush(); expect(earned).toEqual([5]);
+  });
+});

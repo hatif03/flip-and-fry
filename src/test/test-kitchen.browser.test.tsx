@@ -113,3 +113,13 @@ describe('the controls are plain React', () => {
     const screen = await render(<TouchControls />); await expect.element(screen.getByTestId('touch-controls')).toBeInTheDocument();
   });
 });
+
+describe('today\'s shift', () => {
+  it('offers the shift the date picked and starts it in one tap', async () => {
+    const { shiftOfDay } = await import('@/arcade/daily-shift'); const { SHIFTS } = await import('@/game/config');
+    const level = shiftOfDay(new Date().toISOString().slice(0, 10), l => engine.unlocked(l, 'solo'));
+    const screen = await render(<TestKitchen onExit={() => undefined} touch={false} />);
+    const card = screen.getByRole('button', { name: `Play today's shift: ${SHIFTS[level].name}` }); await expect.element(card).toBeVisible();
+    await card.click(); expect(engine.state.phase).toBe('playing'); expect(engine.state.level).toBe(level); expect(engine.state.mode).toBe('solo'); expect(engine.state.practice).toBe(false);
+  });
+});

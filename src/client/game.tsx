@@ -35,7 +35,7 @@ async function boot(): Promise<void> {
     const error = await session.start();
     if (error) { show(error, () => void boot()); return; }
     // The Test Kitchen's scores live on the server too. Set before the kitchen code loads; a failure only means it starts empty.
-    const arcade = await connectArcade(http);
+    const arcade = await connectArcade(http, 600, points => { void import('sonner').then(({ toast }) => toast(`The Test Kitchen earned +${points} research. It is added when you next open the doors.`)); });
     // Changes are batched for under a second; make sure the last ones leave before the tab is hidden.
     document.addEventListener('visibilitychange', () => { if (document.hidden) void session.flush(); });
     window.addEventListener('pagehide', () => { void session.flush(); void arcade.flush(); });

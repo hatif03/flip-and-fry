@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The Test Kitchen feeds the restaurant: a research bonus, and today's shift
+
+**Why:** plan section 7.2. The hands-on kitchen and the tycoon should reward each other, and the Test Kitchen needs a reason to open it today.
+
+**Research bonus.** A newly earned star in the Test Kitchen is worth 5 research points, at most 10 a day, once per UTC day. The server counts stars from the saved bests (`totalStars`, the arcade's own thresholds), so only a score that earns a **new** star pays, and a lower or repeated score never does. The points wait in Redis (`arcade-pending:{uid}`) and go into the park **at the player's next Open**, inside the same save that opens the night. That choice matters: changing the park from outside would bump its revision and make the client's next save look like another tab; applying it at Open keeps one writer. The snapshot the server replays already contains the points, so the night is verifiable, and if the Open fails the bonus is kept for the next one. The client tells the player with a toast ("The Test Kitchen earned +5 research").
+
+**Bounded trust:** the arcade is not replayed on the server, so the bonus is small by design (at most 10 a day, and at most 18 stars' worth in a lifetime), and it never touches cash, stars, the leaderboard or the streak.
+
+**Today's shift.** The menu has a "Today's shift" button: the date picks one of the three shifts, so everyone is offered the same one, and it is never one the player has not unlocked. One tap starts it, solo. It is a shared suggestion, not a ranking.
+
+**Changed from the plan:** the plan said stars also "unlock staff cloth colors". The cloth is already unlocked by the research meter (see the research entry), so the stars feed that meter instead of a second unlock path.
+
+**Code:** `src/game/arcade-save.ts` (`totalStars`), `src/server/core/arcade.ts` (`pendingBonus`, `spendBonus`), `game.ts` (`openService`), `src/client/arcade-sync.ts`, `src/arcade/{daily-shift,DailyShiftCard,TestKitchen}`; tests in `arcade-bonus.test.ts`, `arcade-sync.test.ts` and `test-kitchen.browser.test.tsx`.
+
 ## 2026-11-19 — The tomorrow card, and the submission package text
 
 **Why:** plan section 10 (a tomorrow card with tomorrow's headline and the next research unlock gives a reason to come back) and section 16 (the Devpost text, the demo shot list and the hand-over list).

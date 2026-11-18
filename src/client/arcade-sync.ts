@@ -7,7 +7,7 @@ import type { Http } from './session';
  * is built from the server's copy. Saves are small and batched; a failed save is retried the next time anything changes or the tab
  * is hidden, and never blocks play (the scores stay in memory for the session).
  */
-export async function connectArcade(http: Http, wait = 600): Promise<{ flush: () => Promise<void> }> {
+export async function connectArcade(http: Http, wait = 600, onBonus: (points: number) => void = () => undefined): Promise<{ flush: () => Promise<void> }> {
   let cache = emptyArcade(), dirty = false, timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const r = await http('GET', '/api/arcade');
@@ -17,7 +17,10 @@ export async function connectArcade(http: Http, wait = 600): Promise<{ flush: ()
   const flush = async (): Promise<void> => {
     clearTimeout(timer); if (!dirty) return;
     dirty = false;
-    try { const r = await http('POST', '/api/arcade', cache); if (r.status !== 200) dirty = true; } catch { dirty = true; }
+    try {
+      const r = await http('POST', '/api/arcade', cache); if (r.status !== 200) dirty = true;
+      else { const bonus = (r.body as { bonus?: unknown } | null)?.bonus; if (typeof bonus === 'number' && bonus > 0) onBonus(bonus); }
+    } catch { dirty = true; }
   };
   const queue = (): void => { dirty = true; clearTimeout(timer); timer = setTimeout(() => void flush(), wait); };
   setArcadeDriver({

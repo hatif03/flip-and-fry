@@ -20,7 +20,7 @@ describe('the Test Kitchen save', () => {
     good(await saveArcade(deps, alice, save([300, 200, 100], [50, 0, 0], 'cream')));
     const after = good(await saveArcade(deps, alice, save([100, 400, 0], [0, 0, 0], 'gold')));
     expect(after.progress).toEqual({ solo: [300, 400, 100], coop: [50, 0, 0] }); expect(after.outfits[0].hat).toBe('gold');
-    expect(good(await loadArcade(deps, alice))).toEqual(after);
+    expect(good(await loadArcade(deps, alice))).toEqual({ progress: after.progress, outfits: after.outfits });
   });
   it('refuses scores that cannot be right, and saves nothing', async () => {
     for (const body of [save([ARCADE_MAX_SCORE + 1, 0, 0]), save([-1, 0, 0]), save([1.5, 0, 0]), save([1, 2]), { progress: { solo: [0, 0, 0] } }, save([0, 0, 0], [0, 0, 0], 'neon'), null, 'x'])
