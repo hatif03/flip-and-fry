@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The soundtrack is generated, and the rain layer rides the same switch
+
+**Why:** plan section 14 and spike S9. The old soundtrack was a 720 KB MP3 of unknown origin (see `docs/assets-provenance.md`), and a single track cannot follow the weather. A bed made with the Web Audio API has no file, no provenance question, and can react.
+
+**What it is** (`src/audio/score.ts`, `src/audio/mixer.ts`):
+- A four-bar loop in F at 76 beats a minute: a pad of warm seventh chords, a slow bass, and a small pluck pattern on top, written as data (`notesAt(step, service)`), so it is tested without any audio. During service a very soft tick runs under it.
+- **Rain** is a looped, filtered noise bed. When the weather is rain (from the headline on Reddit) it comes in and the music steps back to 60%, so the weather is heard without a second track.
+- **Mute rules** (all through one master gain, so nothing can be left playing): nothing is created or played before the player's first tap or key press; the one existing "Rooftop soundtrack" switch turns both layers off; pausing the service is silent; hiding the tab suspends the audio context and stops scheduling, and showing it again resumes. Notes are scheduled a third of a second ahead from the audio clock, never from timers, and the noise is a fixed pattern rather than `Math.random`, so a room sounds the same each time.
+- It replaces the `<audio>` element that played `music.mp3` in the restaurant view. The Test Kitchen's own audio (`src/game/audio.ts`) is unchanged for now, so the MP3s stay in `public/` until the optimization pass decides what to do with them.
+
+**Refused:** a second set of controls (the existing switch is enough), and per-weather tracks (a bed that follows the weather is cheaper and simpler than three loops).
+
+**Needs a phone to confirm:** that the tone is pleasant at phone speaker volume and that audio resumes after the app returns from the background in the Reddit apps. The mute-on-hide logic is tested; the listening is not.
+
+**Code:** `src/audio/`, `src/management/ManagementGame.tsx`; tests in `src/test/audio.test.ts` (19, with a fake audio context).
+
 ## 2026-11-19 — The README, asset provenance and Devvit feedback notes
 
 **Why:** the rules require a README in the repository root, and the plan asks for provenance and feedback notes to be kept as they happen, not reconstructed at the end.

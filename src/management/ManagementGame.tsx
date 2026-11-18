@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { AUDIO } from '@/game/assets';
+import { Mixer } from '@/audio/mixer';
 import { GOALS, restaurant } from './engine';
 import { placementError } from './layout';
 import { CATALOG, DAY_LENGTH, capacity, comfort, width, type Furniture, type FurnitureKind, type Point } from './types';
@@ -48,7 +48,7 @@ export default function ManagementGame({ onTestKitchen }: { onTestKitchen?: () =
   const [weatherKind, setWeatherKind] = useState<WeatherKind>('sunset');
   const reportIndex = state.history.findIndex(report => report.day === reportDay);
   const displayedReport = state.history[reportIndex];
-  const music = useRef<HTMLAudioElement | null>(null);
+  const mixer = useRef<Mixer | null>(null);
   const action = useCallback((error: string | null) => { if (error) toast.error(error); }, []);
   const form = useForm<z.infer<typeof nameSchema>>({ resolver: zodResolver(nameSchema), defaultValues: { name: state.name } });
   const editable = state.phase === 'planning';
@@ -69,14 +69,14 @@ export default function ManagementGame({ onTestKitchen }: { onTestKitchen?: () =
     document.addEventListener('visibilitychange', visibility); window.addEventListener('pagehide', save); window.addEventListener('pageshow', restore);
     return () => { document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', save); window.removeEventListener('pageshow', restore); restaurant.suspend(); };
   }, []);
+  // The soundtrack is made while it plays. It starts only after the first tap, stops when the tab is hidden, and follows the one speaker switch.
   useEffect(() => {
-    const audio = new Audio(AUDIO.music); audio.loop = true; audio.volume = .2; music.current = audio;
-    const unlock = () => { if (restaurant.state.music && !restaurant.paused && !document.hidden) void audio.play().catch(() => undefined); };
-    const visibility = () => { if (document.hidden) audio.pause(); };
-    document.addEventListener('pointerdown', unlock); document.addEventListener('visibilitychange', visibility);
-    return () => { audio.pause(); audio.src = ''; music.current = null; document.removeEventListener('pointerdown', unlock); document.removeEventListener('visibilitychange', visibility); };
+    const m = new Mixer(); mixer.current = m;
+    const unlock = (): void => m.unlock(), visibility = (): void => m.setHidden(document.hidden);
+    document.addEventListener('pointerdown', unlock); document.addEventListener('keydown', unlock); document.addEventListener('visibilitychange', visibility); visibility();
+    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', unlock); document.removeEventListener('visibilitychange', visibility); m.dispose(); mixer.current = null; };
   }, []);
-  useEffect(() => { if (!music.current) return; if (state.music && !paused) void music.current.play().catch(() => undefined); else music.current.pause(); }, [state.music, paused]);
+  useEffect(() => { mixer.current?.set({ music: state.music, weather: weatherKind, service: state.phase === 'service', paused }); }, [state.music, weatherKind, state.phase, paused]);
   const rotateDraft = useCallback(() => setDraft(current => current ? { ...current, rotation: (current.rotation + 1) % 4 } : null), []);
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
