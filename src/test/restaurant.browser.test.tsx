@@ -70,11 +70,15 @@ it('keeps every navigation control and all top metrics inside a 320px phone', as
 it('renames with validation and requires explicit confirmation before reset', async () => {
   const screen = await render(<><ManagementGame /><Toaster /></>);
   await screen.getByRole('button', { name: 'Restaurant settings' }).click();
+  const before = restaurant.state.name;
+  // The name is the only free text in the game, so it is limited to letters, numbers, spaces and apostrophes.
   await screen.getByLabelText('Restaurant name').fill('Juniper & Friends');
-  await screen.getByRole('button', { name: 'Save', exact: true }).click(); expect(restaurant.state.name).toBe('Juniper & Friends');
+  await screen.getByRole('button', { name: 'Save', exact: true }).click(); expect(restaurant.state.name).toBe(before);
+  await screen.getByLabelText('Restaurant name').fill("Juniper's Friends");
+  await screen.getByRole('button', { name: 'Save', exact: true }).click(); expect(restaurant.state.name).toBe("Juniper's Friends");
   await screen.getByRole('button', { name: 'Start a new restaurant', exact: true }).click();
-  expect(restaurant.state.name).toBe('Juniper & Friends');
-  await screen.getByRole('button', { name: 'Keep my restaurant' }).click(); expect(restaurant.state.name).toBe('Juniper & Friends');
+  expect(restaurant.state.name).toBe("Juniper's Friends");
+  await screen.getByRole('button', { name: 'Keep my restaurant' }).click(); expect(restaurant.state.name).toBe("Juniper's Friends");
 });
 it('shows real closing numbers and pays milestones only once', async () => {
   const screen = await render(<ManagementGame />);

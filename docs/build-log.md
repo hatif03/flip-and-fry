@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Client shell: the existing game on top of the server (start of P4)
+
+`src/client/game.tsx` now loads today's data first (a plain loading and retry screen), then mounts the existing game. `src/client/session.ts` connects the engine to `/api`: it queues the engine's planning actions and saves them in batches with the park revision, opens and closes services through the server, plays the engine's live run as a **preview**, and adopts the server's park whenever the preview disagrees with the replay or another tab won a race. The engine gained `onAction` (reports each accepted planning change), `adopt` (take the server's state), `detach` (stop `localStorage`) and a `remote` hook; `closeEarly` and `reset` are refused in remote mode because the server would not know about them.
+
+- **The property that makes this safe, tested:** the actions a live engine emits reproduce exactly the same state, including the ids of purchased furniture, when the server applies them (`engine-actions.test.ts`).
+- **End to end, in Node:** `session.test.ts` runs the real session against the real server rules behind a fake network: batching, a stale tab, a failed open that keeps the player's changes, reloading mid-service (the same night replays bit for bit), and a lock conflict.
+- **Two real bugs those tests caught:** the session armed its finish watcher before the doors were open, so adopting the closed snapshot made it lock a service the moment it opened; and after a lost lock race the stale open entry stayed on the server, so a reload re-entered a service that could never close (the server now drops an abandoned service).
+- **UI:** a daily bar (date, headline, streak, kitchens closed tonight) and one result card (stars, the goal, two of three challenges, the numbers, official or practice, streak, tomorrow). The header says Flip and Fry. Settings text no longer claims the restaurant is saved in the browser, and "start a new restaurant" and "stop new arrivals" are hidden on Reddit.
+- **The restaurant name is now limited to letters, numbers, spaces and apostrophes** (28 characters), as the plan says. The old browser test that used an ampersand was updated and now asserts the rejection.
+- **Tooling note:** a long-running `devvit playtest` crashed with a file-watch permission error (Windows `EPERM` on `dist/`) when I rebuilt into `dist/` while it ran. Do not run `vite build` while a playtest session is up; use `devvit upload` to push a version.
+
+Tests: 590 unit, 138 browser (6 new for the Reddit layer), all passing. Not done yet in P4: collapsing the dock while the doors are open, journeys, and running this on a phone (spike S1).
+
+Devvit or third party: none new.
+Code or plan: `src/client/*`, `src/management/RedditLayer.tsx`, `src/management/engine.ts`, plan sections 9, 11 and 12.
+
 ## 2026-11-18 — Server: park, open, lock, streak (gate G4)
 
 `src/server/core/game.ts` holds the rules and `src/server/core/store.ts` the `Store` interface they talk to; `src/server/routes/api.ts` wires them to Hono and to Devvit's real `redis` (the assignment type-checks, so the interface matches the client). Routes: `GET /api/today`, `POST /api/save`, `POST /api/open`, `POST /api/lock`.

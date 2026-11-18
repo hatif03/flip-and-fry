@@ -1,2 +1,39 @@
-// The expanded entry is the existing game. main.tsx mounts <App /> on #root.
-import '../main';
+import { restaurant } from '../management/engine';
+import { Session, type Http } from './session';
+
+/** The expanded entry. It loads today's park from the server first, then mounts the existing game on top of it. */
+const http: Http = async (method, path, body) => {
+  const response = await fetch(path, { method, headers: body === undefined ? undefined : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  return { status: response.status, body: await response.json().catch(() => null) };
+};
+
+const root = document.getElementById('root')!;
+function show(message: string, retry?: () => void): void {
+  root.replaceChildren();
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;display:grid;place-content:center;gap:14px;padding:24px;text-align:center;background:#224F4A;color:#FFF2D7;font:700 16px system-ui,sans-serif';
+  const text = document.createElement('p'); text.textContent = message; text.style.margin = '0'; text.setAttribute('role', 'status');
+  box.append(text);
+  if (retry) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Try again';
+    button.style.cssText = 'min-height:48px;min-width:160px;border:0;border-radius:12px;background:#DC533C;color:#FFF2D7;font:800 16px system-ui,sans-serif;cursor:pointer';
+    button.addEventListener('click', retry); box.append(button);
+  }
+  root.append(box);
+}
+
+async function boot(): Promise<void> {
+  show('Opening the doors…');
+  try {
+    const session = new Session(restaurant, http);
+    const error = await session.start();
+    if (error) { show(error, () => void boot()); return; }
+    // Changes are batched for under a second; make sure the last ones leave before the tab is hidden.
+    document.addEventListener('visibilitychange', () => { if (document.hidden) void session.flush(); });
+    window.addEventListener('pagehide', () => void session.flush());
+    await import('../main');
+  } catch {
+    show('Could not reach your restaurant. Check your connection.', () => void boot());
+  }
+}
+void boot();
