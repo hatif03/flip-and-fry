@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "codixel": {
+      "source": "mankidev/codixel",
+      "commit": "604a9dcbcc4e386bc48188b5f7f49099f5d04db7",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "988484411f436552b5e08d09ea183279164a88042aa99f7c58b48501517aa591"
+    }
+  }
+}
