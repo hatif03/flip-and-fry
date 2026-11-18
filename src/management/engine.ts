@@ -4,6 +4,8 @@ import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } fr
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
 import type { CashReceipt } from './cash-feedback';
+import type { Action } from './actions';
+import type { LockResponse, TodayResponse } from '../shared/api';
 
 export const GOALS = [
   { id: 'first-service', title: 'A warm welcome', text: 'Serve your first 5 guests', target: 5, reward: 180, value: (s: RestaurantState) => s.lifetimeServed },
@@ -13,6 +15,14 @@ export const GOALS = [
 ];
 /** Exact business results computed while the owner was away, not an idle-income estimate. */
 export interface AwaySummary { seconds: number; days: number; served: number; cashChange: number; challengeBonus: number; }
+/** Set by the Reddit client. Services open and close through the server, which owns the park and replays every service. */
+export interface RemoteSession {
+  open(): Promise<string | null>;
+  readonly today: TodayResponse | null;
+  /** The server's receipt for the service that just closed, until the player dismisses it. */
+  result: LockResponse | null;
+  dismissResult(): void;
+}
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };
 const seatKey = (g: Pick<Guest, 'tableId' | 'seat'>): string => `${g.tableId}:${g.seat}`;
@@ -35,6 +45,18 @@ export class RestaurantEngine {
   set paused(value: boolean) { this.state.isPaused = value; }
   /** When false, finish() stops at the receipt with the doors closed instead of opening the next day. */
   autoRoll = true;
+  /** Called with every planning change the engine accepts, so the Reddit client can queue it for the server. */
+  onAction: ((action: Action) => void) | null = null;
+  remote: RemoteSession | null = null;
+  private detached = false;
+  private record(action: Action): void { if (!this.catchingUp) this.onAction?.(action); }
+  /** Stop reading and writing localStorage. On Reddit the park lives in Redis; the iframe URL changes on every upload. */
+  detach(): void { this.detached = true; }
+  /** Replace the whole state with one the server sent (the server checked it; it is checked again here). */
+  adopt(state: RestaurantState): void {
+    this.state = restaurantSchema.parse(state) as RestaurantState;
+    this.accumulator = 0; this.incomeReceipts = []; this.awaySummary = null; this.catchingUp = false; this.loadWarning = ''; this.saveFailed = false; this.notify();
+  }
   catchingUp = false;
   catchUpProgress = 0;
   awaySummary: AwaySummary | null = null;
@@ -76,6 +98,7 @@ export class RestaurantEngine {
   getSnapshot = (): number => this.revision;
   notify = (): void => { this.revision++; this.listeners.forEach(listener => listener()); };
   save = (replaceUnreadable = false): boolean => {
+    if (this.detached) return true;
     if (this.loadWarning && !replaceUnreadable) return false;
     if (!this.backgrounded && !this.catchingUp) this.state.lastActiveAt = Math.max(this.state.lastActiveAt, this.now());
     try { this.storage?.setItem(SAVE_KEY, JSON.stringify(this.state)); this.saveFailed = false; this.loadWarning = ''; return true; }
@@ -166,7 +189,7 @@ export class RestaurantEngine {
     const error = placementError(this.state, item); if (error) return error;
     if (existing) Object.assign(existing, item);
     else { this.state.cash -= CATALOG[item.kind].price; this.state.furniture.push({ ...item, id: this.state.nextId++ }); }
-    this.relocateStaff(); this.changed(`${CATALOG[item.kind].name} ${existing ? 'moved' : 'built'}. A little more you.`); return null;
+    this.relocateStaff(); this.record({ tick: 0, kind: 'place', item: { id: item.id, kind: item.kind, x: item.x, z: item.z, rotation: item.rotation } }); this.changed(`${CATALOG[item.kind].name} ${existing ? 'moved' : 'built'}. A little more you.`); return null;
   }
   sell(id: number): string | null {
     if (this.state.phase !== 'planning') return 'Wait until closing to sell furniture.';
@@ -174,7 +197,7 @@ export class RestaurantEngine {
     if (this.state.furniture.length === 1) return 'Keep at least one piece of furniture.';
     this.state.furniture = this.state.furniture.filter(f => f.id !== id); this.state.cash += Math.floor(CATALOG[item.kind].price * .7);
     this.recordIncome(Math.floor(CATALOG[item.kind].price * .7), 'sale');
-    this.relocateStaff(); this.changed('Sold for 70% of the original price.'); return null;
+    this.relocateStaff(); this.record({ tick: 0, kind: 'sell', id }); this.changed('Sold for 70% of the original price.'); return null;
   }
   hire(role: Role): string | null {
     if (this.state.phase !== 'planning') return 'Hire before opening for the day.';
@@ -183,46 +206,46 @@ export class RestaurantEngine {
     const names = role === 'chef' ? ['Basil', 'Miso', 'Clover', 'Pepper', 'Sage', 'Olive'] : ['Pip', 'Hazel', 'Maple', 'Coco', 'Fern', 'Juniper'];
     const name = names.find(n => !this.state.staff.some(s => s.name === n)) ?? names[0];
     this.state.cash -= 150; this.state.staff.push({ id: this.state.nextId++, name, role, level: 1, ...entrance, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 });
-    this.changed(`${name} joined your team. Welcome aboard!`); return null;
+    this.record({ tick: 0, kind: 'hire', role }); this.changed(`${name} joined your team. Welcome aboard!`); return null;
   }
   train(id: number): string | null {
     const staff = this.state.staff.find(s => s.id === id);
     if (this.state.phase !== 'planning' || !staff) return 'Train staff between service days.';
     if (staff.level === 3) return 'Already fully trained.';
     const cost = 180 * staff.level; if (this.state.cash < cost) return `Training costs $${cost}.`;
-    this.state.cash -= cost; staff.level++; this.changed(`${staff.name} is now level ${staff.level}. Faster service, happier guests.`); return null;
+    this.state.cash -= cost; staff.level++; this.record({ tick: 0, kind: 'train', id }); this.changed(`${staff.name} is now level ${staff.level}. Faster service, happier guests.`); return null;
   }
   dismiss(id: number): string | null {
     const member = this.state.staff.find(s => s.id === id);
     if (!member || this.state.phase !== 'planning') return 'Manage your team before opening.';
     if (this.state.staff.filter(s => s.role === member.role).length <= 1) return 'Keep at least one chef and one server.';
-    this.state.staff = this.state.staff.filter(s => s.id !== id); this.changed(`${member.name} has left the team.`); return null;
+    this.state.staff = this.state.staff.filter(s => s.id !== id); this.record({ tick: 0, kind: 'dismiss', id }); this.changed(`${member.name} has left the team.`); return null;
   }
   setDish(dish: Dish, enabled: boolean, price: number): string | null {
     if (this.state.phase !== 'planning') return 'Set tomorrow’s menu after closing.';
     if (!enabled && !Object.entries(this.state.menu).some(([key, value]) => key !== dish && value.enabled)) return 'Keep at least one dish on the menu.';
-    this.state.menu[dish] = { enabled, price: Math.max(10, Math.min(60, Math.round(price))) }; this.changed(); return null;
+    this.state.menu[dish] = { enabled, price: Math.max(10, Math.min(60, Math.round(price))) }; this.record({ tick: 0, kind: 'dish', dish, enabled, price: this.state.menu[dish].price }); this.changed(); return null;
   }
   expand(): string | null {
     if (this.state.phase !== 'planning') return 'Build the extension before opening.';
     if (this.state.expanded) return 'Your terrace is already expanded.';
     if (this.state.history.length < 3) return 'Complete 3 service days to unlock the east terrace.';
     if (this.state.cash < 900) return 'The east terrace costs $900.';
-    this.state.cash -= 900; this.state.expanded = true; this.changed('The east terrace is yours. Forty new tiles, endless possibilities.'); return null;
+    this.state.cash -= 900; this.state.expanded = true; this.record({ tick: 0, kind: 'expand' }); this.changed('The east terrace is yours. Forty new tiles, endless possibilities.'); return null;
   }
   claim(id: string): string | null {
     const goal = GOALS.find(g => g.id === id);
     if (!goal || this.state.claimed.includes(id) || goal.value(this.state) < goal.target) return 'Complete this milestone first.';
-    this.state.claimed.push(id); this.state.cash += goal.reward; this.recordIncome(goal.reward, 'milestone'); this.changed(`Milestone complete: ${goal.title}. +$${goal.reward}`); return null;
+    this.state.claimed.push(id); this.state.cash += goal.reward; this.recordIncome(goal.reward, 'milestone'); this.record({ tick: 0, kind: 'claim', id }); this.changed(`Milestone complete: ${goal.title}. +$${goal.reward}`); return null;
   }
   loan(): string | null {
     if (this.state.phase !== 'planning' || this.state.cash >= 200 || this.state.debt > 0) return 'A $600 recovery loan is available below $200, with no existing loan.';
-    this.state.cash += 600; this.state.debt = 600; this.recordIncome(600, 'loan'); this.changed('Recovery loan received. $30 is repaid after each day, with no interest.'); return null;
+    this.state.cash += 600; this.state.debt = 600; this.recordIncome(600, 'loan'); this.record({ tick: 0, kind: 'loan' }); this.changed('Recovery loan received. $30 is repaid after each day, with no interest.'); return null;
   }
-  rename(name: string): void { this.state.name = name.trim().slice(0, 28) || 'Little Rooftop'; this.changed(); }
-  setMusic(value: boolean): void { this.state.music = value; this.changed(); }
+  rename(name: string): void { this.state.name = name.trim().slice(0, 28) || 'Little Rooftop'; this.record({ tick: 0, kind: 'rename', name: this.state.name }); this.changed(); }
+  setMusic(value: boolean): void { this.state.music = value; this.record({ tick: 0, kind: 'music', on: value }); this.changed(); }
   welcome(): void { this.state.welcomed = true; this.changed(); }
-  reset(): void { this.rewardSavePending = false; this.pauseAfterCatchUp = null; this.catchingUp = false; this.backgrounded = false; this.awaySummary = null; this.speed = 1; this.incomeReceipts = []; this.state = createRestaurant(); this.paused = false; this.accumulator = 0; this.savedAt = 0; this.loadWarning = ''; this.changed('A fresh beginning. Make this rooftop your own.'); }
+  reset(): void { if (this.remote) { this.event = 'Your restaurant is saved on Reddit and cannot be reset here.'; this.notify(); return; } this.rewardSavePending = false; this.pauseAfterCatchUp = null; this.catchingUp = false; this.backgrounded = false; this.awaySummary = null; this.speed = 1; this.incomeReceipts = []; this.state = createRestaurant(); this.paused = false; this.accumulator = 0; this.savedAt = 0; this.loadWarning = ''; this.changed('A fresh beginning. Make this rooftop your own.'); }
   readiness(): string[] {
     const errors: string[] = [];
     if (!capacity(this.state)) errors.push('Build at least one bistro table.');
@@ -259,7 +282,7 @@ export class RestaurantEngine {
   }
   /** Compatibility for older receipts; normal service rolls forward automatically. */
   nextDay(): void { if (this.state.phase === 'report') { this.beginNextDay(); this.changed(); } }
-  closeEarly(): void { if (this.state.phase === 'service') { this.state.renovation = true; this.state.elapsed = Math.max(DAY_LENGTH, this.state.elapsed); this.changed('Last orders, then renovation. Your team will finish serving before closing.'); } }
+  closeEarly(): void { if (this.remote) { this.event = 'The daily service runs its full length.'; this.notify(); return; } if (this.state.phase === 'service') { this.state.renovation = true; this.state.elapsed = Math.max(DAY_LENGTH, this.state.elapsed); this.changed('Last orders, then renovation. Your team will finish serving before closing.'); } }
   private arrive(): void {
     const s = this.state;
     if (s.guests.length >= 20) return;

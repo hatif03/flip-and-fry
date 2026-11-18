@@ -1,29 +1,15 @@
-import { z } from 'zod';
+import { actionLogSchema, type Action } from './actions';
 import { RestaurantEngine } from './engine';
 import type { DailyHeadline } from './daily-headline';
 import { layoutError } from './layout';
-import { DAY_LENGTH, furnitureKind, restaurantSchema, width, type Furniture, type Report, type RestaurantState } from './types';
+import { DAY_LENGTH, restaurantSchema, width, type Furniture, type Report, type RestaurantState } from './types';
 
 /**
  * The engine is a pure function: (opening state, action log) → receipt. The server replays the log to lock a score,
  * bots call it headless, and co-op clients drive the same log in lockstep. Nothing here reads a clock or a random source.
  * Planning actions run before the doors open and use the engine's own methods, so cash, phase and layout checks are the game's.
- * Service actions (comp, priority, cook...) join this union when the engine supports them.
  */
-const planning = { tick: z.literal(0) };
-export const actionSchema = z.discriminatedUnion('kind', [
-  z.object({ ...planning, kind: z.literal('place'), item: z.object({ id: z.number().int(), kind: furnitureKind, x: z.number().int().min(0).max(13), z: z.number().int().min(0).max(9), rotation: z.number().int().min(0).max(3) }) }),
-  z.object({ ...planning, kind: z.literal('sell'), id: z.number().int() }),
-  z.object({ ...planning, kind: z.literal('hire'), role: z.enum(['chef', 'server']) }),
-  z.object({ ...planning, kind: z.literal('train'), id: z.number().int() }),
-  z.object({ ...planning, kind: z.literal('dish'), dish: z.enum(['salad', 'burger']), enabled: z.boolean(), price: z.number().int().min(10).max(60) }),
-  z.object({ ...planning, kind: z.literal('expand') }),
-  z.object({ ...planning, kind: z.literal('loan') }),
-  z.object({ ...planning, kind: z.literal('claim'), id: z.string().max(40) }),
-]);
-export type Action = z.infer<typeof actionSchema>;
-export const MAX_ACTIONS = 400;
-export const actionLogSchema = z.array(actionSchema).max(MAX_ACTIONS);
+export { actionLogSchema, actionSchema, MAX_ACTIONS, type Action } from './actions';
 /** A service ends by DAY_LENGTH + 90 s of sim time at the latest; anything longer is a bug, not a slow night. */
 export const MAX_SERVICE_TICKS = Math.round((DAY_LENGTH + 90) * 10) + 20;
 
@@ -41,6 +27,9 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'expand': return engine.expand();
     case 'loan': return engine.loan();
     case 'claim': return engine.claim(a.id);
+    case 'dismiss': return engine.dismiss(a.id);
+    case 'rename': engine.rename(a.name); return null;
+    case 'music': engine.setMusic(a.on); return null;
   }
 }
 
