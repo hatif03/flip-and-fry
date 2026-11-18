@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
-import { formatDate, shiftDate } from './daily-headline';
+import { createDailyHeadline, formatDate, shiftDate } from './daily-headline';
+import { RESEARCH, researched, type RestaurantState } from './types';
 import { NOTE_MAX, flairForStreak, neighborLine } from './social';
 import { GOALS as STAR_GOALS } from './stars';
 
@@ -75,11 +76,17 @@ function ResultCard() {
         <Stat label="Sales" value={money(report.revenue)} /><Stat label="Tips" value={money(report.tips)} /><Stat label="Profit" value={money(report.profit)} strong />
       </dl>
       <p className="text-xs text-ink/70">Company value <b>{money(night.companyValue)}</b>{night.newBest ? ' · a new best!' : ` · best ${money(night.best.value)}`}.</p>
-      <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'} Tomorrow: {prettyDate(tomorrow)}.</p>
+      <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'} </p>
+      <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
       {remote!.postResult && <ShareActions streak={result.streak} />}
       <button className="game-button game-button-primary min-h-12 w-full" onClick={() => remote!.dismissResult()}>Continue</button>
     </DialogContent>
   </Dialog>;
+}
+
+/** The next thing the research budget will open, with progress, or nothing when everything is open. */
+export function nextUnlock(park: Pick<RestaurantState, 'research'>): string | null {
+  const study = RESEARCH.find(r => !researched(park, r.id)); return study ? `${study.title} (${park.research.points}/${study.at})` : null;
 }
 
 function Meter({ label, value, hint }: { label: string; value: number; hint: string }) {

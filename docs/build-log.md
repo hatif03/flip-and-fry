@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The tomorrow card, and the submission package text
+
+**Why:** plan section 10 (a tomorrow card with tomorrow's headline and the next research unlock gives a reason to come back) and section 16 (the Devpost text, the demo shot list and the hand-over list).
+
+**What changed:**
+- The result card now ends with a **Tomorrow** line: the date and headline, and the next study the research budget will open with its progress ("Next unlock: Stock pot (60/100)"). Once everything is open, the unlock part is left out. It uses only the replayed park and the date, so it is as trustworthy as the receipt.
+- `docs/submission.md` holds the Devpost description (with the required port statement and the list of significant updates), the under-one-minute video shot list, and a checklist of what only the author can do: the demo subreddit and `dr-admin-approve`, moderator rights for flair and highlight, the phone-only checks, the license, asset provenance, the survey and the optional notification beta.
+
+**Refused:** writing marketing claims that the build does not back. Every feature in the description is in the code and has a test; the hosted co-op, which is not built, is not mentioned.
+
+**Code:** `src/management/RedditLayer.tsx` (`nextUnlock`), `docs/submission.md`; tests in `reddit-layer.browser.test.tsx`.
+
 ## 2026-11-19 — Verification pass and the first optimization pass (G11, part of G12)
 
 **Why:** plan sections 19 and 20. Everything planned for the core loop is built, so the whole loop is now tested end to end, and the optimization that needs no new tools is done and measured.

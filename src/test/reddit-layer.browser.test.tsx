@@ -215,3 +215,16 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
     for (const name of ['Post this result', 'Earn a star to wear flair', 'Continue']) expect((await screen.getByRole('button', { name }).element()).getBoundingClientRect().height, name).toBeGreaterThanOrEqual(44);
   });
 });
+
+describe('the tomorrow line on the result card', () => {
+  it('names tomorrow\'s headline and the next thing research will open, with progress', async () => {
+    const result = lock(2); result.park.research = { budget: 20, points: 60 };
+    restaurant.remote = remote(result); const screen = await render(<ManagementGame />);
+    const line = screen.getByLabelText('Tomorrow'); await expect.element(line).toHaveTextContent('Thu 10 Dec'); await expect.element(line).toHaveTextContent(createDailyHeadline('2026-12-10').title); await expect.element(line).toHaveTextContent('Next unlock: Stock pot (60/100).');
+  });
+  it('leaves out the unlock once everything is open', async () => {
+    const result = lock(2); result.park.research = { budget: 0, points: 400 };
+    restaurant.remote = remote(result); const screen = await render(<ManagementGame />);
+    await expect.element(screen.getByLabelText('Tomorrow')).not.toHaveTextContent('Next unlock');
+  });
+});
