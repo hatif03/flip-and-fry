@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -12,6 +12,12 @@ export const GOALS = [
   { id: 'atmosphere', title: 'Make it yours', text: 'Reach 50 atmosphere', target: 50, reward: 150, value: comfort },
   { id: 'more-tables', title: 'Room for everyone', text: 'Build 5 bistro tables', target: 5, reward: 250, value: (s: RestaurantState) => capacity(s) / 2 },
   { id: 'three-days', title: 'The neighborhood favorite', text: 'Complete 3 service days', target: 3, reward: 300, value: (s: RestaurantState) => s.history.length },
+  // The contracts. Each reads only saved state, so the server's replay agrees with the client on whether one can be collected.
+  { id: 'pay-the-roof', title: 'Pay the roof', text: 'Clear the recovery loan, or bank $400 in profit', target: 400, reward: 300, value: (s: RestaurantState) => s.streaks.loanCleared ? 400 : Math.max(0, s.history.reduce((sum, r) => sum + r.profit, 0)) },
+  { id: 'three-good-nights', title: 'Three good nights', text: 'Earn a rating of 4 or more on 3 services', target: 3, reward: 250, value: (s: RestaurantState) => s.history.filter(r => r.rating >= 4).length },
+  { id: 'nailed-down', title: 'Nailed down', text: 'Run 3 services in a row without selling any furniture', target: 3, reward: 200, value: (s: RestaurantState) => s.streaks.nailed },
+  { id: 'honest-prices', title: 'Honest prices', text: `Run 3 profitable services with every dish within $${HONEST_BAND} of fair`, target: 3, reward: 200, value: (s: RestaurantState) => s.streaks.honest },
+  { id: 'full-room', title: 'A full room', text: 'Have 8 seats and serve 8 guests in one service', target: 8, reward: 350, value: (s: RestaurantState) => capacity(s) >= 8 ? Math.max(0, ...s.history.map(r => r.served)) : 0 },
 ];
 /** Exact business results computed while the owner was away, not an idle-income estimate. */
 export interface AwaySummary { seconds: number; days: number; served: number; cashChange: number; challengeBonus: number; }
@@ -202,7 +208,7 @@ export class RestaurantEngine {
     if (this.state.phase !== 'planning') return 'Wait until closing to sell furniture.';
     const item = this.state.furniture.find(f => f.id === id); if (!item) return 'Select a piece of furniture first.';
     if (this.state.furniture.length === 1) return 'Keep at least one piece of furniture.';
-    this.state.furniture = this.state.furniture.filter(f => f.id !== id); this.state.cash += Math.floor(CATALOG[item.kind].price * .7);
+    this.state.furniture = this.state.furniture.filter(f => f.id !== id); this.state.streaks.nailed = 0; this.state.cash += Math.floor(CATALOG[item.kind].price * .7);
     this.recordIncome(Math.floor(CATALOG[item.kind].price * .7), 'sale');
     this.relocateStaff(); this.record({ tick: 0, kind: 'sell', id }); this.changed('Sold for 70% of the original price.'); return null;
   }
@@ -458,13 +464,16 @@ export class RestaurantEngine {
     const s = this.state;
     for (const guest of s.guests) if (!guest.paid && guest.stage !== 'leaving') s.totals.missed++;
     const wages = s.staff.reduce((sum, staff) => sum + staffWage(staff), 0), rent = s.expanded ? 50 : 30, debtPayment = Math.min(30, s.debt);
-    s.cash -= wages + rent + debtPayment; s.debt -= debtPayment;
+    const owed = s.debt; s.cash -= wages + rent + debtPayment; s.debt -= debtPayment; if (owed > 0 && s.debt === 0) s.streaks.loanCleared = 1;
     const fx = this.fx, h = s.headline;
     let rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06 - (h ? h.dirtyAtClose * fx.dirtyPenalty : 0)));
     if (fx.criticCap && h && h.walkouts > 0) rating = Math.min(rating, 2);
     s.reputation = Math.round((s.reputation * .65 + rating * .35) * 100) / 100;
     const value = companyValue(s); if (value > s.best.value) s.best = { value, day: s.day };
-    s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit: s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment, rating }); s.history = s.history.slice(-20);
+    const profit = s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment;
+    const honest = DISH_IDS.filter(dish => s.menu[dish].enabled).every(dish => Math.abs(s.menu[dish].price - DISHES[dish].fair) <= HONEST_BAND);
+    s.streaks.nailed++; s.streaks.honest = honest && profit > 0 ? s.streaks.honest + 1 : 0;
+    s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit, rating }); s.history = s.history.slice(-20);
     this.beginNextDay(); this.changed();
   }
 }

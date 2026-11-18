@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Five contracts on the ledger
+
+**Why:** plan section 6. The four first goals teach the basics; the contracts teach the systems (cash flow, patience, living with a layout, the price roll, the terrace). They are collected the same way as the first four (the `claim` action), so nothing new crosses the server boundary.
+
+**The contracts** (`GOALS` in `src/management/engine.ts`): Pay the roof ($300), Three good nights ($250), Nailed down ($200), Honest prices ($200), A full room ($350). Each reads only saved state, so the server's replay and the client always agree on whether one can be collected.
+
+**Counters:** `state.streaks` holds three small counters the engine updates in `finish()` and `sell()`: services since furniture was sold, services in a row at honest prices (every dish within $4 of fair, and a profit), and whether the recovery loan was ever cleared. Saves without them load with zeros.
+
+**Changed from the plan:** "Nailed down" was written as "for one service, selling furniture is refused". A rule that blocks a button teaches nothing, and the planning screen is where selling happens. It is now three services in a row without selling, which asks for the same thing (live with the layout you built) and can be earned, not forced. "Honest prices" is three profitable services at honest prices, because the starter menu is already at fair and a one-night check would be free. "Regulars' table" waits for the regular system.
+
+**Code:** `src/management/engine.ts`, `types.ts` (`streaks`, `HONEST_BAND`); tests in `src/test/contracts.test.ts`.
+
 ## 2026-11-19 — Dishes are data: twelve dishes, five appliances, three menu styles
 
 **Why:** the plan's change E4 and the menu-styles item. `'salad' | 'burger'` was hard-coded in the schemas, the arrival roll, the challenges and the panels, so a new dish meant editing a dozen files. Now `DISHES` in `src/management/types.ts` is the single table, and everything else reads it.

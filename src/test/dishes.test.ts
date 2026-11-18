@@ -48,12 +48,12 @@ describe('cooking the new dishes', () => {
     for (const guest of a.state.guests) expect(guest.dish).toBe('ramen');
   });
   it('charges the right ingredients for the dish, not the first dish', () => {
-    const r = runService(createRestaurant(), noodleNight, headline); if (!r.ok) throw new Error(r.error);
+    const r = runService(createRestaurant(), noodleNight, headline); if ('error' in r) throw new Error(r.error);
     expect(r.report.ingredients).toBeGreaterThanOrEqual(r.report.served * DISHES.ramen.cost);
   });
-  it('refuses a price above the new cap', () => { const r = applyPlanning(createRestaurant(), [{ tick: 0, kind: 'dish', dish: 'steak', enabled: true, price: PRICE_MAX + 2 }]); expect('error' in r || r.ok === false).toBe(true); });
+  it('refuses a price above the new cap', () => { const r = applyPlanning(createRestaurant(), [{ tick: 0, kind: 'dish', dish: 'steak', enabled: true, price: PRICE_MAX + 2 }]); expect('error' in r).toBe(true); });
   it('keeps the old menu\'s receipt untouched by the new dishes (the calibration still holds)', () => {
-    const r = runService(createRestaurant(), [], headline); if (!r.ok) throw new Error(r.error);
+    const r = runService(createRestaurant(), [], headline); if ('error' in r) throw new Error(r.error);
     const dishes = new Set(r.state.guests.map(g => g.dish)); for (const d of dishes) expect(['salad', 'burger']).toContain(d);
   });
 });

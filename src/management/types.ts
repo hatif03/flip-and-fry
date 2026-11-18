@@ -53,6 +53,12 @@ const challengesSchema = z.array(challengeSchema).max(3).default([]).refine(item
 const nightSchema = z.object({ waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
 export type Night = Validated<z.infer<typeof nightSchema>>;
 export const freshNight = (): Night => ({ waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false });
+/** Running counts the contracts read: services since furniture was last sold, services in a row at honest prices, and whether the recovery loan was ever cleared. */
+const streaksSchema = z.object({ nailed: z.number().int().nonnegative().default(0), honest: z.number().int().nonnegative().default(0), loanCleared: z.number().int().min(0).max(1).default(0) });
+export type Streaks = Validated<z.infer<typeof streaksSchema>>;
+export const freshStreaks = (): Streaks => ({ nailed: 0, honest: 0, loanCleared: 0 });
+/** A dish is priced honestly within this many dollars of fair. */
+export const HONEST_BAND = 4;
 /** The best company value this restaurant has had, and the service day it was set. */
 const bestSchema = z.object({ value: z.number().default(0), day: z.number().int().nonnegative().default(0) });
 /** The headline a service ran under, with the counters its star line and rating rules read. */
@@ -70,7 +76,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -130,7 +136,7 @@ export const companyValue = (state: Pick<RestaurantState, 'cash' | 'furniture' |
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
-  return { version: 1, name: 'Little Rooftop', day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
+  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
     furniture: [
       { id: 1, kind: 'prep', x: 1, z: 1, rotation: 0 }, { id: 2, kind: 'grill', x: 3, z: 1, rotation: 0 },
       { id: 3, kind: 'table', x: 1, z: 4, rotation: 0 }, { id: 4, kind: 'table', x: 5, z: 4, rotation: 0 }, { id: 5, kind: 'table', x: 7, z: 1, rotation: 0 },
