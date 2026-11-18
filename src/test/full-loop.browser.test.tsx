@@ -75,7 +75,7 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
     const waiting = restaurant.state.guests.find(g => g.stage === 'waiting');
     if (waiting && !restaurant.state.guests.some(g => g.owner) && restaurant.claimTicket(waiting.id) === null) cooked++;
     const mine = restaurant.state.guests.find(g => g.owner); if (mine && mine.cook >= DISHES[mine.dish].seconds) restaurant.plate(mine.id);
-    restaurant.update(.1);
+    restaurant.tick();
   }
   await session.idle(); restaurant.notify();
 
@@ -97,7 +97,11 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
 
   // Continue, then leave the door open from the ledger.
   await card.getByRole('button', { name: 'Continue' }).click();
+  // Wait for the card to be gone (it zooms out), so nothing is animating over the next click.
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
   await screen.getByRole('button', { name: 'Ledger', exact: true }).click();
-  await screen.getByRole('switch', { name: 'Leave my door open' }).click();
+  const door = screen.getByRole('switch', { name: 'Leave my door open' });
+  await expect.element(door).toBeVisible();
+  await door.click({ timeout: 10_000 });
   await vi.waitFor(async () => expect(await isDoorOpen({ store, now: () => store.now }, alice)).toBe(true));
-}, 120_000);
+}, 60_000);
