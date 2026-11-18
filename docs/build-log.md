@@ -4,6 +4,24 @@ This is the running record for Too Many Cooks on Devvit. The plan lives in `docs
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Devvit scaffold: Hono server, splash and game entries
+
+Added `devvit.json`, `src/server` (Hono, `@hono/node-server`, `createServer` and `getServerPort` from `@devvit/web/server`), `src/client/splash.{html,ts,css}` (inline entry) and `src/client/game.{html,tsx}` (expanded entry, which imports the existing `main.tsx`), `src/shared/api.ts`, and `vite.devvit.config.ts`. `npm run build:devvit` produces `dist/client` (`splash.html`, `game.html`) and `dist/server/index.cjs` (1.5 MB, CommonJS, all dependencies bundled).
+
+Corrections to the plan, found by reading the official three.js template and the `@devvit/start` plugin source:
+
+- **Node 24, not 22.** The template's `engines` is `>=24.0.0`, which matches this machine (v24.20).
+- **Hono, not Express.** The template and the Devvit server helpers use Hono. The plan's "Express" wording is replaced.
+- **The Vite plugin supports `vite build` only** and throws under `vite dev`. The Reddit build therefore has its own config (`vite.devvit.config.ts`), and `vite.config.ts` keeps serving the browser-only dev server.
+- **The plugin sets the client root to `src/client`** and copies `public/` into `dist/client`, so existing `/assets/...` URLs still work.
+- **Client and server need different TypeScript conditions.** `@devvit/web/client` only resolves under the `browser` condition. `tsconfig.app.json` now has `customConditions: ["browser"]` and excludes `src/server`; `tsconfig.server.json` covers `src/server` and `src/shared`. `npx tsc -p tsconfig.app.json` and `-p tsconfig.server.json` are both clean.
+- The plugin forbids importing `src/server` from the client. Shared code lives outside it (`src/shared`, `src/management`).
+
+Not done yet: `devvit login`, creating the public demo subreddit, and the first `devvit playtest`. Those need the account owner's browser login, so spike S1 (the 3D scene on a real phone) waits for that. The `dev.subreddit` value in `devvit.json` is a placeholder, `too_many_cooks_dev`.
+
+Devvit or third party: `@devvit/web`, `@devvit/start`, `@devvit/analytics` (0.15.4), `hono`, `@hono/node-server`, and `devvit` (CLI, dev dependency). Permissions in `devvit.json`: `redis`, `reddit`, and `http` explicitly disabled. No realtime yet.
+Code or plan: `devvit.json`, `src/server`, `src/client`, `vite.devvit.config.ts`, plan sections 15 and 17.
+
 ## 2026-11-18 — Baseline recorded and the deterministic core started (gate G0, part of G2)
 
 Baseline on the untouched game, tagged `pre-devvit`: lint reports 2 errors (`no-dupe-else-if` in `src/management/city-motion.ts`, not ours) and 10 warnings. Unit tests: 502 passed. Browser tests: 132 passed in 20 files. Playwright needed `npx playwright install chromium` for the installed 1.60 build.

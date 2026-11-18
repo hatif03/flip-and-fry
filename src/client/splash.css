@@ -1,0 +1,19 @@
+/* Inline entry: tap and click only. No scroll capture, no inner scroll, no touch-action: none (Devvit scroll-trap rules). */
+:root { --cream: #fff2d7; --ink: #233d3b; --teal: #224f4a; --tomato: #dc533c; --gold: #f2b743; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body.splash {
+  display: grid; place-items: center; padding: 16px;
+  background: var(--teal); color: var(--cream);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.card { width: min(100%, 420px); text-align: center; }
+.eyebrow { margin: 0 0 4px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.05; }
+.blurb { margin: 0 0 18px; font-size: 14px; line-height: 1.4; color: color-mix(in srgb, var(--cream) 85%, transparent); }
+.open {
+  min-height: 48px; min-width: 200px; padding: 10px 24px; border: 0; border-radius: 12px;
+  background: var(--tomato); color: var(--cream); font-size: 17px; font-weight: 800; cursor: pointer;
+}
+.open:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.byline { min-height: 1em; margin: 14px 0 0; font-size: 12px; color: color-mix(in srgb, var(--cream) 70%, transparent); }
