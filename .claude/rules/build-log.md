@@ -1,0 +1,20 @@
+# Build log
+
+`docs/build-log.md` is the record of why this game is built the way it is. Update it in the same change as the work, not afterwards.
+
+Add an entry when you:
+
+- Choose, change, or refuse a feature or a mechanic
+- Turn a Devvit capability on or off (Redis, realtime, Reddit API, scheduler, journeys, payments, HTTP)
+- Add or drop a library, asset source, or other third party
+- Hit a platform limit and pick a way around it
+
+Each entry has the date, the decision, why, what was refused, and any Devvit or third-party piece involved. Link the plan section or the code it touches. Do not paste secrets, tokens, or private user data.
+
+If a feature only works after `devvit publish`, write that in the log and ship a playtest path. Do not publish during the hackathon to unblock it.
+
+```markdown
+## 2026-11-18 — Rain layer uses the existing speaker toggle
+
+The service track ducks under `public/assets/audio/rain.mp3` when the headline weather is rain. A second music system was refused because the tycoon already has one toggle. No new Devvit permission.
+```
