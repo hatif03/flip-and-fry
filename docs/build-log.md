@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The icon is redrawn, and the animals get portraits (drawn pixel art, no asset files)
+
+**What "hand-drawn" meant and what I did about it.** The plan's UI kit calls for drawn pixel art (icon, portraits) approved by the author before it ships. The earlier icon was a mechanical reduction of a photo-like image, which left stray specks. The author asked me to just do it, so the art is now drawn deliberately, as code that places pixels, which is how it can be reviewed, changed and reproduced:
+- **App icon** (`tools/art/draw-icon.mjs` writes `public/icon-pixel.png`, 1024 px, 6 KB): a chef hat built from three puffs and a band, lit from the upper left with shade only on the lower-right edges, and a flame drawn row by row beneath it, on the game's teal with one-pixel ink outlines. The old reduction script is deleted.
+- **Species portraits** (`src/management/portraits.ts`): mouse, rabbit, bear and crocodile as 16 by 16 pixel faces built from ears, head, muzzle, eyes and a shaded edge, returned as SVG data URIs (so no files to ship). They sit beside each regular's name in the ledger. `tools/art/portraits-sheet.ts` writes a contact sheet to look at them.
+- Not drawn: 9-slice frames from art (the interface frames are done in CSS: square corners, hard 3 px edges, hard shadows), and a thought-bubble sprite (the bubbles are CSS too). Those read as pixel art without image files.
+
+**Why code and not an image editor:** nothing to host, nothing whose origin needs explaining (the provenance gap is only for the earlier AI-made files), tiny size, and the pictures stay in the game's palette by construction.
+
+**Note:** `tools/art/portraits-sheet.ts` is run with `npx vite-node`, which `npx` fetched on first use. It is an authoring helper, not part of the game or its dependencies.
+
+**Code:** `tools/art/`, `public/icon-pixel.png`, `src/management/portraits.ts`, `Panels.tsx`; test `portraits.test.ts`.
+
 ## 2026-11-19 — Push reminders, the game badge, a picture on kitchen posts, and real avatars (all with fallbacks)
 
 **Why:** the three remaining Reddit features from plan section 3 (push notifications, media upload, snoovatars). The author asked for them to be completed. Each one is built so that Reddit saying "no" (a gated beta, an unapproved permission, a blocked image host) changes nothing the player sees except that the extra is missing. None of them can be proven from here; each is tested against a fake of the Reddit call, and the live behaviour is on the phone-check list.
