@@ -4,6 +4,30 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — The pixel look on the real scene (P5, part 1: palettes and the render pass)
+
+The existing 3D scene now goes through a pixel pass: it renders at 1/3 size into an offscreen target, a shader tone-maps it (the same ACES operator and exposure as the on-screen path, because three.js applies neither tone mapping nor the sRGB curve to an offscreen target) and snaps it to a 16-colour palette with one lookup-table fetch, and the result is drawn back at full size with nearest-neighbour sampling. The animals, furniture, city, camera and simulation are untouched. `?pixel=0` turns it off and `?k=4` changes the pixel size.
+
+**Palette decision, from the preview sheets (Codixel preview-first):** the first palette was authored from brand colour ramps with `P.hueRamp`. On the real scene it was wrong: mean colour error 24–32 against 8–9 for a palette taken from the scene, the grey road turned teal, and roofs speckled. The brand ramps had no neutral grey. Shared palettes across weathers lost the weather (the rain scene went muddy beige); pinning the five brand colours cost fidelity and added noise. **Chosen: one 16-colour palette per weather (sunset, sun, rain), clustered from captures of the real scene, with 2 slots reserved for leaf green** (clustering alone dropped the saturated greens and the trees went grey), **no dither**, 3× pixels. The brand ramps are kept for the UI kit, whose sprites are flat shapes. Mean error 9.0 sunset, 13.0 rain, 9.3 sun.
+
+- **This choice is provisional until you approve it** on the sheets in `tools/pixel/out/` (`preview-final-*.png` and `preview-palette3-*.png`, not committed). Light dither and full dither were compared; flat is crisper and cheaper, and the dither strength is a shader uniform if you want it back.
+- **Files shipped:** `public/pixel/palettes.json` and three 1024×32 lookup tables (about 4 KB each). They map every 5-bit colour to its nearest palette colour (Codixel's channel-weighted distance), so a snapped frame can contain nothing else.
+- **Weather blends:** the pass blends the three palettes with the scene's existing sun and rain blend values, so a weather change fades instead of popping.
+- **Safe fallback:** if the tables fail to load the pass never mounts and the game renders plain 3D.
+- **Antialiasing is off** while the pass is on (it only costs GPU and fights the pixel edges).
+- **Tile grout is dropped** in pixel mode: a gap thinner than one scene pixel only aliased into scattered specks on the terrace floor.
+
+**Bugs found on the way:** three.js already declares the sRGB functions in every `ShaderMaterial`, so including their chunk again failed to compile and the canvas went black (found from the browser console); `TextureLoader` flips images vertically by default, which would have read the wrong lookup row; Codixel's `core/pixel.js` is CommonJS and the repo is `"type": "module"`, so `require()` loses its export (the tools load it explicitly).
+
+**Tools** (`tools/pixel/`, authoring time only, never shipped): `capture.mjs` (stills of the real scene, UI hidden, three weathers, phone and desktop; `--pixel` captures what the game shows), `palette.mjs`, `make-palettes.mjs`, `make-lut.mjs`, and the preview scripts.
+
+**Tests:** palettes and tables (exactly 16 distinct colours each, only palette colours in the tables, every sampled colour maps to its nearest palette colour), and the pass on a real GPU frame (only palette colours, whole 3-pixel blocks along a row, shapes keep their hues, the rain and sun palettes appear when the weather changes, plain fallback when the tables cannot load). 614 unit and 150 browser tests pass.
+
+Not done in P5 yet: the Android 2D-canvas copy (spike S2 showed no black canvas on the first phone, so it stays a flagged fallback), the pixel UI kit and Silkscreen, the thought bubbles, the splash still, and the quality tiers.
+
+Devvit or third party: Codixel (authoring only), three.js `FullScreenQuad` addon.
+Code or plan: `src/scene/pixel/*`, `public/pixel/*`, `tools/pixel/*`, plan section 13.
+
 ## 2026-11-18 — First phone test, journeys and the collapsed dock (P4)
 
 **Spike S1 and S2, first result (Android Reddit app, a real phone):** the 3D scene draws, there is no black canvas, and the load takes about 2–4 s. The first screenshot showed the old playtest build (`v0.0.1.23`): `devvit upload` creates a version but does not install it, and the subreddit kept the old one. `devvit install flip_and_fry_dev flip-and-fry@latest` installs the new version. Version 0.0.3 is installed; every upload from here needs that install step.

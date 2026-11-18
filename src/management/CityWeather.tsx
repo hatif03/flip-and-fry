@@ -5,7 +5,7 @@ import { useReducedMotionQuery } from '@/hooks/use-reduced-motion';
 import { restaurant } from './engine';
 import { cityDelta } from './city-motion';
 import { CityLighting } from './CityLighting';
-import { createRainSeeds, PUDDLE_COUNT, RAIN_COUNT, WeatherAnimation, writeRainPositions, type WeatherKind, type WeatherMode } from './weather';
+import { createRainSeeds, PUDDLE_COUNT, RAIN_COUNT, WeatherAnimation, weatherBlend, writeRainPositions, type WeatherKind, type WeatherMode } from './weather';
 
 const noRaycast = () => {};
 const colors = {
@@ -37,6 +37,7 @@ export const CityWeather = memo(function CityWeather({ columns, mode, building, 
     weather.update(cityDelta(dt, restaurant.state.phase, restaurant.paused, restaurant.speed, document.hidden, reduced.matches), mode, reduced.matches);
     if (reported.current !== weather.kind) { reported.current = weather.kind; onChange(weather.kind); }
     const { sun: sunlight, rain: rainfall, time } = weather;
+    weatherBlend.sun = sunlight; weatherBlend.rain = rainfall;
     const blendColor = (name: keyof typeof colors) => {
       const [base, bright, wet] = resources.palette[name];
       const remaining = 1 - sunlight - rainfall;

@@ -4,6 +4,8 @@ import { cityLoop, sampleStreet } from './city-motion';
 export type WeatherKind = 'sunset' | 'sun' | 'rain';
 export type WeatherMode = 'auto' | WeatherKind;
 export const WEATHER_LABELS: Record<WeatherMode, string> = { auto: 'Auto cycle', sunset: 'Golden hour', sun: 'Bright sun', rain: 'Light rain' };
+/** The scene's current sun and rain blend (0 to 1), written each frame by CityWeather and read by the pixel pass to blend palettes. */
+export const weatherBlend = { sun: 0, rain: 0 };
 export const WEATHER_CYCLE = 108;
 export const WEATHER_FADE = 5;
 export const RAIN_COUNT = 480;

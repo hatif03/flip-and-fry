@@ -17,6 +17,8 @@ import { CityBulletin } from './CityBulletin';
 import { cityMapBounds, type CityDistrict } from './city-map';
 import { CityWeather } from './CityWeather';
 import type { WeatherKind, WeatherMode } from './weather';
+import { PixelPass } from '@/scene/pixel/PixelPass';
+import { pixelSettings } from '@/scene/pixel/pixel-settings';
 
 interface SceneProps { state: RestaurantState; building: boolean; draft: Furniture | null; selected: number | null; zoom: number; angle: number; cityView?: boolean; cityDistrict?: CityDistrict; trafficAudio?: boolean; weatherMode: WeatherMode; onWeatherChange: (kind: WeatherKind) => void; onTile: (point: Point) => void; onSelect: (id: number) => void; }
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -46,10 +48,10 @@ function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building }: 
 const Terrace = memo(function Terrace({ columns, name }: { columns: number; name: string }) {
   const center = (columns - 1) * CELL / 2;
   const tiles = useMemo<InstanceSpec[]>(() => {
-    const result: InstanceSpec[] = [];
+    const result: InstanceSpec[] = [], gap = pixelSettings().enabled ? 0 : .025; // a grout line thinner than one scene pixel only aliases into specks
     for (let x = 0; x < columns; x++) for (let z = 0; z < HEIGHT; z++) {
       const kitchen = x < 5 && z < 4;
-      result.push({ position: [x * CELL, .015, z * CELL], scale: [CELL - .025, .08, CELL - .025], color: kitchen ? (x + z) % 2 ? '#E9D7B6' : '#FFF2D7' : ['#bd7757', '#c7865e', '#c17e58'][(x * 17 + z * 3) % 3] });
+      result.push({ position: [x * CELL, .015, z * CELL], scale: [CELL - gap, .08, CELL - gap], color: kitchen ? (x + z) % 2 ? '#E9D7B6' : '#FFF2D7' : ['#bd7757', '#c7865e', '#c17e58'][(x * 17 + z * 3) % 3] });
     } return result;
   }, [columns]);
   const cable = useMemo<[number, number, number][]>(() => Array.from({ length: 30 }, (_, i) => [-.5 + (columns * CELL) * i / 29, 4.1 - Math.sin(i / 29 * Math.PI) * .6, -.7]), [columns]);
@@ -81,8 +83,9 @@ function Ghost({ item, valid }: { item: Furniture; valid: boolean }) {
 export default function RestaurantScene(props: SceneProps) {
   const { state, draft, building, selected, onTile, onSelect, zoom, angle, cityView = false, cityDistrict = 'city', trafficAudio = true, weatherMode, onWeatherChange } = props;
   const [lost, setLost] = useState<boolean>(false), columns = width(state), patienceSeconds = guestPatienceSeconds(state);
-  const labels = useRef<Map<string, HTMLDivElement>>(new Map());
-  return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={[1, 1.5]} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: true, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
+  const labels = useRef<Map<string, HTMLDivElement>>(new Map()), pixel = useMemo(() => pixelSettings(), []);
+  return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={[1, 1.5]} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
+    {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} />
     <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} />
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}

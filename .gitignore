@@ -27,3 +27,10 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Codixel authoring output (previews and captures). Approved assets are copied to public/pixel/.
+tools/pixel/out/
+
+# Vitest failure screenshots and attachments
+.vitest-attachments/
+src/test/__screenshots__/
