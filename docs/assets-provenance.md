@@ -18,13 +18,13 @@ What is in `public/` and where it came from, as far as this repository records. 
 |---|---|---|---|
 | `models/grill.glb`, `burger.glb`, `salad.glb`, `tomato.glb`, `lettuce.glb`, `knife.glb` | Kitchen props and dishes | Imported in commit `b454cef` ("import glTF props"). The original README states some 3D models were AI-generated and hosted by the original project | Tool, account and the terms that apply to the output |
 | `models/bench.glb`, `bulletin.glb`, `car.glb` | City street life | Same | Same |
-| `audio/music.mp3`, `served.mp3`, `chop.mp3`, `engine.mp3`, `horn.mp3` | Soundtrack and sound effects | Imported in commit `3a84ec0`. The original README states the audio was AI-generated | Same |
+| `audio/music.mp3`, `served.mp3`, `chop.mp3`, `engine.mp3`, `horn.mp3` | Test Kitchen music and effects, city traffic. The restaurant view no longer plays `music.mp3`: its soundtrack is generated in code (`src/audio/`) | Imported in commit `3a84ec0`. The original README states the audio was AI-generated | Same |
 
 All of these files were once loaded from remote URLs and were copied into `public/` so the game makes no outside requests on Reddit. If any of them cannot be shown to be ours to use, replace it before the final upload; the dishes and the soundtrack are the only places the player would notice.
 
 ## Third-party packages that ship with the game
 
-- Fonts: Fredoka and Nunito through `@fontsource` (SIL Open Font License 1.1).
+- Fonts: Fredoka, Nunito and Pixelify Sans through `@fontsource` (SIL Open Font License 1.1).
 - Icons: Lucide (ISC).
 - Libraries: React, React Three Fiber, three.js, Radix UI, Tailwind CSS, Hono, zod, Vitest and the Devvit packages, each under its own license in `node_modules`.
 

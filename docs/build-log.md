@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The pixel look reaches the interface (first part of the UI kit)
+
+**Why:** plan section 13.5. The 3D scene was pixelated and the cards, buttons and headings around it were soft and rounded, which read as two different games.
+
+**What changed:**
+- A `pixel-ui` class on the page (set at startup from the same switch as the scene; `?pixel=0` turns both off, `?ui=0` turns off only the interface so the two can be compared) restyles every card, button and heading from one stylesheet block: square corners, hard 3 px ink edges, hard offset shadows, no blur. The five brand colours are unchanged.
+- **Font:** headings and numbers use **Pixelify Sans** (`@fontsource/pixelify-sans`, SIL OFL), body text stays Nunito so it is readable at phone sizes. I tried Silkscreen first (also OFL) and dropped it: its glyphs are too wide for a 360 px header and the cash and reputation row overflowed. Pixelify draws a 5 that reads as an S at small sizes, so the digit 5 alone comes from Fredoka (a one-character `unicode-range` face), which keeps ratings and prices readable.
+- Layout fixes found while looking at phone screenshots: the weather and save line no longer sits over an open panel on a phone; the footer buttons no longer wrap ("Kitchen" and "Open restaurant" on one line each, the day number only when there is room).
+
+**Not done yet from 13.5:** 9-slice frames from drawn art, hand-drawn icons, thought-bubble art, award stamps and species portraits. Those need the preview-first step with the author; this is the part that can be judged from a screenshot, so it ships first. `tools/ui-shot.mjs` takes the phone screenshots (planning, menu, ledger, service) used to review it.
+
+**Code:** `src/index.css` (the `pixel-ui` block), `src/scene/pixel/pixel-settings.ts` (`pixelUi`, `applyPixelUi`), `src/main.tsx`, `src/management/ManagementGame.tsx`, `tools/ui-shot.mjs`; test in `pixel-settings.test.ts`.
+
 ## 2026-11-19 — The soundtrack is generated, and the rain layer rides the same switch
 
 **Why:** plan section 14 and spike S9. The old soundtrack was a 720 KB MP3 of unknown origin (see `docs/assets-provenance.md`), and a single track cannot follow the weather. A bed made with the Web Audio API has no file, no provenance question, and can react.

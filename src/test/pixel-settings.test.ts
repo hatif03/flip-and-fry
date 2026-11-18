@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { autoPixelSize, paletteWeights, pixelSettings } from '@/scene/pixel/pixel-settings';
+import { applyPixelUi, autoPixelSize, paletteWeights, pixelSettings, pixelUi } from '@/scene/pixel/pixel-settings';
 
 describe('pixel settings', () => {
   it('is on by default and picks its size from the screen', () => { expect(pixelSettings('')).toEqual({ enabled: true, k: null }); });
@@ -27,5 +27,16 @@ describe('palette weights', () => {
   it('picks one palette at rest and blends two while the weather changes', () => {
     expect(paletteWeights(0, 0)).toEqual([1, 0, 0]); expect(paletteWeights(1, 0)).toEqual([0, 1, 0]); expect(paletteWeights(0, 1)).toEqual([0, 0, 1]);
     expect(paletteWeights(.25, 0)[0]).toBeCloseTo(.75); expect(paletteWeights(0, .5)).toEqual([.5, 0, .5]);
+  });
+});
+
+describe('the pixel interface', () => {
+  const fakeRoot = () => { const classes = new Set<string>(); return { classes, classList: { toggle: (name: string, force: boolean) => { if (force) classes.add(name); else classes.delete(name); } } }; };
+  it('is on by default and follows the scene switch, with its own switch to compare', () => {
+    expect(pixelUi('')).toBe(true); expect(pixelUi('?pixel=0')).toBe(false); expect(pixelUi('?ui=0')).toBe(false); expect(pixelUi('?ui=1')).toBe(true); expect(pixelUi('?k=2')).toBe(true);
+  });
+  it('puts the marker class on the page when on, and takes it off when off', () => {
+    const root = fakeRoot(); expect(applyPixelUi(root, '')).toBe(true); expect(root.classes.has('pixel-ui')).toBe(true);
+    expect(applyPixelUi(root, '?ui=0')).toBe(false); expect(root.classes.has('pixel-ui')).toBe(false);
   });
 });
