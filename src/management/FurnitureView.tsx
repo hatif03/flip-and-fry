@@ -39,15 +39,15 @@ export function FurnitureView({ item, selected, onSelect }: { item: Furniture; s
   </group>;
 }
 
-export function RestaurantSign({ name }: { name: string }) {
+export function RestaurantSign({ name, stars = 0 }: { name: string; stars?: number }) {
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 256;
     const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#224F4A'; ctx.fillRect(0, 0, 1024, 256);
     ctx.strokeStyle = '#F2B743'; ctx.lineWidth = 4; ctx.strokeRect(15, 15, 994, 226); ctx.fillStyle = '#FFF2D7'; ctx.textAlign = 'center';
     ctx.font = `600 ${name.length > 20 ? 49 : 64}px Fredoka, sans-serif`; ctx.fillText(name.toUpperCase(), 512, 116);
-    ctx.font = '600 24px Nunito, sans-serif'; ctx.fillStyle = '#F2B743'; ctx.fillText('GOOD FOOD. GREAT COMPANY.', 512, 181);
+    ctx.font = '600 24px Nunito, sans-serif'; ctx.fillStyle = '#F2B743'; ctx.fillText(stars > 0 ? '★'.repeat(stars) + '☆'.repeat(5 - stars) : 'GOOD FOOD. GREAT COMPANY.', 512, 181);
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace; return map;
-  }, [name]);
+  }, [name, stars]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <mesh><planeGeometry args={[4.6, 1.15]} /><meshStandardMaterial map={texture} roughness={.8} /></mesh>;
 }

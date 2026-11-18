@@ -45,7 +45,9 @@ function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building }: 
   useFrame((_, dt) => restaurant.update(dt), -2);
   return null;
 }
-const Terrace = memo(function Terrace({ columns, name }: { columns: number; name: string }) {
+/** The sign shows the reputation as whole stars, 1 to 5. */
+export const signStars = (reputation: number): number => Math.max(1, Math.min(5, Math.round(reputation)));
+const Terrace = memo(function Terrace({ columns, name, stars }: { columns: number; name: string; stars: number }) {
   const center = (columns - 1) * CELL / 2;
   const tiles = useMemo<InstanceSpec[]>(() => {
     const result: InstanceSpec[] = [], gap = pixelSettings().enabled ? 0 : .025; // a grout line thinner than one scene pixel only aliases into specks
@@ -63,7 +65,7 @@ const Terrace = memo(function Terrace({ columns, name }: { columns: number; name
     <Box position={[center, 1.21, -.9]} size={[columns * CELL + .8, .16, .6]} color="#F0AB70" />
     <Box position={[-.9, .45, 6.3]} size={[.32, .9, 14.2]} color="#B76544" />
     <Box position={[columns * CELL - .5, .45, 6.3]} size={[.32, .9, 14.2]} color="#B76544" />
-    <group position={[center, -.43, 13.65]} scale={.7}><RestaurantSign name={name} /></group>
+    <group position={[center, -.43, 13.65]} scale={.7}><RestaurantSign name={name} stars={stars} /></group>
     <group position={[4 * CELL, .1, 13.4]}><Box size={[1.45, .12, 1.2]} color="#F6E7CA" /><Box position={[0, -.16, .7]} size={[1.7, .18, .4]} color="#dbbd94" /></group>
     <Line points={cable} color="#233D3B" lineWidth={2} />{cable.filter((_, i) => i % 3 === 0).map((p, i) => <group key={i} position={p}><Cylinder position={[0, -.09, 0]} radius={.05} height={.15} color="#224F4A" /><mesh position={[0, -.22, 0]}><sphereGeometry args={[.105, 12, 8]} /><meshStandardMaterial color="#FFF2D7" emissive="#F2B743" emissiveIntensity={2} /></mesh></group>)}
     {[-.5, columns * CELL - .5].map(x => <Box key={x} position={[x, 2, -.7]} size={[.12, 4.2, .12]} color="#224F4A" />)}
@@ -87,7 +89,7 @@ export default function RestaurantScene(props: SceneProps) {
   return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={pixel.enabled ? 1 : [1, 1.5]} style={pixel.enabled ? { imageRendering: 'pixelated' } : undefined} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
     {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} />
-    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} />
+    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} />
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
     {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}

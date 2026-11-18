@@ -4,6 +4,17 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Tycoon depth wrap-up: reputation on the sign, and what was left out of P6
+
+**Added:** the sign over the terrace now shows the reputation as five stars in place of the tagline (`signStars` in `RestaurantScene.tsx`, drawn on the sign's canvas texture, redrawn when the rounded reputation changes).
+
+**Left out of P6, on purpose:**
+- **A chef-only starter park with the owner delivering plates (E3).** The calibration of every bot and the headline goals was measured with the starter server. Removing the server would move all of those numbers and invalidate the replay fixtures for a first-minutes change the owner already makes: the pass lets the owner cook, and the shop and the team page already make "hire a server" the first purchase.
+- **Bills that travel from the table to the register.** The money already moves at delivery and the cash feedback shows it over the guest. A separate bill object would add a per-guest state and a second payment moment without changing any decision the player makes.
+- **Weather weights outside the headline (E6)** are already done: the headline carries them (rain slows walking and raises the comfort weight on tips; the bright-sun nudge toward burgers), so no cosmetic weather clock reaches the simulation.
+
+Menu styles, contracts, regulars, thoughts and research (see the entries above) cover the rest of plan section 6. The kitchen card and company-value best are on the result card from the earlier end-of-night work; the ledger will show the best company value with the P5 UI pass.
+
 ## 2026-11-19 — Research: a nightly budget that opens the stock pot, a window bench and staff cloth
 
 **Why:** plan section 6. Cash has few sinks after the first week; research gives a small, steady one that pays back in something visible, and it is the one place the owner trades tonight's profit for tomorrow's menu.
