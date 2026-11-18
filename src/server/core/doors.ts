@@ -56,6 +56,9 @@ async function loadDoor(deps: Deps, id: string): Promise<StoredDoor | null> {
 }
 const summary = (id: string, door: StoredDoor): DoorSummary => ({ id, kind: id.startsWith('sample-') ? 'sample' : 'real', kitchen: door.kitchen, style: door.style, host: door.host, blurb: door.blurb });
 
+/** One kitchen by its id, whether or not it is among the newest, or null if its door is closed. */
+export async function doorSummary(deps: Deps, id: string): Promise<DoorSummary | null> { const door = await loadDoor(deps, id); return door ? summary(id, door) : null; }
+
 /** The sample kitchens, then the newest real doors that are not the player's own. Samples are always labelled as such by the client. */
 export async function listDoors(deps: Deps, user: Player): Promise<DoorSummary[]> {
   const out: DoorSummary[] = [];

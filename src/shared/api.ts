@@ -1,5 +1,6 @@
 import type { NightSummary } from '../management/awards';
 import type { DailyHeadline } from '../management/daily-headline';
+import type { DoorSummary } from '../management/social';
 import type { Action } from '../management/replay';
 import type { Stars } from '../management/stars';
 import type { Report, RestaurantState } from '../management/types';
@@ -24,6 +25,8 @@ export type TodayResponse = {
   community: { opens: number; locks: number };
   /** The name a moderator gave the neighborhood in the subreddit settings, already checked. */
   neighborhood?: string | null;
+  /** Set when this post is a kitchen someone posted: the kitchen a visitor can stop by. */
+  kitchen?: DoorSummary | null;
 };
 
 export type SaveRequest = { rev: number; actions: Action[] };

@@ -6,11 +6,12 @@ import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
-import { postApi, socialApi } from '../reddit';
+import { kitchenPostApi, postApi, socialApi } from '../reddit';
 import { commentPreview, follow, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
+import { kitchenOfPost, postKitchen } from '../core/kitchen-post';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
 import { shiftDate } from '../../management/daily-headline';
 import { telemetry } from '@devvit/analytics/server/reddit';
@@ -54,7 +55,10 @@ api.get('/today', async c => {
   const r = await getToday(deps, user);
   if ('error' in r) return failure(c, r);
   const neighborhood = neighborhoodName(await settings.get('neighborhood').catch(() => undefined));
-  return c.json({ ...r.value, neighborhood });
+  // On a kitchen post, the post's own data says whose kitchen to offer. A failed lookup just means an ordinary post.
+  let kitchen = null;
+  if (context.postId) { try { kitchen = await kitchenOfPost(deps, await (await reddit.getPostById(context.postId)).getPostData()); } catch { kitchen = null; } }
+  return c.json({ ...r.value, neighborhood, kitchen });
 });
 
 api.post('/save', async c => {
@@ -150,4 +154,9 @@ api.post('/visit', async c => {
   const body = z.object({ doorId: z.string().max(40), dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await visitDoor(deps, user, body.data.doorId, body.data.dish);
   return 'error' in r ? failure(c, r) : c.json({ type: 'visit', ...r.value });
+});
+api.post('/kitchen-post', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await postKitchen(deps, kitchenPostApi, user);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'kitchen-post', ...r.value });
 });

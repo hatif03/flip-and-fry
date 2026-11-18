@@ -18,8 +18,16 @@ export const postApi: PostApi = {
 
 import { context } from '@devvit/web/server';
 import type { SocialApi } from './core/social';
+import type { KitchenPostApi } from './core/kitchen-post';
 
 /** Comments run as the player (after approval; before it, as the app account except for the app owner). Flair and follow are explicit too. */
+export const kitchenPostApi: KitchenPostApi = {
+  async createAsUser({ title, postData, text }) {
+    const post = await reddit.submitCustomPost({ title, entry: 'default', postData, runAs: 'USER', userGeneratedContent: { text }, textFallback: { text }, subredditName: context.subredditName });
+    return { id: post.id, url: post.url };
+  },
+};
+
 export const socialApi: SocialApi = {
   async comment(parentId, text) {
     const comment = await reddit.submitComment({ id: parentId as PostId, text, runAs: 'USER' });

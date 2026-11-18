@@ -41,6 +41,8 @@ export interface RemoteSession {
     load(): Promise<NeighborhoodView | { error: string }>;
     setDoor(open: boolean): Promise<string | null>;
     visit(doorId: string, dish: string): Promise<VisitResult | { error: string }>;
+    /** Create a post of the player's open kitchen, as the player. Its own explicit button. */
+    postKitchen(): Promise<{ url: string } | { error: string }>;
   };
   follow?(): Promise<string | null>;
 }

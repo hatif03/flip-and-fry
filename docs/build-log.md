@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — "Post my kitchen": a user-generated custom post of an open kitchen
+
+**Why:** plan section 8 (kitchen posts) and the user-generated-content Reddit feature. A kitchen post is how an open door travels outside the daily thread.
+
+**What it does:** with the door open, an explicit button in the Neighborhood panel ("Post my kitchen", with the line "This posts as you, in this community") creates a custom post as the player (`runAs: 'USER'`, `userGeneratedContent`, so `SUBMIT_POST` is added to the `asUser` list). The post's data holds only `{kind: 'kitchen', door, title, date}`. Anyone who opens that post sees a card with the kitchen, its host and a single "Stop by and order the …" button, which is the same visit as everywhere else. If the door has since been closed, the card is simply absent and the post is an ordinary daily view.
+
+**Rules:** one post a day per player, claimed before the Reddit call so two taps make one post, released if Reddit fails; refused when the door is not open; a post can only point at a player's door id, never at a sample or a path. `GET /api/today` reads the post's data (one extra call, never fatal) to know which kitchen to offer.
+
+**Until approval:** posts made as the user run as the app account for everyone except the app's owner, as with comments. The demo uses the owner's account; the README will say so.
+
+**Refused:** posting automatically when the door opens, and putting the host's username in the post data (the post text names the host once, as allowed by the same safe-name rule as visitors).
+
+**Code:** `src/server/core/kitchen-post.ts`, `src/server/reddit.ts` (`kitchenPostApi`), `src/management/{KitchenPostCard,Neighborhood}.tsx`, `devvit.json`; tests in `kitchen-post.test.ts` and `neighborhood-panel.browser.test.tsx`.
+
 ## 2026-11-19 — Open doors, sample kitchens and the bulletin
 
 **Why:** plan section 8. The neighborhood is where this stops being a solo tycoon: a kitchen you leave open is a place someone else can walk into, and a note on your bulletin is a reason to come back tomorrow. Every part of it has a designed empty state, because on day one nobody else is here.

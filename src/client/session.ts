@@ -183,5 +183,9 @@ export class Session implements RemoteSession {
       const r = await this.http('POST', '/api/visit', { doorId, dish });
       return r.status === 200 && !isError(r.body) ? (r.body as { door: VisitResult['door'] } & VisitResult) : { error: message(r) };
     },
+    postKitchen: async (): Promise<{ url: string } | { error: string }> => {
+      const r = await this.http('POST', '/api/kitchen-post');
+      return r.status === 200 && !isError(r.body) ? { url: (r.body as { url: string }).url } : { error: message(r) };
+    },
   };
 }

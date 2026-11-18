@@ -15,7 +15,7 @@ const real = { id: 't2_maple', kind: 'real' as const, kitchen: 'Maple Rooftop', 
 const note: BulletinNote = { visitor: 'bob', kitchen: 'Little Rooftop', outcome: 'served', tip: 3, line: 'Served in 12s, tip $3', thought: 'The weakest point is how quickly guests reach a seat.', date: '2026-12-09' };
 
 function hood(view: NeighborhoodView | { error: string }, extras: Partial<NonNullable<RemoteSession['neighborhood']>> = {}): RemoteSession {
-  return { open: async () => null, today, result: null, dismissResult() {}, neighborhood: { load: async () => view, setDoor: async () => null, visit: async () => ({ door: sample, outcome: 'served', tip: 2, wait: 9, line: 'Served in 9s, tip $2' } satisfies VisitResult), ...extras } };
+  return { open: async () => null, today, result: null, dismissResult() {}, neighborhood: { load: async () => view, setDoor: async () => null, postKitchen: async () => ({ url: 'https://reddit.com/r/x/comments/abc' }), visit: async () => ({ door: sample, outcome: 'served', tip: 2, wait: 9, line: 'Served in 9s, tip $2' } satisfies VisitResult), ...extras } };
 }
 beforeEach(async () => { restaurant.reset(); restaurant.remote = null; await page.viewport(360, 760); });
 afterEach(() => { restaurant.remote = null; });
@@ -66,5 +66,34 @@ describe('the neighborhood panel', () => {
     await screen.getByRole('button', { name: 'Try again' }).click();
     const visit = screen.getByRole('button', { name: "Visit Basil's Garden" }); await expect.element(visit).toBeVisible();
     expect(visit.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44); void vi;
+  });
+});
+
+describe('posting your kitchen, and arriving at a kitchen post', () => {
+  it('offers Post my kitchen only with the door open, says it posts as you, and sends it through the session', async () => {
+    const posted: string[] = [];
+    restaurant.remote = hood({ doors: [sample], mine: true, allowed: true, bulletin: [] }, { postKitchen: async () => { posted.push('post'); return { url: 'https://reddit.com/r/x/comments/abc' }; } });
+    const screen = await render(<Neighborhood state={createRestaurant()} />);
+    await expect.element(screen.getByText('This posts as you, in this community.')).toBeVisible();
+    await screen.getByRole('button', { name: 'Post my kitchen' }).click(); expect(posted).toEqual(['post']);
+    await screen.unmount();
+    restaurant.remote = hood({ doors: [sample], mine: false, allowed: true, bulletin: [] });
+    const closed = await render(<Neighborhood state={createRestaurant()} />);
+    await expect.element(closed.getByRole('button', { name: "Visit Basil's Garden" })).toBeVisible();
+    expect(closed.container.querySelector('button[class*="bg-ink/8"]')).toBeNull();
+  });
+  it('shows the kitchen of a kitchen post with one button to stop by', async () => {
+    const { KitchenPostCard } = await import('@/management/KitchenPostCard'); const visits: string[] = [];
+    const remote = hood({ doors: [], mine: false, allowed: true, bulletin: [] }, { visit: async (id, dish) => { visits.push(`${id}:${dish}`); return { door: real, outcome: 'served', tip: 1, wait: 8, line: 'Served in 8s, tip $1' }; } });
+    restaurant.remote = { ...remote, today: { ...today, kitchen: real } };
+    const screen = await render(<KitchenPostCard />);
+    await expect.element(screen.getByText('Maple Rooftop')).toBeVisible(); await expect.element(screen.getByText('· run by maple')).toBeVisible();
+    await screen.getByRole('button', { name: /Stop by and order the sunset burger/ }).click(); expect(visits).toEqual(['t2_maple:burger']);
+    await expect.element(screen.getByText('Served in 8s, tip $1.')).toBeVisible();
+  });
+  it('shows nothing on an ordinary post', async () => {
+    const { KitchenPostCard } = await import('@/management/KitchenPostCard');
+    restaurant.remote = hood({ doors: [], mine: false, allowed: true, bulletin: [] }); const screen = await render(<KitchenPostCard />);
+    expect(screen.container.querySelector('[aria-label="A kitchen to visit"]')).toBeNull();
   });
 });
