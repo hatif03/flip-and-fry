@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Verification pass and the first optimization pass (G11, part of G12)
+
+**Why:** plan sections 19 and 20. Everything planned for the core loop is built, so the whole loop is now tested end to end, and the optimization that needs no new tools is done and measured.
+
+**Verification added:**
+- `full-loop.browser.test.tsx`: the whole night through the real screens on a phone-sized viewport, with the real server rules on a fake Redis and a fake Reddit: today's bar, a planning change saved by the server, the real Open button, the pass appearing, a cook at the pass during the night, the result card from the server's replay, posting the result (with the exact text shown first), flair, follow, and leaving the door open from the ledger.
+- `judging-week.test.ts`: 9 to 16 December for three kinds of player through the real server rules: one daily post per day, a report for each finished day, streaks that count only verified days (and stay visible until a day passes with no star), no mixing of players, a service that crosses UTC midnight keeping its headline, and the whole week under a minute. A server replay of one night takes about 10 ms against a 300 ms budget.
+
+**Optimization done** (details and numbers in `docs/perf-log.md`): Latin-only fonts, the 1.1 MB icon out of the bundle, the generated soundtrack, **quality tiers** (`src/scene/quality.ts`, `FrameWatch`; presentation only, so scores are identical on every tier) and `npm run perf:check`, a size guard with budgets for the splash, the initial and lazy JavaScript, models, audio and fonts.
+
+**Waiting on the author, and recorded as such:** compressing the nine GLBs and the audio needs `gltf-transform`, an image library and `ffmpeg`, none of which are installed here; running them over the author's own files is the author's decision. Source maps (about 15 MB of the upload) are forced on by the Devvit Vite plugin. Draw-call, memory and throttled-CPU measurements need a device.
+
+**Not done from the plan:** the hosted co-op (the engine needs a hands id on the owner's cook first), the ticket-mode station at the pass, the daily shift and the research bonus from Test Kitchen stars. They stay on the list.
+
+**Code:** `src/scene/{quality,FrameWatch}.ts(x)`, `src/management/{CityWeather,RestaurantScene}.tsx`, `src/index.css`, `scripts/perf-check.mjs`, `docs/perf-log.md`; tests `quality.test.ts`, `full-loop.browser.test.tsx`, `judging-week.test.ts`.
+
 ## 2026-11-19 — Realtime turned on: a live heads-up when a neighbor visits
 
 **Why:** plan sections 3 and 12 list realtime as a Reddit feature we use, and a visit to your kitchen is worth hearing about while you are in the game.
