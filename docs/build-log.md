@@ -4,6 +4,27 @@ This is the running record for Too Many Cooks on Devvit. The plan lives in `docs
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Baseline recorded and the deterministic core started (gate G0, part of G2)
+
+Baseline on the untouched game, tagged `pre-devvit`: lint reports 2 errors (`no-dupe-else-if` in `src/management/city-motion.ts`, not ours) and 10 warnings. Unit tests: 502 passed. Browser tests: 132 passed in 20 files. Playwright needed `npx playwright install chromium` for the installed 1.60 build.
+
+Built:
+
+- `autoRoll` on the engine and a public `tick()`. With `autoRoll` off, `finish()` stops at the receipt with the doors closed. Default stays on, so the continuous-days tests are unchanged.
+- `walk()` uses `Math.sqrt` instead of `Math.hypot`.
+- `src/management/replay.ts`: a zod action log, `runService(opening state, actions)` and a key-order-independent state hash.
+- Tests: determinism over 40 seeds, live/replay parity, forged opening states, action validation, `autoRoll`, and a source guard for clocks, random sources and `Math.hypot` in the sim files.
+- **Cross-engine golden test:** 96 replay fixtures hash identically in Chromium (V8), Firefox (SpiderMonkey) and WebKit (JavaScriptCore). Run with `npm run test:engines`. This was the main risk for the server lock and for lockstep co-op, and it holds.
+- `vitest` `testTimeout` raised to 30 s. The 8-hour replay test needs 4–5 s alone (5.07 s on the untouched engine) and tripped the 5 s default in parallel runs.
+
+Deviations from the plan, and why:
+
+- The `restaurant` singleton stays in `engine.ts`. It is harmless without `window`, and moving it would touch about 25 files and every browser test. `runService` builds its own engine, so the server never uses the singleton.
+- The `route()` layout-key cost (`JSON.stringify` per call) moves to the optimization phase, where it is listed already.
+
+Devvit or third party: none.
+Code or plan: `src/management/replay.ts`, `src/test/replay*.ts`, plan sections 2, 4 (E1, E2) and 19 (G0, G2).
+
 ## 2026-11-18 — Plan rewritten from the Devpost rules and the Devvit docs
 
 `docs/hackathon-plan.md` is replaced. It uses the saved Devpost pages (Overview, Resources, Rules) and the official docs in `reddit/devvit-docs`.
