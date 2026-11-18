@@ -1,12 +1,16 @@
 import { z } from 'zod';
-import { furnitureKind } from './types';
+import { DAY_LENGTH, furnitureKind } from './types';
 
 /**
  * The planning actions an owner takes between services. The engine reports each accepted one, the client queues and sends
  * them, and the server applies them with the same engine methods. Service actions (comp, priority, cook...) join this union
  * when the engine supports them. Imports only types.ts, so both the engine and the replay can use it.
  */
+/** A service ends by DAY_LENGTH + 90 s of sim time at the latest; anything longer is a bug, not a slow night. */
+export const MAX_SERVICE_TICKS = Math.round((DAY_LENGTH + 90) * 10) + 20;
 const planning = { tick: z.literal(0) };
+/** Service actions are stamped with the tick they happen on: how many 0.1 s steps the service had run. */
+const service = { tick: z.number().int().min(1).max(MAX_SERVICE_TICKS) };
 /** The restaurant name is the only free text in the game: letters, numbers, spaces and apostrophes, 28 characters. */
 export const restaurantName = z.string().min(1).max(28).regex(/^[\p{L}\p{N} ']+$/u);
 export const actionSchema = z.discriminatedUnion('kind', [
@@ -21,7 +25,16 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...planning, kind: z.literal('dismiss'), id: z.number().int() }),
   z.object({ ...planning, kind: z.literal('rename'), name: restaurantName }),
   z.object({ ...planning, kind: z.literal('music'), on: z.boolean() }),
+  // While the doors are open the owner can step in at the pass. Quality is never sent: the engine works it out from the ticks.
+  z.object({ ...service, kind: z.literal('claimTicket'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('cook'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('abandon'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('priority'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('comp'), guestId: z.number().int() }),
 ]);
 export type Action = z.infer<typeof actionSchema>;
 export const MAX_ACTIONS = 400;
+/** The most owner actions one service may carry. A busy night needs a few dozen. */
+export const MAX_SERVICE_ACTIONS = 80;
+export const isServiceAction = (a: Action): boolean => a.tick > 0;
 export const actionLogSchema = z.array(actionSchema).max(MAX_ACTIONS);

@@ -25,7 +25,10 @@ export function interactionName(action: Action): string | null {
   switch (action.kind) {
     case 'place': return action.item.id === -1 ? 'purchase' : 'move';
     case 'dish': return 'price';
-    case 'rename': case 'music': return null;
+    case 'rename': case 'music': case 'abandon': return null;
+    case 'claimTicket': return 'cook_ticket';
+    case 'cook': return 'plate';
+    case 'priority': return 'rush';
     default: return action.kind;
   }
 }

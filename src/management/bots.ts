@@ -1,6 +1,7 @@
 import { createDailyHeadline, type DailyHeadline } from './daily-headline';
-import { runService, type Action, type ServiceResult } from './replay';
-import { createRestaurant, type RestaurantState } from './types';
+import { RestaurantEngine } from './engine';
+import { applyPlanning, MAX_SERVICE_TICKS, runService, stateHash, type Action, type ServiceResult } from './replay';
+import { COMPS_PER_NIGHT, DISHES, createRestaurant, guestPatienceSeconds, type RestaurantState } from './types';
 
 /**
  * Bots own a restaurant; they do not tap tickets. Each is a fixed set of planning actions on the starter park,
@@ -37,4 +38,33 @@ export type BotRun = { bot: string; date: string; headline: DailyHeadline; resul
 export function runBot(bot: Bot, date: string, start: RestaurantState = createRestaurant()): BotRun {
   const headline = createDailyHeadline(date);
   return { bot: bot.name, date, headline, result: runService(start, bot.actions, headline) };
+}
+
+/**
+ * A scripted owner who helps at the pass: each tick it plates the dish it is cooking at the perfect moment, comps a table that is
+ * about to walk out, and otherwise claims the ticket that has waited longest. It plays the live engine and records exactly what a
+ * client would send, so the same night can be replayed (as the server does) and the receipts compared.
+ */
+export function helperPolicy(engine: RestaurantEngine): void {
+  const s = engine.state, cooking = s.guests.find(g => g.owner);
+  if (cooking) { if (cooking.cook >= DISHES[cooking.dish].seconds) engine.plate(cooking.id); return; }
+  if (s.comps < COMPS_PER_NIGHT) {
+    const patience = guestPatienceSeconds(s), desperate = s.guests.find(g => ['waiting', 'cooking', 'ready', 'delivering'].includes(g.stage) && g.price > 0 && g.waiting > patience * .85);
+    if (desperate) engine.comp(desperate.id);
+  }
+  const next = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting)[0];
+  if (next) engine.claimTicket(next.id);
+}
+
+export type HelpedRun = { actions: Action[]; liveHash: string; live: RestaurantState; replay: ServiceResult };
+/** Plays one service live with the helper and then replays the recorded log, so a test can prove they agree. */
+export function playWithHelper(bot: Bot, date: string, start: RestaurantState = createRestaurant(), helper: (e: RestaurantEngine) => void = helperPolicy): HelpedRun {
+  const headline = createDailyHeadline(date), planned = applyPlanning(start, bot.actions);
+  if ('error' in planned) throw new Error(planned.error);
+  const engine = new RestaurantEngine(undefined, () => 0), owner: Action[] = [];
+  engine.autoRoll = false; engine.state = structuredClone(planned.state); engine.onAction = a => owner.push(a);
+  const error = engine.open(headline); if (error) throw new Error(error);
+  for (let i = 0; i < MAX_SERVICE_TICKS && engine.state.phase === 'service'; i++) { helper(engine); engine.tick(); }
+  const actions = [...bot.actions, ...owner];
+  return { actions, liveHash: stateHash(engine.state), live: engine.state, replay: runService(start, actions, headline) };
 }

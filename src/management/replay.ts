@@ -1,20 +1,18 @@
-import { actionLogSchema, type Action } from './actions';
+import { actionLogSchema, isServiceAction, MAX_SERVICE_ACTIONS, MAX_SERVICE_TICKS, type Action } from './actions';
 import { RestaurantEngine } from './engine';
 import type { DailyHeadline } from './daily-headline';
 import { layoutError } from './layout';
-import { DAY_LENGTH, restaurantSchema, width, type Furniture, type Report, type RestaurantState } from './types';
+import { restaurantSchema, width, type Furniture, type Report, type RestaurantState } from './types';
 
 /**
  * The engine is a pure function: (opening state, action log) → receipt. The server replays the log to lock a score,
  * bots call it headless, and co-op clients drive the same log in lockstep. Nothing here reads a clock or a random source.
  * Planning actions run before the doors open and use the engine's own methods, so cash, phase and layout checks are the game's.
  */
-export { actionLogSchema, actionSchema, MAX_ACTIONS, type Action } from './actions';
-/** A service ends by DAY_LENGTH + 90 s of sim time at the latest; anything longer is a bug, not a slow night. */
-export const MAX_SERVICE_TICKS = Math.round((DAY_LENGTH + 90) * 10) + 20;
+export { actionLogSchema, actionSchema, isServiceAction, MAX_ACTIONS, MAX_SERVICE_ACTIONS, MAX_SERVICE_TICKS, type Action } from './actions';
 
 export type ServiceResult =
-  | { ok: true; report: Report; state: RestaurantState; hash: string; ticks: number }
+  | { ok: true; report: Report; state: RestaurantState; hash: string; ticks: number; rejected: number }
   | { ok: false; error: string };
 
 function apply(engine: RestaurantEngine, a: Action): string | null {
@@ -30,6 +28,11 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'dismiss': return engine.dismiss(a.id);
     case 'rename': engine.rename(a.name); return null;
     case 'music': engine.setMusic(a.on); return null;
+    case 'claimTicket': return engine.claimTicket(a.guestId);
+    case 'cook': return engine.plate(a.guestId);
+    case 'abandon': return engine.abandonCook(a.guestId);
+    case 'priority': return engine.rush(a.guestId);
+    case 'comp': return engine.comp(a.guestId);
   }
 }
 
@@ -76,22 +79,33 @@ export function openError(state: RestaurantState): string | null {
 export function applyPlanning(initial: RestaurantState, actions: readonly Action[]): { ok: true; state: RestaurantState } | { ok: false; error: string } {
   const prepared = prepare(initial, actions);
   if ('error' in prepared) return { ok: false, error: prepared.error };
+  if (prepared.log.some(isServiceAction)) return { ok: false, error: 'Owner actions at the pass belong to an open service.' };
   for (const action of prepared.log) { const error = apply(prepared.engine, action); if (error) return { ok: false, error }; }
   return { ok: true, state: prepared.engine.state };
 }
 
-/** Replay one service from a closed-doors state. The input is never mutated. */
+/**
+ * Replay one service from a closed-doors state. The input is never mutated. Planning actions (tick 0) run first and must all
+ * succeed. Service actions (the owner at the pass) run on the tick they are stamped with; one the engine refuses does nothing
+ * and is counted in `rejected`, because the same engine that took the action live would have taken it here, so a refusal can
+ * only be a stale or forged action and must not change the night.
+ */
 export function runService(initial: RestaurantState, actions: readonly Action[], headline?: DailyHeadline): ServiceResult {
   const prepared = prepare(initial, actions);
   if ('error' in prepared) return { ok: false, error: prepared.error };
-  const { engine, log } = prepared;
-  for (const action of log) { const error = apply(engine, action); if (error) return { ok: false, error }; }
+  const { engine, log } = prepared, planning = log.filter(a => !isServiceAction(a)), owner = log.filter(isServiceAction);
+  if (owner.length > MAX_SERVICE_ACTIONS) return { ok: false, error: 'Too many owner actions for one service.' };
+  for (let i = 1; i < owner.length; i++) if (owner[i].tick < owner[i - 1].tick) return { ok: false, error: 'Owner actions are out of order.' };
+  for (const action of planning) { const error = apply(engine, action); if (error) return { ok: false, error }; }
   const error = engine.open(headline);
   if (error) return { ok: false, error };
   const day = engine.state.day;
-  let ticks = 0;
-  while (engine.state.phase === 'service' && engine.state.day === day && ticks < MAX_SERVICE_TICKS) { engine.tick(); ticks++; }
+  let ticks = 0, next = 0, rejected = 0;
+  while (engine.state.phase === 'service' && engine.state.day === day && ticks < MAX_SERVICE_TICKS) {
+    while (next < owner.length && owner[next].tick <= engine.tickCount()) { if (owner[next].tick < engine.tickCount() || apply(engine, owner[next])) rejected++; next++; }
+    engine.tick(); ticks++;
+  }
   if (engine.state.phase === 'service') return { ok: false, error: 'The service did not close.' };
   const report = engine.state.history[engine.state.history.length - 1];
-  return { ok: true, report, state: engine.state, hash: stateHash(engine.state), ticks };
+  return { ok: true, report, state: engine.state, hash: stateHash(engine.state), ticks, rejected };
 }

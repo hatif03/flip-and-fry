@@ -25,6 +25,8 @@ export class Session implements RemoteSession {
   notice = '';
   private rev = 0;
   private pending: Action[] = [];
+  /** What the owner did at the pass this service, stamped with ticks. Sent with the lock, never saved on its own. */
+  private serviceLog: Action[] = [];
   private chain: Promise<unknown> = Promise.resolve();
   private timer: unknown = null;
   private openDate: string | null = null;
@@ -38,7 +40,7 @@ export class Session implements RemoteSession {
   /** Load today's data and take over the engine. Returns an error message, or null when the game can start. */
   async start(): Promise<string | null> {
     const e = this.engine;
-    e.detach(); e.autoRoll = false; e.remote = this; e.onAction = a => { this.queue(a); const verb = interactionName(a); if (verb) this.journeys.interaction(verb, this.today?.run ? 'later' : 'official'); };
+    e.detach(); e.autoRoll = false; e.remote = this; e.onAction = a => { if (a.tick === 0) this.queue(a); else this.serviceLog.push(a); const verb = interactionName(a); if (verb) this.journeys.interaction(verb, this.today?.run ? 'later' : 'official'); };
     if (!this.watching) { this.watching = true; e.subscribe(() => this.onEngineChange()); }
     return this.load();
   }
@@ -103,7 +105,7 @@ export class Session implements RemoteSession {
       this.rev = opened.rev; this.result = null;
       this.engine.adopt(opened.snapshot);
       const error = this.engine.open(opened.headline);
-      if (!error) { this.openDate = opened.date; this.sentFirstGuest = false; this.sentHalfway = false; } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
+      if (!error) { this.openDate = opened.date; this.sentFirstGuest = false; this.sentHalfway = false; this.serviceLog = []; } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
       return error;
     });
   }
@@ -127,13 +129,13 @@ export class Session implements RemoteSession {
 
   private async close(date: string): Promise<void> {
     await this.enqueue(async () => {
-      const journeyId = this.journeys.id(), r = await this.http('POST', '/api/lock', { date, actions: [] }, journeyId ? { 'x-devvit-journey-id': journeyId } : undefined);
+      const journeyId = this.journeys.id(), r = await this.http('POST', '/api/lock', { date, actions: this.serviceLog }, journeyId ? { 'x-devvit-journey-id': journeyId } : undefined);
       if (r.status !== 200 || isError(r.body)) {
         this.notice = isError(r.body) && r.body.conflict ? 'Your restaurant changed in another tab, so it was reloaded.' : message(r);
         await this.load(); this.engine.notify(); return;
       }
       const lock = r.body as LockResponse;
-      this.rev = lock.rev; this.result = lock; this.journeys.clear(); // the server wrote the official end with the replayed score
+      this.rev = lock.rev; this.result = lock; this.serviceLog = []; this.journeys.clear(); // the server wrote the official end with the replayed score
       // The server's replay is the only receipt that counts. If this preview disagrees, the server's park wins.
       if (stateHash(this.engine.state) !== lock.hash) this.engine.adopt(lock.park);
       if (this.today) this.today = { ...this.today, rev: lock.rev, park: lock.park, streak: lock.streak, run: lock.official ? { report: lock.report, stars: lock.stars, hash: lock.hash, headline: lock.report.headline!, submittedAt: 0, username: '' } : this.today.run, community: { opens: this.today.community.opens, locks: this.today.community.locks + (lock.official && !lock.replaced && !this.today.run ? 1 : 0) } };

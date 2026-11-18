@@ -15,7 +15,7 @@ export type Role = z.infer<typeof roleSchema>;
 const agentSchema = pointSchema.extend({ yaw: z.number().finite(), route: z.array(pointSchema).max(200) });
 const staffSchema = agentSchema.extend({ id: z.number().int(), name: z.string().max(30), role: roleSchema, level: z.number().int().min(1).max(3), task: z.enum(['idle', 'toKitchen', 'cooking', 'collect', 'deliver', 'clean']), guestId: z.number().int().nullable(), stationId: z.number().int().nullable(), timer: z.number().finite().nonnegative() });
 export type Staff = Validated<z.infer<typeof staffSchema>>;
-const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(['mouse', 'crocodile', 'rabbit', 'bear']), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(['salad', 'burger']), price: z.number().min(10).max(60), stage: z.enum(['arriving', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false) });
+const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(['mouse', 'crocodile', 'rabbit', 'bear']), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(['salad', 'burger']), price: z.number().min(0).max(60), stage: z.enum(['arriving', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false) });
 export type Guest = Validated<z.infer<typeof guestSchema>>;
 export type Dish = Guest['dish'];
 const totalsSchema = z.object({ revenue: z.number().nonnegative(), ingredients: z.number().nonnegative(), served: z.number().int().nonnegative(), missed: z.number().int().nonnegative(), tips: z.number().nonnegative() });
@@ -37,7 +37,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: z.object({ salad: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }), burger: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }) }),
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -56,6 +56,16 @@ export const DISHES: Record<Dish, { name: string; cost: number; fair: number; se
   burger: { name: 'Sunset burger', cost: 12, fair: 38, seconds: 10, station: 'grill', description: 'Charcoal-grilled, stacked high, made with love.' },
 };
 export const DAY_LENGTH = 150;
+/** Tables the owner may comp in one service. A comp trades the sale for a guest who would have walked out. */
+export const COMPS_PER_NIGHT = 2;
+/** A dish the owner is cooking burns, by itself, after this many times its normal cooking time. */
+export const COOK_BURN = 2;
+/**
+ * Plating quality from how long the owner let the dish cook, as a share of its normal time. The engine computes this from
+ * simulated seconds, so nothing about quality is reported by the client: 0 means raw or burnt (the dish is lost), 1 is
+ * acceptable, 3 is perfect and tips 15% more, 2 is slightly over.
+ */
+export const cookQuality = (ratio: number): 0 | 1 | 2 | 3 => ratio < .6 ? 0 : ratio < .85 ? 1 : ratio <= 1.25 ? 3 : ratio <= 1.6 ? 2 : 0;
 /** How fast the walk-away chance grows with a price above fair: refusal = (price / fair - 1) * PRICE_SLOPE. Calibrated by the bots. */
 export const PRICE_SLOPE = 1.2;
 /** Seconds of arrival gap one point of atmosphere above the 20 every room starts with takes off; capped so decor never doubles the crowd. */
@@ -95,7 +105,7 @@ export function createRestaurant(): RestaurantState {
       { id: 10, name: 'Basil', role: 'chef', level: 1, x: 1, z: 2, yaw: Math.PI, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
       { id: 11, name: 'Pip', role: 'server', level: 1, x: 4, z: 7, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
     ], guests: [], dirty: [], menu: { salad: { enabled: true, price: 24 }, burger: { enabled: true, price: 38 } },
-    headline: null, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
+    headline: null, comps: 0, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
     phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
   };
 }

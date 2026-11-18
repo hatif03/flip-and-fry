@@ -4,6 +4,28 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — The owner at the pass (start of P7): the player's job during service
+
+**Why:** phone feedback said it was unclear what the player does, and it was right: every decision happened before opening and the service ran by itself. The plan's answer is the pass, so it is built now, in its verifiable form first; the full `KitchenEngine` station replaces the timing bar later.
+
+**What the player can do while the doors are open** (`src/management/Pass.tsx`, engine methods `claimTicket`, `plate`, `abandonCook`, `rush`, `comp`):
+- **Cook a waiting ticket** yourself when the chefs are busy. One dish at a time, at a free station of the right kind, ingredients paid on claim. A bar fills as the dish cooks, with zones: raw, a little early, **perfect**, a little over, burnt. **Plate it** in the green zone for a perfect plate (tips 15% more); too early or too late loses the dish and the ingredients and the ticket goes back to the line. A dish left for twice its time burns by itself.
+- **Rush** a ticket to the front of the line; **Comp** a table that is about to walk out (free meal, patience resets, two a night).
+- The game slows to 1× while you cook, so the bar is the same speed for everyone. The daily challenges are thin pips on the panel instead of a panel that covered the floor.
+
+**How it stays verifiable:** these are service actions stamped with the tick they happen on (`claimTicket`, `cook`, `abandon`, `priority`, `comp`). **No quality is ever sent:** the engine works plating quality out from how long the dish cooked, in simulated seconds, so there is nothing to forge. The replay applies each action on its exact tick; one the engine refuses does nothing and is counted. A log must be in order, at most 80 actions, and may not contain planning actions at lock (or service actions in open or save).
+- **Tested:** the scripted helping owner (`helperPolicy` in `bots.ts`) plays live on every judging day, in two kitchens, and the server-style replay lands on the identical state with zero rejected actions. The helper serves more guests than the team alone. The server accepts the log at lock, ignores refused or forged actions without changing the night, and enforces the limits. The client session collects the pass log separately from planning changes and sends it with the lock. 11 + 21 + 10 new tests (engine, replay, server and session, and the panel in a real browser at 360 px).
+- **Schema:** guests gained `owner`, `cook`, `quality`, `priority`; the state gained `comps`; guest price may now be 0 (a comp). Golden hashes were refreshed; they still match in Chromium, Firefox and WebKit.
+
+**Also fixed:** the camera buttons were hidden under the daily bar on phones; on Reddit they now sit at the right edge in the middle of the screen.
+
+**Not changed on purpose:** the starter park still has a server. Removing it (so the first hire is the server) would invalidate the calibrated bots, since a bot cannot work the pass; that change belongs with the research and contract work and a re-calibration.
+
+Tests: 654 unit, 165 browser, cross-engine all passing.
+
+Devvit or third party: none.
+Code or plan: `src/management/{engine,actions,replay,Pass,bots}`, plan section 7.1.
+
 ## 2026-11-18 — Phone feedback: pixel size, overlap, weather, guidance
 
 The first phone screenshot of the pixel build (a 360 CSS px wide phone at 2× density) showed four problems.

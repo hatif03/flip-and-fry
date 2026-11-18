@@ -1,5 +1,5 @@
 import { createDailyHeadline, dayOfYear, daysInYear, mixSeed, shiftDate } from '../../management/daily-headline';
-import { applyPlanning, actionLogSchema, openError, runService, type Action } from '../../management/replay';
+import { applyPlanning, actionLogSchema, isServiceAction, MAX_SERVICE_ACTIONS, openError, runService, type Action } from '../../management/replay';
 import { evaluateStars, packScore } from '../../management/stars';
 import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
 import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse } from '../../shared/api';
@@ -120,8 +120,9 @@ export async function lockService(deps: Deps, user: Player, date: string, action
   const today = utcDate(deps.now());
   if (!dateAllowed(date, today)) return fail(400, 'That service is too old to close.');
   const log = actionLogSchema.safeParse(actions); if (!log.success) return fail(400, 'Invalid action log.');
-  // Service actions (comp, cook...) are not part of the log yet; planning actions were applied when the doors opened.
-  if (log.data.length > 0) return fail(400, 'Planning actions belong to /api/save and /api/open.');
+  // Planning changes were applied when the doors opened. What arrives now is only what the owner did at the pass.
+  if (log.data.some(a => !isServiceAction(a))) return fail(400, 'Planning changes belong to /api/save and /api/open.');
+  if (log.data.length > MAX_SERVICE_ACTIONS) return fail(400, 'Too many owner actions for one service.');
   const rawOpen = await deps.store.hGet(keys.opens(date), user.id);
   if (!rawOpen) return fail(409, 'There is no open service to close. Open the doors first.');
   const opened = JSON.parse(rawOpen) as StoredOpen;

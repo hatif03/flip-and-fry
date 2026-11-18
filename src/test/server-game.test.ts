@@ -187,3 +187,37 @@ describe('limits', () => {
 });
 
 describe('utcDate', () => { it('formats the UTC day, not the local one', () => { expect(utcDate(Date.UTC(2026, 11, 9, 23, 59, 59))).toBe('2026-12-09'); expect(utcDate(Date.UTC(2026, 11, 10, 0, 0, 0))).toBe('2026-12-10'); }); });
+
+describe('owner actions at the pass', () => {
+  it('lock replays them: the receipt is the same as playing the night live, and differs from the team alone', async () => {
+    const { playWithHelper, cozyBot: bot } = await import('@/management/bots');
+    const t = await today(), opened = good(await openService(deps, alice, t.rev, bot.actions));
+    const run = playWithHelper({ name: 'none', actions: [] }, opened.date, opened.snapshot);
+    const owner = run.actions; expect(owner.length).toBeGreaterThan(0);
+    const locked = good(await lockService(deps, alice, opened.date, owner));
+    expect(locked.hash).toBe(run.liveHash); expect(locked.report.served).toBeGreaterThan(0);
+    const alone = new FakeStore(); alone.now = store.now; const d2: Deps = { store: alone, now: () => alone.now };
+    const t2 = good(await getToday(d2, bob)), o2 = good(await openService(d2, bob, t2.rev, bot.actions)), plain = good(await lockService(d2, bob, o2.date, []));
+    expect(locked.report.served).toBeGreaterThanOrEqual(plain.report.served);
+  });
+  it('ignores owner actions the engine refuses instead of failing the lock, and never lets them forge a result', async () => {
+    const t = await today(), o = good(await openService(deps, alice, t.rev, []));
+    const forged: Action[] = [{ tick: 4, kind: 'cook', guestId: 1 }, { tick: 8, kind: 'comp', guestId: 77 }, { tick: 9, kind: 'claimTicket', guestId: 5000 }];
+    const locked = good(await lockService(deps, alice, o.date, forged));
+    const other = new FakeStore(); other.now = store.now; const d2: Deps = { store: other, now: () => other.now };
+    const t2 = good(await getToday(d2, alice)), o2 = good(await openService(d2, alice, t2.rev, [])), clean = good(await lockService(d2, alice, o2.date, []));
+    expect(locked.hash).toBe(clean.hash);
+  });
+  it('rejects too many owner actions, and rejects planning actions mixed in, at the lock', async () => {
+    const t = await today(), o = good(await openService(deps, alice, t.rev, []));
+    const many: Action[] = Array.from({ length: 81 }, (_, i) => ({ tick: 10 + i, kind: 'priority', guestId: 1 }));
+    expect(await lockService(deps, alice, o.date, many)).toMatchObject({ ok: false, status: 400, error: 'Too many owner actions for one service.' });
+    expect(await lockService(deps, alice, o.date, [{ tick: 0, kind: 'hire', role: 'chef' }])).toMatchObject({ ok: false, status: 400 });
+    expect(good(await lockService(deps, alice, o.date, [])).official).toBe(true); // the open service survived the bad attempts
+  });
+  it('cannot be smuggled into opening or saving the park', async () => {
+    const t = await today();
+    expect(await openService(deps, alice, t.rev, [{ tick: 5, kind: 'comp', guestId: 1 }])).toMatchObject({ ok: false });
+    expect(await savePark(deps, alice, t.rev, [{ tick: 5, kind: 'comp', guestId: 1 }])).toMatchObject({ ok: false });
+  });
+});

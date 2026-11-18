@@ -128,3 +128,24 @@ describe('a service', () => {
     expect(a.session.result).toBeNull(); expect(a.session.notice).toContain('another tab'); expect(a.engine.state.staff).toHaveLength(3);
   });
 });
+
+describe('the owner at the pass', () => {
+  it('actions taken during the service are sent with the lock, and the server\'s receipt matches the client\'s preview', async () => {
+    const { helperPolicy } = await import('@/management/bots');
+    const { engine, session } = client(network(alice)); await session.start(); expect(await engine.remote!.open()).toBeNull();
+    let acted = 0; const before = engine.onAction!; engine.onAction = a => { if (a.tick > 0) acted++; before(a); };
+    for (let i = 0; i < 2600 && engine.state.phase === 'service'; i++) { helperPolicy(engine); engine.update(.1); }
+    await session.idle();
+    expect(acted).toBeGreaterThan(0); expect(session.result).not.toBeNull();
+    expect(session.result!.hash).toBe(stateHash(engine.state)); // the server replayed every action and landed on the same night
+  });
+  it('are not saved as planning changes and are cleared for the next service', async () => {
+    const { helperPolicy } = await import('@/management/bots');
+    const { engine, session, timers } = client(network(alice)); await session.start(); await engine.remote!.open();
+    for (let i = 0; i < 600; i++) { helperPolicy(engine); engine.update(.1); }
+    timers.run(); await session.idle(); // a flush while the service runs must not send pass actions to /api/save
+    for (let i = 0; i < 2600 && engine.state.phase === 'service'; i++) { helperPolicy(engine); engine.update(.1); }
+    await session.idle(); expect(session.result?.official).toBe(true); expect(session.notice).toBe('');
+    session.dismissResult(); await engine.remote!.open(); play(engine); await session.idle(); expect(session.result?.official === false || session.result?.official === true).toBe(true);
+  });
+});
