@@ -31,6 +31,5 @@
   "scripts": {
     "build": "vite build --config vite.devvit.config.ts",
     "dev": "vite build --config vite.devvit.config.ts --watch"
-  },
-  "dev": { "subreddit": "too_many_cooks_dev" }
+  }
 }
