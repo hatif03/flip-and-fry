@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Neighbors get a pixel face (the snoovatar fallback)
+
+**Why:** plan section 12 (snoovatar spike S3). A neighbor from the thread should look like a person, not a label.
+
+**Decision:** ship the fallback first. `src/management/pixel-face.ts` draws a mirrored 5 by 5 pixel face from the neighbor's name, in one of the game's colours, as an SVG data URI, so it needs no network and cannot be blocked by the webview's content rules. It appears beside a visiting neighbor's thought bubble and next to the host's name in the neighborhood list.
+
+**Spike S3 is not run:** whether an image from Reddit's CDN (`reddit.getSnoovatarUrl`) loads inside the webview can only be tried on a phone. When it is, a real avatar can replace the face in the same two places, with the face as the fallback if the image fails. Nothing else depends on it, and no avatar is requested until then.
+
+**Code:** `src/management/pixel-face.ts`, `GuestSatisfactionBar.tsx`, `RestaurantLabels.tsx`, `Neighborhood.tsx`; tests in `src/test/pixel-face.test.ts`.
+
 ## 2026-11-19 — The inline card and the app icon
 
 **Why:** plan sections 11 and 13.6. The feed card is the first thing anyone sees, and the listing needs a square icon under 500 KB.

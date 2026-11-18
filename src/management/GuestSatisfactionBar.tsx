@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Frown, Meh, Smile, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { pixelFace } from './pixel-face';
 import type { GuestMood, Thought } from './satisfaction';
 import type { Guest } from './types';
 
@@ -11,12 +12,12 @@ const stages: Record<Guest['stage'], string> = {
 const moods: Record<GuestMood, string> = { content: 'Comfortable', uneasy: 'Getting impatient', unhappy: 'Unhappy', served: 'Happily served' };
 
 /** Compact, non-interactive meter; only simulation updates change its fill. */
-export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, value, mood, stage, special = false, thought = null }: {
-  id: number; value: number; mood: GuestMood; stage: Guest['stage']; special?: boolean; thought?: Thought | null;
+export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, value, mood, stage, special = false, thought = null, neighbor = null }: {
+  id: number; value: number; mood: GuestMood; stage: Guest['stage']; special?: boolean; thought?: Thought | null; neighbor?: string | null;
 }) {
   const Face = mood === 'unhappy' ? Frown : mood === 'uneasy' ? Meh : Smile;
   return <>
-    {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{thought.text}</span>}
+    {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{neighbor && <img src={pixelFace(neighbor)} alt="" width={12} height={12} className="mr-1 inline-block size-3 align-[-2px] [image-rendering:pixelated]" />}{thought.text}</span>}
     <div role="meter" aria-label={`Guest ${id} satisfaction`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}
     aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' Star guest — counts toward today’s challenge when served.' : ''}${thought ? ` Thinking: ${thought.text}.` : ''}`}
     data-special={special} data-guest-id={id} data-mood={mood} data-stage={stage}
