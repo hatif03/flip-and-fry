@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Research: a nightly budget that opens the stock pot, a window bench and staff cloth
+
+**Why:** plan section 6. Cash has few sinks after the first week; research gives a small, steady one that pays back in something visible, and it is the one place the owner trades tonight's profit for tomorrow's menu.
+
+**Rules:**
+- With the doors closed the owner sets a budget of $0, $20 or $40 (`research` action). At closing it is taken like wages, only if the register still has that much after wages and rent. Otherwise the night is skipped, not borrowed. The amount becomes research points one for one and is shown on the report (`report.research`, subtracted from profit).
+- 100 points opens the **stock pot** in the shop (soup, ramen, dumplings). 220 opens the **window bench** (+10 atmosphere, a new piece drawn from boxes). 360 opens **staff cloth**: hat and apron colours for chefs, from the same six colours as the Test Kitchen wardrobe (`outfit` action). Servers keep their teal.
+- The wok and the oven stay on sale from the start. Gating all three appliances would have made the first noodle or bread dish a week away; the pot is the one that matters because it carries five dishes.
+- Moving a piece already placed never needs the study, so a state cannot be stranded.
+
+**Server:** `research` and `outfit` are planning actions in the zod log, run through the same engine methods as the client, so a forged log cannot buy a gated piece or dress the staff early (the engine refuses and the lock fails).
+
+**Refused:** research that can run the register negative, random research outcomes, and a tree. One meter, three thresholds.
+
+**Code:** `src/management/types.ts` (`RESEARCH`, `researched`, `RESEARCH_GATE`), `engine.ts` (`setResearch`, `setOutfit`, `place` gate, `finish`), `actions.ts`, `replay.ts`, `Panels.tsx`, `InteriorsPanel.tsx`, `Agents.tsx`, `FurnitureView.tsx`, `src/components/OutfitPicker.tsx` (moved out of the wardrobe so the tycoon does not import the 3D preview); tests in `research.test.ts` and `research.browser.test.tsx`. Golden hashes refreshed again for the new fields.
+
 ## 2026-11-19 — Named regulars
 
 **Why:** plan section 6. A restaurant with people who come back has a reason to keep the doors open tomorrow, and the sixth contract (Regulars' table) needs them.

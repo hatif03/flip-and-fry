@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Armchair, ArrowRight, ArrowUpRight, Banknote, Check, Grid2X2, Leaf, LockKeyhole, Move, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
-import { CATALOG, DISHES, DISH_IDS, capacity, comfort, type FurnitureKind, type RestaurantState } from './types';
+import { RESEARCH, RESEARCH_GATE, researched, CATALOG, DISHES, DISH_IDS, capacity, comfort, type FurnitureKind, type RestaurantState } from './types';
 import { FurnitureArt, Notice, SmallButton, type Action } from './Panels';
 import { money } from './format';
 
 const categories = ['All', 'Dining', 'Decor', 'Kitchen'] as const;
 type Category = typeof categories[number];
-const catalogOrder: FurnitureKind[] = ['table', 'plant', 'lamp', 'divider', 'prep', 'grill', 'pot', 'wok', 'oven'];
+const catalogOrder: FurnitureKind[] = ['table', 'plant', 'lamp', 'divider', 'bench', 'prep', 'grill', 'pot', 'wok', 'oven'];
 /** The dishes a station unlocks, named from the dish table so a new dish never needs a new line here. */
 const kitchenDishes = (kind: FurnitureKind): string => DISH_IDS.filter(d => DISHES[d].station === kind).map(d => DISHES[d].name.toLowerCase()).join(', ');
 const matchesCategory = (kind: FurnitureKind, category: Category): boolean => category === 'All' || CATALOG[kind].category === (category === 'Decor' ? 'Atmosphere' : category);
@@ -39,10 +39,11 @@ export function InteriorsPanel({ state, choose, inspect, action }: {
       <p className="mb-3 hidden text-xs leading-relaxed text-ink/65 lg:block">Choose a piece, preview it on the grid, then Confirm to buy. Nothing is charged until it fits.</p>
       <div className="space-y-3">{catalogOrder.filter(kind => matchesCategory(kind, category)).map(kind => {
         const item = CATALOG[kind], count = state.furniture.filter(f => f.kind === kind).length, affordable = state.cash >= item.price;
+        const gate = RESEARCH_GATE[kind], locked = Boolean(gate && !researched(state, gate)), study = gate ? RESEARCH.find(r => r.id === gate) : undefined;
         const benefit = kind === 'table' ? 'Table + 2 chairs included' : item.comfort > 0 ? `+${Math.min(item.comfort, 100 - comfort(state))} atmosphere${comfort(state) === 100 ? ' · at maximum' : ''}` : `Cooks ${kitchenDishes(kind)}`;
-        return <button type="button" key={kind} aria-label={`Preview ${item.name} · ${money(item.price)}`} disabled={!editable || !affordable} onClick={() => choose(kind)} className="group w-full rounded-2xl border border-ink/10 bg-white/40 p-3 text-left transition hover:border-teal/50 hover:bg-white/60 active:scale-[.99] disabled:cursor-not-allowed disabled:hover:border-ink/10 motion-reduce:transition-none">
+        return <button type="button" key={kind} aria-label={`Preview ${item.name} · ${money(item.price)}`} disabled={!editable || !affordable || locked} onClick={() => choose(kind)} className="group w-full rounded-2xl border border-ink/10 bg-white/40 p-3 text-left transition hover:border-teal/50 hover:bg-white/60 active:scale-[.99] disabled:cursor-not-allowed disabled:hover:border-ink/10 motion-reduce:transition-none">
           <div className="flex items-center gap-3"><div className="w-16 shrink-0"><FurnitureArt kind={kind} /></div><div className="min-w-0 flex-1"><h3 className="font-display text-lg leading-tight">{item.name}</h3><p className="mt-1 text-[11px] font-bold text-teal">{benefit}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-ink/60"><Grid2X2 size={12} aria-hidden="true" />{item.size} × {item.size} tiles · {count} placed</p></div></div>
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-ink/10 pt-2"><span className="font-display text-xl tabular-nums text-teal">{money(item.price)}</span><span className={cn('flex items-center gap-1 text-[11px] font-extrabold', !affordable ? 'text-tomato' : editable ? 'text-teal' : 'text-ink/55')}>{!affordable ? `Need ${money(item.price - state.cash)} more` : editable ? <>Preview & place <ArrowRight size={14} aria-hidden="true" /></> : 'After renovation'}</span></div>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-ink/10 pt-2"><span className="font-display text-xl tabular-nums text-teal">{money(item.price)}</span><span className={cn('flex items-center gap-1 text-[11px] font-extrabold', !affordable ? 'text-tomato' : editable ? 'text-teal' : 'text-ink/55')}>{locked && study ? `Research ${study.title.toLowerCase()}: ${state.research.points}/${study.at}` : !affordable ? `Need ${money(item.price - state.cash)} more` : editable ? <>Preview & place <ArrowRight size={14} aria-hidden="true" /></> : 'After renovation'}</span></div>
         </button>;
       })}</div>
       <p className="mt-3 text-[11px] leading-relaxed text-ink/60">Decor improves patience and tips, up to 100 atmosphere. Chairs come with each table and need a clear aisle.</p>

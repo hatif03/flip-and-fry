@@ -5,7 +5,7 @@ import { runService } from '@/management/replay';
 import { createRestaurant, restaurantSchema, type RestaurantState, type Report } from '@/management/types';
 
 const goal = (id: string) => GOALS.find(g => g.id === id)!;
-const report = (over: Partial<Report> = {}): Report => ({ revenue: 100, ingredients: 20, served: 6, missed: 0, tips: 10, headline: null, challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, profit: 0, rating: 3, ...over });
+const report = (over: Partial<Report> = {}): Report => ({ revenue: 100, ingredients: 20, served: 6, missed: 0, tips: 10, headline: null, challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 0, rating: 3, ...over });
 const headline = createDailyHeadline('2026-12-09');
 /** Play `nights` services in a row from a state, the way the server does, and hand back the state after each. */
 function play(state: RestaurantState, nights: number): RestaurantState[] {

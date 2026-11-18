@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { HONEST_BAND, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -199,6 +199,8 @@ export class RestaurantEngine {
     if (this.state.phase !== 'planning') return 'Rearrange the restaurant between service days.';
     const existing = this.state.furniture.find(f => f.id === item.id);
     if (existing && existing.kind !== item.kind) return 'Move the selected furniture without changing its type.';
+    const gate = RESEARCH_GATE[item.kind];
+    if (!existing && gate && !researched(this.state, gate)) { const study = RESEARCH.find(r => r.id === gate)!; return `Research the ${study.title.toLowerCase()} first: ${study.at} points, you have ${this.state.research.points}.`; }
     if (!existing && this.state.cash < CATALOG[item.kind].price) return 'Not enough cash. Serve a day or sell something you no longer need.';
     const error = placementError(this.state, item); if (error) return error;
     if (existing) Object.assign(existing, item);
@@ -257,6 +259,16 @@ export class RestaurantEngine {
     this.state.cash += 600; this.state.debt = 600; this.recordIncome(600, 'loan'); this.record({ tick: 0, kind: 'loan' }); this.changed('Recovery loan received. $30 is repaid after each day, with no interest.'); return null;
   }
   rename(name: string): void { this.state.name = name.trim().slice(0, 28) || 'Little Rooftop'; this.record({ tick: 0, kind: 'rename', name: this.state.name }); this.changed(); }
+  /** What to spend on research each night, taken at closing like wages. */
+  setResearch(budget: 0 | 20 | 40): string | null {
+    if (this.state.phase !== 'planning') return 'Set the research budget between services.';
+    this.state.research.budget = budget; this.record({ tick: 0, kind: 'research', budget }); this.changed(); return null;
+  }
+  setOutfit(part: 'hat' | 'apron', color: OutfitId): string | null {
+    if (this.state.phase !== 'planning') return 'Change the staff cloth between services.';
+    if (!researched(this.state, 'cloth')) return 'Research the staff cloth first.';
+    this.state.outfit[part] = color; this.record({ tick: 0, kind: 'outfit', part, color }); this.changed(); return null;
+  }
   setMusic(value: boolean): void { this.state.music = value; this.record({ tick: 0, kind: 'music', on: value }); this.changed(); }
   welcome(): void { this.state.welcomed = true; this.changed(); }
   reset(): void { if (this.remote) { this.event = 'Your restaurant is saved on Reddit and cannot be reset here.'; this.notify(); return; } this.rewardSavePending = false; this.pauseAfterCatchUp = null; this.catchingUp = false; this.backgrounded = false; this.awaySummary = null; this.speed = 1; this.incomeReceipts = []; this.state = createRestaurant(); this.paused = false; this.accumulator = 0; this.savedAt = 0; this.loadWarning = ''; this.changed('A fresh beginning. Make this rooftop your own.'); }
@@ -491,16 +503,17 @@ export class RestaurantEngine {
     const s = this.state;
     for (const guest of s.guests) if (!guest.paid && guest.stage !== 'leaving') s.totals.missed++;
     const wages = s.staff.reduce((sum, staff) => sum + staffWage(staff), 0), rent = s.expanded ? 50 : 30, debtPayment = Math.min(30, s.debt);
-    const owed = s.debt; s.cash -= wages + rent + debtPayment; s.debt -= debtPayment; if (owed > 0 && s.debt === 0) s.streaks.loanCleared = 1;
+    const research = s.research.budget > 0 && s.cash - (wages + rent + debtPayment) >= s.research.budget ? s.research.budget : 0; s.research.points += research;
+    const owed = s.debt; s.cash -= wages + rent + debtPayment + research; s.debt -= debtPayment; if (owed > 0 && s.debt === 0) s.streaks.loanCleared = 1;
     const fx = this.fx, h = s.headline;
     let rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06 - (h ? h.dirtyAtClose * fx.dirtyPenalty : 0)));
     if (fx.criticCap && h && h.walkouts > 0) rating = Math.min(rating, 2);
     s.reputation = Math.round((s.reputation * .65 + rating * .35) * 100) / 100;
     const value = companyValue(s); if (value > s.best.value) s.best = { value, day: s.day };
-    const profit = s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment;
+    const profit = s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment - research;
     const honest = DISH_IDS.filter(dish => s.menu[dish].enabled).every(dish => Math.abs(s.menu[dish].price - DISHES[dish].fair) <= HONEST_BAND);
     s.streaks.nailed++; s.streaks.honest = honest && profit > 0 ? s.streaks.honest + 1 : 0;
-    s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit, rating }); s.history = s.history.slice(-20);
+    s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, research, profit, rating }); s.history = s.history.slice(-20);
     this.recruit();
     this.beginNextDay(); this.changed();
   }

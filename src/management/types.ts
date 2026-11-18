@@ -4,7 +4,7 @@ import { headlineEffects, headlineId } from './daily-headline';
 // Zod validates required fields at runtime; preserve them in the legacy non-strict TS project too.
 type Validated<T> = T extends (infer U)[] ? Validated<U>[] : T extends object ? { [K in keyof T]-?: Validated<T[K]> } : T;
 
-export const furnitureKind = z.enum(['table', 'prep', 'grill', 'pot', 'wok', 'oven', 'plant', 'divider', 'lamp']);
+export const furnitureKind = z.enum(['table', 'prep', 'grill', 'pot', 'wok', 'oven', 'plant', 'divider', 'lamp', 'bench']);
 export type FurnitureKind = z.infer<typeof furnitureKind>;
 /** Every dish the kitchen can cook. The schemas, the menu, the guest orders and the challenges all derive from this one list. */
 export const DISH_IDS = ['salad', 'burger', 'bruschetta', 'soup', 'flatbread', 'skewers', 'steak', 'fries', 'ramen', 'dumplings', 'stirfry', 'friedrice'] as const;
@@ -60,6 +60,21 @@ export type Streaks = Validated<z.infer<typeof streaksSchema>>;
 export const freshStreaks = (): Streaks => ({ nailed: 0, honest: 0, loanCleared: 0 });
 /** A dish is priced honestly within this many dollars of fair. */
 export const HONEST_BAND = 4;
+/** What the research budget buys, in the order it is earned. Points are dollars spent on research. */
+export const RESEARCH = [
+  { id: 'pot', at: 100, title: 'Stock pot', text: 'Opens the stock pot in the shop: soups, ramen and dumplings.' },
+  { id: 'bench', at: 220, title: 'Window bench', text: 'Opens a cushioned bench in the shop (+10 atmosphere).' },
+  { id: 'cloth', at: 360, title: 'Staff cloth', text: 'Choose the colours of your chefs’ hats and aprons.' },
+] as const;
+export type ResearchId = typeof RESEARCH[number]['id'];
+export const RESEARCH_BUDGETS = [0, 20, 40] as const;
+/** The furniture a finished study opens. Anything not listed here is always for sale. */
+export const RESEARCH_GATE: Partial<Record<FurnitureKind, ResearchId>> = { pot: 'pot', bench: 'bench' };
+/** The same six colours the Test Kitchen wardrobe offers (checked against src/game/chef-outfit.ts by a test). */
+export const OUTFIT_IDS = ['cream', 'tomato', 'teal', 'gold', 'apricot', 'dusk'] as const;
+export type OutfitId = typeof OUTFIT_IDS[number];
+const researchSchema = z.object({ budget: z.union([z.literal(0), z.literal(20), z.literal(40)]).default(0), points: z.number().int().nonnegative().default(0) });
+const outfitSchema = z.object({ hat: z.enum(OUTFIT_IDS), apron: z.enum(OUTFIT_IDS) });
 /** A guest who keeps coming back. Every regular visits once a service, in a fixed arrival slot, and a happy visit adds to their streak. */
 export const REGULAR_NAMES = ['Maple', 'Biscuit', 'Juniper', 'Pepper', 'Clover', 'Waffle', 'Olive', 'Hazel', 'Pickle', 'Nutmeg', 'Basil', 'Mochi'] as const;
 export const MAX_REGULARS = 4;
@@ -70,7 +85,7 @@ const bestSchema = z.object({ value: z.number().default(0), day: z.number().int(
 /** The headline a service ran under, with the counters its star line and rating rules read. */
 const headlineStateSchema = z.object({ id: headlineId, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), seed: z.number().int().nonnegative(), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
 export type HeadlineState = Validated<z.infer<typeof headlineStateSchema>>;
-const reportSchema = totalsSchema.extend({ headline: headlineId.nullable().default(null), challenges: challengesSchema, day: z.number().int().positive(), wages: z.number().nonnegative(), rent: z.number().nonnegative(), debtPayment: z.number().nonnegative(), profit: z.number().finite(), rating: z.number().min(1).max(5) });
+const reportSchema = totalsSchema.extend({ headline: headlineId.nullable().default(null), challenges: challengesSchema, day: z.number().int().positive(), wages: z.number().nonnegative(), rent: z.number().nonnegative(), debtPayment: z.number().nonnegative(), research: z.number().nonnegative().default(0), profit: z.number().finite(), rating: z.number().min(1).max(5) });
 export type Report = Validated<z.infer<typeof reportSchema>>;
 /** One entry per dish. A dish a save does not mention yet is simply off, at its fair price, so older saves keep loading. */
 export type MenuItem = { enabled: boolean; price: number };
@@ -82,7 +97,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), research: researchSchema.default({ budget: 0, points: 0 }), outfit: outfitSchema.default({ hat: 'cream', apron: 'tomato' }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -95,10 +110,12 @@ export const CATALOG: Record<FurnitureKind, CatalogItem> = {
   pot: { name: 'Stock pot', description: 'One chef can simmer soups, ramen and dumplings here.', price: 280, size: 1, category: 'Kitchen', comfort: 0 },
   wok: { name: 'Wok range', description: 'One chef can wok-fry noodles and rice here.', price: 320, size: 1, category: 'Kitchen', comfort: 0 },
   oven: { name: 'Brick oven', description: 'One chef can bake flatbread and crisp fries here.', price: 420, size: 1, category: 'Kitchen', comfort: 0 },
+  bench: { name: 'Window bench', description: '+10 atmosphere. A cushioned seat by the window.', price: 160, size: 1, category: 'Atmosphere', comfort: 10 },
   plant: { name: 'Olive planter', description: '+6 atmosphere. Happier guests leave better tips.', price: 65, size: 1, category: 'Atmosphere', comfort: 6 },
   divider: { name: 'Garden screen', description: '+4 atmosphere. Shape a cozy dining nook.', price: 80, size: 1, category: 'Atmosphere', comfort: 4 },
   lamp: { name: 'Warm lantern', description: '+8 atmosphere. A little golden-hour magic.', price: 110, size: 1, category: 'Atmosphere', comfort: 8 },
 };
+export const researched = (state: Pick<RestaurantState, 'research'>, id: ResearchId): boolean => state.research.points >= RESEARCH.find(r => r.id === id)!.at;
 export const stationName = (kind: FurnitureKind): string => CATALOG[kind].name.toLowerCase();
 export const DAY_LENGTH = 150;
 /** Tables the owner may comp in one service. A comp trades the sale for a guest who would have walked out. */
@@ -142,7 +159,7 @@ export const companyValue = (state: Pick<RestaurantState, 'cash' | 'furniture' |
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
-  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), regulars: [], day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
+  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), regulars: [], research: { budget: 0, points: 0 }, outfit: { hat: 'cream', apron: 'tomato' }, day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
     furniture: [
       { id: 1, kind: 'prep', x: 1, z: 1, rotation: 0 }, { id: 2, kind: 'grill', x: 3, z: 1, rotation: 0 },
       { id: 3, kind: 'table', x: 1, z: 4, rotation: 0 }, { id: 4, kind: 'table', x: 5, z: 4, rotation: 0 }, { id: 5, kind: 'table', x: 7, z: 1, rotation: 0 },

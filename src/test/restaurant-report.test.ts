@@ -3,7 +3,7 @@ import { RestaurantEngine } from '@/management/engine';
 import { summarizeReport } from '@/management/report';
 import type { Report } from '@/management/types';
 
-const receipt: Report = { headline: null, challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, profit: 140, served: 10, missed: 2, rating: 4 };
+const receipt: Report = { headline: null, challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 140, served: 10, missed: 2, rating: 4 };
 function finishDay(engine: RestaurantEngine): void {
   expect(engine.open()).toBeNull();
   engine.state.renovation = true;
@@ -18,7 +18,7 @@ describe('daily business summaries', () => {
     expect(result.totalRevenue - result.totalCosts).toBe(receipt.profit);
   });
   it('shows loan repayments in the existing daily cash result without subtracting twice', () => {
-    const report = { ...receipt, debtPayment: 30, profit: 110 };
+    const report = { ...receipt, debtPayment: 30, research: 0, profit: 110 };
     const result = summarizeReport(report);
     expect(result.totalCosts).toBe(210);
     expect(result.totalRevenue - result.totalCosts).toBe(report.profit);

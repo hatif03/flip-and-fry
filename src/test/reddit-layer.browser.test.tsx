@@ -16,7 +16,7 @@ const today: TodayResponse = { type: 'today', date: '2026-12-09', headline, rev:
 const NIGHT = { card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm' as const, title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 };
 const lock = (stars: 0 | 1 | 2 | 3): LockResponse => ({
   type: 'lock', night: NIGHT, hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
-  report: { ...createRestaurant().totals, served: 17, missed: 2, revenue: 400, tips: 38, ingredients: 150, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, profit: 198, rating: 4.2 },
+  report: { ...createRestaurant().totals, served: 17, missed: 2, revenue: 400, tips: 38, ingredients: 150, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 198, rating: 4.2 },
   stars: { stars, goal: stars >= 1, challenges: stars >= 2 ? 3 : 1, beatPrevious: stars >= 3, goalText: 'Finish with a rating of 4.0 or better' },
 });
 function remote(result: LockResponse | null, run: TodayResponse['run'] = null): RemoteSession { const r: RemoteSession = { open: async () => null, today: { ...today, run }, result, dismissResult() { r.result = null; restaurant.notify(); } }; return r; }

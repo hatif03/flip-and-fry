@@ -28,6 +28,8 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'dismiss': return engine.dismiss(a.id);
     case 'rename': engine.rename(a.name); return null;
     case 'music': engine.setMusic(a.on); return null;
+    case 'research': return engine.setResearch(a.budget);
+    case 'outfit': return engine.setOutfit(a.part, a.color);
     case 'claimTicket': return engine.claimTicket(a.guestId);
     case 'cook': return engine.plate(a.guestId);
     case 'abandon': return engine.abandonCook(a.guestId);

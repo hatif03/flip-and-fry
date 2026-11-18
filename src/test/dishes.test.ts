@@ -7,6 +7,8 @@ import { houseStyle } from '@/management/social';
 import { CATALOG, DISHES, DISH_IDS, PRICE_MAX, PRICE_MIN, createRestaurant, restaurantSchema, type Dish } from '@/management/types';
 
 const date = '2026-12-09', headline = createDailyHeadline(date);
+/** A kitchen that has already studied the stock pot, so the pot can be bought. */
+const studied = () => { const s = createRestaurant(); s.research.points = 100; return s; };
 const noodleNight: Action[] = [
   { tick: 0, kind: 'place', item: { id: -1, kind: 'pot', x: 5, z: 1, rotation: 0 } },
   { tick: 0, kind: 'dish', dish: 'ramen', enabled: true, price: 36 }, { tick: 0, kind: 'dish', dish: 'salad', enabled: false, price: 24 }, { tick: 0, kind: 'dish', dish: 'burger', enabled: false, price: 38 },
@@ -42,13 +44,13 @@ describe('cooking the new dishes', () => {
     expect(openError(state)).toBe('Add a stock pot for sunset ramen, or remove it from the menu.');
   });
   it('serves a noodle menu from a stock pot, and replays to the same receipt every time', () => {
-    const a = runService(createRestaurant(), noodleNight, headline), b = runService(createRestaurant(), noodleNight, headline);
+    const a = runService(studied(), noodleNight, headline), b = runService(studied(), noodleNight, headline);
     if (!a.ok || !b.ok) throw new Error('service failed');
     expect(a.report.served).toBeGreaterThan(5); expect(a.hash).toBe(b.hash); expect(a.report.revenue).toBeGreaterThan(0);
     for (const guest of a.state.guests) expect(guest.dish).toBe('ramen');
   });
   it('charges the right ingredients for the dish, not the first dish', () => {
-    const r = runService(createRestaurant(), noodleNight, headline); if ('error' in r) throw new Error(r.error);
+    const r = runService(studied(), noodleNight, headline); if ('error' in r) throw new Error(r.error);
     expect(r.report.ingredients).toBeGreaterThanOrEqual(r.report.served * DISHES.ramen.cost);
   });
   it('refuses a price above the new cap', () => { const r = applyPlanning(createRestaurant(), [{ tick: 0, kind: 'dish', dish: 'steak', enabled: true, price: PRICE_MAX + 2 }]); expect('error' in r).toBe(true); });

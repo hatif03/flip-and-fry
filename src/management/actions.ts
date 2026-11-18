@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DAY_LENGTH, DISH_IDS, PRICE_MAX, PRICE_MIN, furnitureKind } from './types';
+import { DAY_LENGTH, DISH_IDS, OUTFIT_IDS, PRICE_MAX, PRICE_MIN, furnitureKind } from './types';
 
 /**
  * The planning actions an owner takes between services. The engine reports each accepted one, the client queues and sends
@@ -25,6 +25,8 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...planning, kind: z.literal('dismiss'), id: z.number().int() }),
   z.object({ ...planning, kind: z.literal('rename'), name: restaurantName }),
   z.object({ ...planning, kind: z.literal('music'), on: z.boolean() }),
+  z.object({ ...planning, kind: z.literal('research'), budget: z.union([z.literal(0), z.literal(20), z.literal(40)]) }),
+  z.object({ ...planning, kind: z.literal('outfit'), part: z.enum(['hat', 'apron']), color: z.enum(OUTFIT_IDS) }),
   // While the doors are open the owner can step in at the pass. Quality is never sent: the engine works it out from the ticks.
   z.object({ ...service, kind: z.literal('claimTicket'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('cook'), guestId: z.number().int() }),

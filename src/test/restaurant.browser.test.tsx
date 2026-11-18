@@ -146,7 +146,7 @@ it.each([320, 1280])('offers independent traffic audio without changing saves or
   expect(restaurant.paused).toBe(false);
 });
 
-const sampleReport: Report = { headline: null, challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, profit: 140, served: 10, missed: 2, rating: 4 };
+const sampleReport: Report = { headline: null, challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 140, served: 10, missed: 2, rating: 4 };
 it('reopens a saved daily summary without changing money, wages or the current day', async () => {
   restaurant.state.history = [{ ...sampleReport }]; restaurant.state.day = 2;
   restaurant.train(10);
@@ -198,7 +198,7 @@ it('shows a loss and no invented margin for early closing without sales', async 
 });
 it.each([320, 390, 768])('keeps the report and next-day action usable at %spx, with scrollable details', async width => {
   await page.viewport(width, 740);
-  restaurant.state.history = [{ ...sampleReport, debtPayment: 30, profit: 110 }]; restaurant.state.day = 2;
+  restaurant.state.history = [{ ...sampleReport, debtPayment: 30, research: 0, profit: 110 }]; restaurant.state.day = 2;
   const screen = await render(<ManagementGame />);
   await screen.getByRole('button', { name: 'Read latest report: Day 1' }).click();
   const dialog = screen.getByRole('dialog');

@@ -17,7 +17,9 @@ export function Employee({ member }: { member: Staff }) {
   const group = useRef<THREE.Group>(null), poseArm = useMemo(createChefArmPoser, []), reduced = useReducedMotionQuery();
   const visualTime = useRef<number>(restaurant.state.clock);
   const initial = useRef({ position: [member.x * CELL, .09, member.z * CELL] as [number, number, number], rotation: [0, member.yaw, 0] as [number, number, number] });
-  useEffect(() => { rig.setOutfit({ hat: member.role === 'chef' ? 'cream' : 'teal', apron: member.role === 'chef' ? 'tomato' : 'teal' }); if (member.role === 'server') rig.hat.visible = false; return () => rig.dispose(); }, [rig, member.role]);
+  const outfit = restaurant.state.outfit;
+  useEffect(() => { rig.setOutfit(member.role === 'chef' ? { hat: outfit.hat, apron: outfit.apron } : { hat: 'teal', apron: 'teal' }); if (member.role === 'server') rig.hat.visible = false; }, [rig, member.role, outfit.hat, outfit.apron]);
+  useEffect(() => () => rig.dispose(), [rig]);
   useFrame((_, dt) => {
     if (!group.current) return;
     const active = !restaurant.paused && restaurant.state.phase === 'service';
