@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { context, redis, reddit } from '@devvit/web/server';
 import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
-import { getToday, lockService, openService, savePark, type Deps, type Fail, type Player } from '../core/game';
+import { rollDay } from '../core/daily-post';
+import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
+import { postApi } from '../reddit';
 
 export const api = new Hono();
 
@@ -36,6 +38,8 @@ api.get('/init', async c => {
 api.get('/today', async c => {
   const user = await player();
   if (!user) return c.json(needLogin, 401);
+  // The first request of a new UTC day creates the daily post if the cron has not (its timezone is undocumented). Never fatal.
+  try { await rollDay(redis, postApi, deps.now(), utcDate(deps.now())); } catch (error) { console.error(`rollDay failed: ${error}`); }
   const r = await getToday(deps, user);
   return 'error' in r ? failure(c, r) : c.json(r.value);
 });

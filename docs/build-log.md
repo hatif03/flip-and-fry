@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — The daily post is created lazily and safely
+
+`src/server/core/daily-post.ts` creates one custom post per UTC day, with the headline in `postData` (so the splash needs no server call), a Markdown text fallback for old Reddit and search, the headline as flair text, and a stickied "Results for today" comment. It is called from three places: the 00:05 scheduler task, the moderator menu ("Post today's service"), and the **first player request of a new UTC day** (`GET /api/today`), so the game never depends on the cron's undocumented timezone.
+
+- **Exactly one post under a race.** The day is claimed with `hSetNX` on the `posts` hash. A request that loses sees either the finished post or "being created". A claim older than 60 s is a dead request and is taken over; a corrupt stored value reads as a dead claim and heals itself. Twenty simultaneous requests create one post (tested).
+- **Failures degrade, not break.** If flair cannot be set (it needs a template and mod rights, spike S5) the post is created without it; a missing sticky never blocks a playable post; if Reddit fails, the claim is released so the next request retries.
+- **Reddit is behind a one-file adapter** (`src/server/reddit.ts`), so the rest is tested with a fake.
+- The install trigger now rolls today's post instead of creating a generic one, and `devvit.json` has the `roll-day` scheduler task.
+
+Uploaded as app version 0.0.2 earlier in this step (the client shell); this change is committed but not uploaded yet.
+
+Devvit or third party: Reddit API as the app (submit post, comment, distinguish), scheduler (one recurring task of the ten allowed).
+Code or plan: `src/server/core/daily-post.ts`, `src/server/reddit.ts`, `src/server/routes/*`, plan section 15 (the daily post).
+
 ## 2026-11-18 — Client shell: the existing game on top of the server (start of P4)
 
 `src/client/game.tsx` now loads today's data first (a plain loading and retry screen), then mounts the existing game. `src/client/session.ts` connects the engine to `/api`: it queues the engine's planning actions and saves them in batches with the park revision, opens and closes services through the server, plays the engine's live run as a **preview**, and adopts the server's park whenever the preview disagrees with the replay or another tab won a race. The engine gained `onAction` (reports each accepted planning change), `adopt` (take the server's state), `detach` (stop `localStorage`) and a `remote` hook; `closeEarly` and `reset` are refused in remote mode because the server would not know about them.

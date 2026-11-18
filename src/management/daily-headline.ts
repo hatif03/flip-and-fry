@@ -92,6 +92,10 @@ export function dayOfYear(date: string): { year: number; index: number } {
 }
 export function daysInYear(year: number): number { return daysInMonth(year, 2) === 29 ? 366 : 365; }
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
+export function formatDate(date: string): string { const [, m, d] = parseDate(date); return `${DAY_NAMES[weekday(date)]} ${d} ${MONTH_NAMES[m - 1]}`; }
+
 /** 0 = Sunday ... 6 = Saturday. Throws on anything that is not a real 'YYYY-MM-DD'. */
 export function weekday(date: string): number {
   const [y, m, d] = parseDate(date);

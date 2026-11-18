@@ -46,5 +46,13 @@
   },
   "dev": {
     "subreddit": "flip_and_fry_dev"
+  },
+  "scheduler": {
+    "tasks": {
+      "roll-day": {
+        "endpoint": "/internal/scheduler/roll-day",
+        "cron": "5 0 * * *"
+      }
+    }
   }
 }

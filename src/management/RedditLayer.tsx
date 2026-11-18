@@ -3,11 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
-import { shiftDate, weekday } from './daily-headline';
+import { formatDate, shiftDate } from './daily-headline';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 /** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
-export const prettyDate = (date: string): string => `${DAYS[weekday(date)]} ${Number(date.slice(8))} ${MONTHS[Number(date.slice(5, 7)) - 1]}`;
+export const prettyDate = formatDate;
 
 /** Only mounted on Reddit (restaurant.remote is set by the client session). */
 export function RedditLayer() {
