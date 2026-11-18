@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Frown, Meh, Smile, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { GuestMood } from './satisfaction';
+import type { GuestMood, Thought } from './satisfaction';
 import type { Guest } from './types';
 
 const stages: Record<Guest['stage'], string> = {
@@ -11,12 +11,14 @@ const stages: Record<Guest['stage'], string> = {
 const moods: Record<GuestMood, string> = { content: 'Comfortable', uneasy: 'Getting impatient', unhappy: 'Unhappy', served: 'Happily served' };
 
 /** Compact, non-interactive meter; only simulation updates change its fill. */
-export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, value, mood, stage, special = false }: {
-  id: number; value: number; mood: GuestMood; stage: Guest['stage']; special?: boolean;
+export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, value, mood, stage, special = false, thought = null }: {
+  id: number; value: number; mood: GuestMood; stage: Guest['stage']; special?: boolean; thought?: Thought | null;
 }) {
   const Face = mood === 'unhappy' ? Frown : mood === 'uneasy' ? Meh : Smile;
-  return <div role="meter" aria-label={`Guest ${id} satisfaction`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}
-    aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' Star guest — counts toward today’s challenge when served.' : ''}`}
+  return <>
+    {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{thought.text}</span>}
+    <div role="meter" aria-label={`Guest ${id} satisfaction`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}
+    aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' Star guest — counts toward today’s challenge when served.' : ''}${thought ? ` Thinking: ${thought.text}.` : ''}`}
     data-special={special} data-guest-id={id} data-mood={mood} data-stage={stage}
     className="pointer-events-none flex h-5 w-14 select-none items-center gap-1 rounded-full border border-ink/20 bg-paper px-1 shadow-sm sm:h-6 sm:w-16">
     <Face aria-hidden="true" strokeWidth={2.5} className={cn('size-3 shrink-0 sm:size-3.5', mood === 'unhappy' ? 'text-tomato' : mood === 'uneasy' ? 'fill-gold text-ink' : mood === 'served' ? 'fill-gold text-teal' : 'text-teal')} />
@@ -25,5 +27,5 @@ export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, val
       <rect data-testid="satisfaction-fill" width={value} height="12" className={mood === 'unhappy' ? 'fill-tomato' : mood === 'uneasy' ? 'fill-gold' : 'fill-teal'} />
     </svg>
     {special && <Star aria-hidden="true" className="size-2.5 shrink-0 fill-gold text-ink" strokeWidth={1.5} />}
-  </div>;
+  </div></>;
 });

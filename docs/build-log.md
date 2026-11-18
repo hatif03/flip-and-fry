@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Guest thoughts over the tables
+
+**Why:** plan section 6 ("Guest thoughts") and the phone feedback that it was unclear what was going on. A short phrase over a guest says what they feel, so the player can act on it ("Long wait" says add a chef).
+
+**How:** `guestThought()` in `src/management/satisfaction.ts` is a pure function of the guest's stage, wait, price against the dish's fair price, and the plate quality. Phrases: "Long wait", "Too pricey" (first moments only), "Perfectly cooked", "Great value", "A bit pricey", "Lovely", "Too long a wait" (a guest leaving unhappy). The bubble sits above the existing satisfaction bar and is also spoken in the meter's `aria-valuetext`, so colour is never the only signal.
+
+**Decision:** thoughts are display only. They are computed at draw time from state that is already saved, so there is no new field, no change to the replay hash, and no effect on tips or ratings. A guest who refuses at the door because the menu is too dear never sits down, so that case stays a line in the event feed, not a bubble. "The usual" waits for the regulars system.
+
+**Code:** `src/management/satisfaction.ts`, `GuestSatisfactionBar.tsx`, `RestaurantLabels.tsx`; tests in `thoughts.test.ts` and `thought-bubble.browser.test.tsx`.
+
 ## 2026-11-19 — Five contracts on the ledger
 
 **Why:** plan section 6. The four first goals teach the basics; the contracts teach the systems (cash flow, patience, living with a layout, the price roll, the terrace). They are collected the same way as the first four (the `claim` action), so nothing new crosses the server boundary.
