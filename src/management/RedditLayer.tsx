@@ -4,28 +4,38 @@ import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
 import { formatDate, shiftDate } from './daily-headline';
+import { GOALS as STAR_GOALS } from './stars';
 
 /** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
 export const prettyDate = formatDate;
 
-/** Only mounted on Reddit (restaurant.remote is set by the client session). */
-export function RedditLayer() {
+/** What the player should do right now, in one sentence. Tied to the real state of the game, never generic. */
+export function coachLine(phase: 'planning' | 'service' | 'report', hasResultToday: boolean): string {
+  if (phase === 'service') return 'Your team is cooking, serving and cleaning. Watch the floor; speed it up if you like, it never changes your score.';
+  if (hasResultToday) return 'Tonight’s result is saved. Rebuild, rehire or reprice, then open again: only your best night of the day counts.';
+  return 'Set up first: build tables and decor, hire a team, set prices. Then tap Open to run tonight’s service.';
+}
+
+/** Today's date, headline, goal and next step. It sits in the header's flow so it can never cover the stats on a narrow phone. */
+export function DailyBar() {
   const remote = restaurant.remote;
   if (!remote?.today) return null;
-  const { today, result } = remote;
-  const streak = result?.streak ?? today.streak, locks = today.community.locks;
-  return <>
-    <aside aria-label="Today" className="pointer-events-none absolute left-1/2 top-[76px] z-[9] w-[min(94vw,640px)] -translate-x-1/2 sm:top-[84px]">
-      <div className="pointer-events-auto mx-auto flex items-center justify-center gap-x-3 gap-y-0.5 rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] max-sm:flex-wrap">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-gold">{prettyDate(today.date)}</span>
-        <span className="font-display text-sm leading-tight">{today.headline.title}</span>
-        <span className="hidden text-xs text-paper/80 md:inline">{today.headline.blurb}</span>
-        <span className="flex items-center gap-1 text-xs font-extrabold" title="Days in a row with at least one star"><Flame size={14} className={cn(streak > 0 ? 'text-gold' : 'text-paper/40')} />{streak}</span>
-        {locks > 0 && <span className="hidden text-[11px] text-paper/70 lg:inline">{locks} {locks === 1 ? 'kitchen has' : 'kitchens have'} closed tonight</span>}
-      </div>
-    </aside>
-    <ResultCard />
-  </>;
+  const { today, result } = remote, streak = result?.streak ?? today.streak, goal = STAR_GOALS[today.headline.id].text;
+  const hasResult = Boolean(today.run || result);
+  return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-2 max-w-[1600px] rounded-2xl border border-paper/70 bg-teal/95 px-4 py-2 text-paper shadow-[0_3px_0_#0e2a2766]">
+    <div className="flex items-center gap-x-3">
+      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gold">{prettyDate(today.date)}</span>
+      <span className="min-w-0 flex-1 truncate font-display text-sm leading-tight">{today.headline.title}</span>
+      <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold" title="Days in a row with at least one star"><Flame size={14} className={cn(streak > 0 ? 'text-gold' : 'text-paper/40')} />{streak}</span>
+    </div>
+    <p className="mt-0.5 flex items-start gap-1.5 text-xs leading-snug text-paper/90"><Star size={13} className="mt-px shrink-0 fill-gold text-gold" aria-hidden /><span><b>Goal:</b> {goal}</span></p>
+    <p className="mt-0.5 text-[11px] leading-snug text-paper/70">{coachLine(restaurant.state.phase, hasResult)}</p>
+  </aside>;
+}
+
+/** Only mounted on Reddit (restaurant.remote is set by the client session). */
+export function RedditLayer() {
+  return <ResultCard />;
 }
 
 /** One card at the end of a service. Everything on it comes from the server's replayed receipt. */

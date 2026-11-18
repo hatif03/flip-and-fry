@@ -14,5 +14,5 @@ for (const w of weathers) {
   }
   P.save(lut, `public/pixel/lut-${w}.png`);
 }
-writeFileSync('public/pixel/palettes.json', JSON.stringify({ k: 3, weathers: palettes }, null, 1) + '\n');
+writeFileSync('public/pixel/palettes.json', JSON.stringify({ size: palettes.sunset.length, weathers: palettes }, null, 1) + '\n');
 console.log('wrote public/pixel/palettes.json and', weathers.length, 'lookup tables');

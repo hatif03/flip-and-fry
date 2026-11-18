@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { weatherBlend } from '@/management/weather';
 import { blitFragment, quadVertex, snapFragment } from './shaders';
-import { WEATHERS, paletteWeights } from './pixel-settings';
+import { WEATHERS, autoPixelSize, paletteWeights } from './pixel-settings';
 
 type Luts = Record<(typeof WEATHERS)[number], THREE.Texture>;
 
@@ -27,13 +27,14 @@ function useLuts(): Luts | null {
  * back at full size with nearest-neighbour filtering. Nothing in the scene changes; this only replaces how the frame is presented.
  * Mount this inside <Canvas>. While it is mounted it takes over rendering (a positive-priority frame callback disables R3F's own).
  */
-export function PixelPass({ k, dither = 0 }: { k: number; dither?: number }) {
+export function PixelPass({ k, dither = 0 }: { k: number | null; dither?: number }) {
   const luts = useLuts();
   return luts ? <Pipeline k={k} dither={dither} luts={luts} /> : null;
 }
 
-function Pipeline({ k, dither, luts }: { k: number; dither: number; luts: Luts }) {
+function Pipeline({ k: fixed, dither, luts }: { k: number | null; dither: number; luts: Luts }) {
   const { gl, size, scene, camera } = useThree();
+  const k = fixed ?? autoPixelSize(size.width);
   const width = Math.max(1, Math.ceil(size.width / k)), height = Math.max(1, Math.ceil(size.height / k));
   const half = gl.capabilities.isWebGL2 && (gl.extensions.has('EXT_color_buffer_half_float') || gl.extensions.has('EXT_color_buffer_float'));
   const pipeline = useMemo(() => {

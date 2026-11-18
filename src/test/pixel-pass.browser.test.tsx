@@ -38,12 +38,12 @@ afterEach(() => { vi.restoreAllMocks(); });
 
 describe('the pixel pass on a real GPU frame', () => {
   it('draws only palette colours, in hard-edged blocks exactly k pixels wide', async () => {
-    const palettes = await (await fetch('/pixel/palettes.json')).json() as { weathers: Record<string, string[]> };
+    const palettes = await (await fetch('/pixel/palettes.json')).json() as { size: number; weathers: Record<string, string[]> };
     let last: Read | null = null; await render(<Scene pixel sink={r => { last = r; }} />);
     const sunset = new Set(palettes.weathers.sunset);
     await until(() => !!last && [...distinct(last)].every(c => sunset.has(c)) && distinct(last).size > 3);
     const frame = last!, colours = distinct(frame);
-    expect(colours.size).toBeLessThanOrEqual(16); for (const c of colours) expect(sunset.has(c), c).toBe(true);
+    expect(colours.size).toBeLessThanOrEqual(palettes.size); for (const c of colours) expect(sunset.has(c), c).toBe(true);
     // Block structure: along a row, every run of one colour is a whole number of pixel blocks (k = 3 screen pixels at ratio 1).
     const block = 3 * frame.ratio, row = Math.floor(frame.height / 2) * frame.width * 4; let runs = 0, whole = 0, run = 1;
     for (let x = 1; x <= frame.width; x++) {
@@ -55,7 +55,7 @@ describe('the pixel pass on a real GPU frame', () => {
 
   it('is much more than a palette swap: the lit shapes keep their form and several hues', async () => {
     let last: Read | null = null; await render(<Scene pixel sink={r => { last = r; }} />);
-    await until(() => !!last && distinct(last).size > 3 && distinct(last).size <= 16);
+    await until(() => !!last && distinct(last).size > 3 && distinct(last).size <= 24);
     const colours = [...distinct(last!)].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
     expect(colours.some(c => c[0] > c[2] + 60)).toBe(true); // the red sphere and yellow box survive as warm colours
     expect(colours.length).toBeGreaterThanOrEqual(5);
@@ -64,7 +64,7 @@ describe('the pixel pass on a real GPU frame', () => {
   it('switches to the rain palette when the weather turns to rain', async () => {
     const palettes = await (await fetch('/pixel/palettes.json')).json() as { weathers: Record<string, string[]> };
     let last: Read | null = null; await render(<Scene pixel sink={r => { last = r; }} />);
-    await until(() => !!last && distinct(last).size > 3 && distinct(last).size <= 16);
+    await until(() => !!last && distinct(last).size > 3 && distinct(last).size <= 24);
     weatherBlend.rain = 1; weatherBlend.sun = 0;
     const rain = new Set(palettes.weathers.rain);
     await until(() => !!last && [...distinct(last)].every(c => rain.has(c)));
@@ -78,11 +78,11 @@ describe('the pixel pass on a real GPU frame', () => {
     let last: Read | null = null; await render(<Scene pixel plain sink={r => { last = r; }} />);
     await until(() => !!last);
     await new Promise(r => setTimeout(r, 500));
-    expect(distinct(last!).size).toBeGreaterThan(16); // smooth shading: nothing was snapped
+    expect(distinct(last!).size).toBeGreaterThan(24); // smooth shading: nothing was snapped
   });
 
   it('is off when not mounted: the unmodified scene has far more colours than any palette', async () => {
     let last: Read | null = null; await render(<Scene pixel={false} plain sink={r => { last = r; }} />);
-    await until(() => !!last); expect(distinct(last!).size).toBeGreaterThan(16);
+    await until(() => !!last); expect(distinct(last!).size).toBeGreaterThan(24);
   });
 });

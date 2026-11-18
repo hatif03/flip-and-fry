@@ -1,5 +1,5 @@
 const WEATHERS = ['sunset', 'sun', 'rain'] as const;
-type Palettes = { k: number; weathers: Record<(typeof WEATHERS)[number], string[]> };
+type Palettes = { size: number; weathers: Record<(typeof WEATHERS)[number], string[]> };
 const rgb = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
 
 async function pixels(url: string): Promise<{ width: number; height: number; data: Uint8ClampedArray }> {
@@ -15,8 +15,9 @@ describe('the shipped palettes and lookup tables', () => {
   let palettes: Palettes;
   beforeAll(async () => { palettes = await (await fetch('/pixel/palettes.json')).json(); });
 
-  it('have exactly 16 distinct colours per weather, as valid hex', () => {
-    for (const w of WEATHERS) { const list = palettes.weathers[w]; expect(list, w).toHaveLength(16); expect(new Set(list).size, w).toBe(16); for (const c of list) expect(c).toMatch(/^#[0-9a-f]{6}$/); }
+  it('have the same number of distinct colours for every weather, as valid hex', () => {
+    expect(palettes.size).toBeGreaterThanOrEqual(16); expect(palettes.size).toBeLessThanOrEqual(32);
+    for (const w of WEATHERS) { const list = palettes.weathers[w]; expect(list, w).toHaveLength(palettes.size); expect(new Set(list).size, w).toBe(palettes.size); for (const c of list) expect(c).toMatch(/^#[0-9a-f]{6}$/); }
   });
   it('keep the scene readable: each palette has a dark, a light, a warm and a green colour', () => {
     for (const w of WEATHERS) {
@@ -32,7 +33,7 @@ describe('the shipped palettes and lookup tables', () => {
       const seen = new Set<string>();
       for (let i = 0; i < lut.data.length; i += 4) { expect(lut.data[i + 3], 'opaque').toBe(255); seen.add('#' + [0, 1, 2].map(j => lut.data[i + j].toString(16).padStart(2, '0')).join('')); }
       for (const c of seen) expect(pal.has(c), `${w} ${c}`).toBe(true);
-      expect(seen.size, `${w} uses most of its palette`).toBeGreaterThanOrEqual(12);
+      expect(seen.size, `${w} uses most of its palette`).toBeGreaterThanOrEqual(Math.floor(palettes.size * .75));
     }
   });
   it('map every sampled colour to its nearest palette colour (the shader reads x = blue*32 + red, y = green)', async () => {

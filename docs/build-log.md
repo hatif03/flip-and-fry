@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Phone feedback: pixel size, overlap, weather, guidance
+
+The first phone screenshot of the pixel build (a 360 CSS px wide phone at 2× density) showed four problems.
+
+- **Too pixelated to read.** I had fixed the pixel size at 3 CSS pixels: on a 360 px phone that is 120 pixels across the whole scene, so animals were two or three pixels tall. The size is now chosen from the screen width (`autoPixelSize`: about 360 scene pixels across, so 1 on a phone, 2 on a tablet, 3 on a desktop window), the canvas renders at 1× and the browser scales it with `image-rendering: pixelated`, so every block is the same size on any phone density. The palettes went from 16 to **24 colours per weather** (mean error 7.7 sunset, 9.3 rain, 7.3 sun) to bring back the terrace floor's tile banding, red awnings and yellow windows. Checked on captures at phone size and density, in all three weathers, and at desktop size. **If you still dislike the look, `?pixel=0` is the original renderer and the pass is one component to remove.**
+- **The daily bar overlapped the header stats** on a narrow phone: it was positioned by a guessed offset. It now sits in the header's own flow (a test checks it never covers the stats at 360 px).
+- **The scene showed bright sun under a "Rain on the roof" headline.** On Reddit the scene's weather now comes from the headline (rain on Wednesday), and the manual weather picker is replaced by a one-line explanation.
+- **"What do I do?"** The bar now shows tonight's star goal and a next-step line that changes with the state of the game: before opening ("Set up first: build, hire, set prices, then tap Open"), during service ("Your team is cooking, serving and cleaning. Watch the floor") and after a result ("only your best night of the day counts"). This is honest about the real gap: today every decision happens before opening and the service runs by itself, because the hands-on pass from the plan is not built yet. It is the next piece (service actions the owner can take at the pass).
+
+Tests: 616 unit and 155 browser pass.
+
+Code or plan: `src/scene/pixel/*`, `src/management/RedditLayer.tsx`, plan sections 7, 9 and 13.
+
 ## 2026-11-18 — The pixel look on the real scene (P5, part 1: palettes and the render pass)
 
 The existing 3D scene now goes through a pixel pass: it renders at 1/3 size into an offscreen target, a shader tone-maps it (the same ACES operator and exposure as the on-screen path, because three.js applies neither tone mapping nor the sRGB curve to an offscreen target) and snaps it to a 16-colour palette with one lookup-table fetch, and the result is drawn back at full size with nearest-neighbour sampling. The animals, furniture, city, camera and simulation are untouched. `?pixel=0` turns it off and `?k=4` changes the pixel size.

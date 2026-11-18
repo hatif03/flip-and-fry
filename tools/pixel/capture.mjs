@@ -12,10 +12,12 @@ let browser;
 try {
   for (let i = 0; i < 80; i++) { try { if ((await fetch(`http://127.0.0.1:${PORT}`)).ok) break; } catch { /* starting */ } await new Promise(r => setTimeout(r, 250)); }
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist'] });
-  const sizes = { phone: { width: 390, height: 844 }, desktop: { width: 1280, height: 800 } };
-  const weathers = { sunset: 'Golden hour', sun: 'Bright sun', rain: 'Light rain' };
+  const dpr = Number((process.argv.find(a => a.startsWith('--dpr=')) ?? '--dpr=1').slice(6)), only = (process.argv.find(a => a.startsWith('--only=')) ?? '').slice(7);
+  // The phone matches a real Android phone in the Reddit app: 360 CSS px wide at 2x density.
+  const sizes = Object.fromEntries(Object.entries({ phone: { width: 360, height: 760 }, desktop: { width: 1280, height: 800 } }).filter(([k]) => !only || k === only));
+  const weathers = Object.fromEntries(Object.entries({ sunset: 'Golden hour', sun: 'Bright sun', rain: 'Light rain' }).filter(([k]) => !process.argv.includes('--weather=' + k) ? !process.argv.some(a => a.startsWith('--weather=')) : true));
   for (const [name, viewport] of Object.entries(sizes)) {
-    const page = await browser.newPage({ viewport, hasTouch: name === 'phone', reducedMotion: 'no-preference', deviceScaleFactor: 1 });
+    const page = await browser.newPage({ viewport, hasTouch: name === 'phone', reducedMotion: 'no-preference', deviceScaleFactor: name === 'phone' ? dpr : 1 });
     page.setDefaultTimeout(30000);
     await page.goto(`http://127.0.0.1:${PORT}/${query}`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /Open restaurant/ }).waitFor();
