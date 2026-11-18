@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
-import { context, redis, reddit, settings } from '@devvit/web/server';
+import { context, realtime, redis, reddit, settings } from '@devvit/web/server';
+import { visitChannel } from '../../management/social';
 import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
@@ -152,7 +153,7 @@ api.post('/door', async c => {
 api.post('/visit', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const body = z.object({ doorId: z.string().max(40), dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
-  const r = await visitDoor(deps, user, body.data.doorId, body.data.dish);
+  const r = await visitDoor(deps, user, body.data.doorId, body.data.dish, (host, note) => realtime.send(visitChannel(host), { kind: 'visit', note }));
   return 'error' in r ? failure(c, r) : c.json({ type: 'visit', ...r.value });
 });
 api.post('/kitchen-post', async c => {

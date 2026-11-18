@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Realtime turned on: a live heads-up when a neighbor visits
+
+**Why:** plan sections 3 and 12 list realtime as a Reddit feature we use, and a visit to your kitchen is worth hearing about while you are in the game.
+
+**Devvit capability on:** `permissions.realtime` is now `true`. It is used for one thing: when a neighbor visits a real kitchen, the server sends the bulletin note on that host's own channel (`visits_<hostId>`, no colon, as channel names require) and the host's open game shows it as a toast. Sample kitchens have no host and send nothing. The note is already on the bulletin by then, so a failed send changes nothing (it is caught and ignored), and the client ignores any message that is not a well-formed visit note.
+
+**Limits kept in mind:** 100 messages a second per installation and 1 MB per message; a visit note is a few hundred bytes and visits are limited to three a day per player, so traffic is tiny.
+
+**Known and accepted:** channel names are not secret, so anyone could listen on someone else's visit channel. All it carries is what the host's public bulletin line says (a visitor's Reddit name, how the visit went). Nothing private is sent on it.
+
+**Not built, and why:** the hosted co-op from plan section 12 (several people at one pass, in lockstep). It needs the engine to support two sets of hands at once and a stamped-input protocol that can only be tested for real on two phones; a version built blind would risk the one thing the game must not lose, a verified score. It stays on the list with the engine change (a hands id on the owner's cook) as its first step.
+
+**Code:** `src/server/core/doors.ts` (`VisitNotify`), `src/server/routes/api.ts`, `src/client/visits-live.ts`, `src/client/game.tsx`, `src/management/social.ts` (`visitChannel`), `devvit.json`; tests in `src/test/visits-live.test.ts`.
+
 ## 2026-11-19 — Neighbors get a pixel face (the snoovatar fallback)
 
 **Why:** plan section 12 (snoovatar spike S3). A neighbor from the thread should look like a person, not a label.

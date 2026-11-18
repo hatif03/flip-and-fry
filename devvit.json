@@ -33,7 +33,8 @@
         "SUBSCRIBE_TO_SUBREDDIT"
       ]
     },
-    "journeys": true
+    "journeys": true,
+    "realtime": true
   },
   "menu": {
     "items": [

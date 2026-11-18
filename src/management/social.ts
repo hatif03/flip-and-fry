@@ -36,6 +36,8 @@ export type DoorSummary = { id: string; kind: 'real' | 'sample'; kitchen: string
 export type VisitResult = { door: DoorSummary; outcome: 'served' | 'left' | 'passed'; tip: number; wait: number; line: string };
 export type BulletinNote = { visitor: string; kitchen: string; outcome: 'served' | 'left' | 'passed'; tip: number; line: string; thought: string; date: string };
 export type NeighborhoodView = { doors: DoorSummary[]; mine: boolean; allowed: boolean; bulletin: BulletinNote[] };
+/** The realtime channel a host listens on for visits to their kitchen. Channel names cannot contain a colon. */
+export const visitChannel = (hostId: string): string => `visits_${hostId}`;
 /** One bulletin line as the host reads it. */
 export const bulletinLine = (n: BulletinNote): string => `${n.visitor}: ${n.line}. ${n.thought}`;
 

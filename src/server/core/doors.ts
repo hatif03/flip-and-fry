@@ -75,7 +75,8 @@ const lineFor = (note: Pick<VisitNote, 'outcome' | 'tip' | 'wait' | 'quality'>):
   note.outcome === 'served' ? `Served in ${note.wait}s${note.quality === 3 ? ', perfectly cooked' : ''}, tip $${note.tip}` : note.outcome === 'left' ? 'Waited too long and left' : 'Nothing on the menu was for them';
 
 /** Play one service in a kitchen with the visitor as a guest. One visit to a door per day, three a day in all. */
-export async function visitDoor(deps: Deps, user: Player, doorId: string, dish: unknown): Promise<{ ok: true; value: VisitResult } | Fail> {
+export type VisitNotify = (hostId: string, note: BulletinNote) => Promise<void>;
+export async function visitDoor(deps: Deps, user: Player, doorId: string, dish: unknown, notify?: VisitNotify): Promise<{ ok: true; value: VisitResult } | Fail> {
   if (!(await withinRate(deps.store, `rate:visit:${user.id}`, 6, 60))) return fail(429, 'Slow down a little and try again.');
   if (typeof dish !== 'string' || !(DISH_IDS as readonly string[]).includes(dish)) return fail(400, 'That is not a dish on the menu.');
   if (!VISITOR_NAME.test(user.name)) return fail(400, 'Your name cannot be shown in someone else’s kitchen.');
@@ -97,6 +98,8 @@ export async function visitDoor(deps: Deps, user: Player, doorId: string, dish: 
     const key = bulletinKey(doorId);
     await deps.store.zAdd(key, { member: JSON.stringify(entry), score: deps.now() }); await deps.store.expire(key, BULLETIN_TTL);
     const old = await deps.store.zRange(key, 0, -(BULLETIN_KEEP + 1)); if (old.length) await deps.store.zRem(key, old.map(o => o.member));
+    // A live heads-up for a host who has the game open. Best effort: the note is already on the bulletin either way.
+    try { await notify?.(doorId, entry); } catch { /* realtime is a courtesy */ }
   }
   return { ok: true, value: result };
 }
