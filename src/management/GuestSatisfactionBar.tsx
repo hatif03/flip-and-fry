@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Frown, Meh, Smile, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { pixelFace } from './pixel-face';
+import { NeighborAvatar } from './NeighborAvatar';
 import type { GuestMood, Thought } from './satisfaction';
 import type { Guest } from './types';
 
@@ -17,7 +17,7 @@ export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, val
 }) {
   const Face = mood === 'unhappy' ? Frown : mood === 'uneasy' ? Meh : Smile;
   return <>
-    {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{neighbor && <img src={pixelFace(neighbor)} alt="" width={12} height={12} className="mr-1 inline-block size-3 align-[-2px] [image-rendering:pixelated]" />}{thought.text}</span>}
+    {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{neighbor && <NeighborAvatar name={neighbor} className="mr-1" />}{thought.text}</span>}
     <div role="meter" aria-label={`Guest ${id} satisfaction`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}
     aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' Star guest — counts toward today’s challenge when served.' : ''}${thought ? ` Thinking: ${thought.text}.` : ''}`}
     data-special={special} data-guest-id={id} data-mood={mood} data-stage={stage}

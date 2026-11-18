@@ -4,6 +4,23 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Push reminders, the game badge, a picture on kitchen posts, and real avatars (all with fallbacks)
+
+**Why:** the three remaining Reddit features from plan section 3 (push notifications, media upload, snoovatars). The author asked for them to be completed. Each one is built so that Reddit saying "no" (a gated beta, an unapproved permission, a blocked image host) changes nothing the player sees except that the extra is missing. None of them can be proven from here; each is tested against a fake of the Reddit call, and the live behaviour is on the phone-check list.
+
+**Push reminders (`src/server/core/notify.ts`).**
+- A switch in the Ledger ("Remind me about my streak") asks Reddit to opt the player in or out (`notifications.optInCurrentUser`). Its own action, off by default, with a one-line explanation.
+- A scheduler job `streak-reminders` (17:00) enqueues one notification, once a day, to opted-in players who have a streak and have not played today, linking to today's post ("Keep your {{days}}-day streak going"). The day's claim is taken first (so the job and a manual run cannot both send) and released if Reddit fails. At most 1000 recipients per call, the platform limit. No message ever goes to someone who did not opt in.
+- **Game badge:** when the daily post is made, the app asks Reddit to show the game badge linking to it until the end of the UTC day (`requestShowGameBadge`), best effort like the highlight.
+
+**A picture on a kitchen post (`media.ts`, `kitchen-card.ts`).** "Post my kitchen" now draws a 512 by 256 card in the game's colours (name, style, reputation stars, a pixel face) on a canvas and sends it as a PNG data URI. The server accepts it only if it is a genuine PNG under 300 KB, uploads it with `media.upload` (`permissions.media` is now `true`) and attaches the hosted URL to the post's user-generated content. If the picture is missing, invalid, or Reddit refuses the upload, the post is made without it. Assumption to confirm on Reddit: that `media.upload` accepts a data URI as its fetchable URL.
+
+**Real avatars (`avatar.ts`, `NeighborAvatar.tsx`).** A neighbor's tag shows their pixel face at once and swaps in their Reddit avatar if Reddit has one and the image actually loads in the webview (a load error keeps the pixel face). The server looks a name up once a day and caches the answer, only for names that pass the Reddit-name check, and only passes on URLs on Reddit's own image hosts (`redd.it`, `redditmedia.com`, `redditstatic.com`), so a lookup can never point the page elsewhere.
+
+**Refused:** notifying anyone who has not opted in, a reminder more than once a day, and a comment image (comments do not take one; the picture goes on the kitchen post, which does).
+
+**Code:** `src/server/core/{notify,media,avatar}.ts`, `src/server/reddit.ts`, `src/server/routes/{api,scheduler}.ts`, `devvit.json` (`media`, the `streak-reminders` task), `src/management/{kitchen-card,NeighborAvatar,Reminder}.ts(x)`; tests in `reddit-extras.test.ts` (16) and `reddit-extras.browser.test.tsx`.
+
 ## 2026-11-19 — Models and audio compressed, MIT licence, provenance evidence
 
 **Compression (author approved installing the tools).** Dev dependencies added: `@gltf-transform/cli`, `core`, `functions`, `extensions`, `sharp`, `meshoptimizer` and `ffmpeg-static`. None is in the Reddit build. `tools/compress-models.mjs` and `tools/compress-audio.mjs` turn the originals (kept in `tools/source/`, not shipped) into the files in `public/assets/`: the nine models went from 4343 KB to 731 KB (the largest from 608 KB to 101 KB) and the audio from 808 KB to 347 KB. Textures are cut to 256 px because the pixel look hides the detail; geometry is quantized and meshopt-compressed, and the decoder is bundled with three and drei, so no decoder is fetched. The perf budgets in `scripts/perf-check.mjs` were tightened to match. Checked with the real-model scene test, the pixel pass tests and a phone screenshot. Details: `docs/perf-log.md`.

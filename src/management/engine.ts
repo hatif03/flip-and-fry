@@ -42,8 +42,12 @@ export interface RemoteSession {
     setDoor(open: boolean): Promise<string | null>;
     visit(doorId: string, dish: string): Promise<VisitResult | { error: string }>;
     /** Create a post of the player's open kitchen, as the player. Its own explicit button. */
-    postKitchen(): Promise<{ url: string } | { error: string }>;
+    postKitchen(image?: string): Promise<{ url: string } | { error: string }>;
+    /** Reminders: opt in or out of a push notification when a streak is at risk. */
+    reminder?: { status(): Promise<boolean>; set(on: boolean): Promise<string | null> };
   };
+  /** A neighbor's Reddit avatar URL, if Reddit has one. The page falls back to the pixel face when it is null or will not load. */
+  avatar?(name: string): Promise<string | null>;
   follow?(): Promise<string | null>;
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }

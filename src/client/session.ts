@@ -171,6 +171,11 @@ export class Session implements RemoteSession {
     this.social = { ...this.social, followed: true }; this.engine.notify(); return null;
   }
 
+  async avatar(name: string): Promise<string | null> {
+    const r = await this.http('GET', `/api/avatar?name=${encodeURIComponent(name)}`);
+    return r.status === 200 && !isError(r.body) ? ((r.body as { url: string | null }).url ?? null) : null;
+  }
+
   // ---- the neighborhood: open doors, visits and the bulletin. Optional; nothing in the game waits for any of it. ----------------
   readonly neighborhood = {
     load: async (): Promise<NeighborhoodView | { error: string }> => {
@@ -183,8 +188,12 @@ export class Session implements RemoteSession {
       const r = await this.http('POST', '/api/visit', { doorId, dish });
       return r.status === 200 && !isError(r.body) ? (r.body as { door: VisitResult['door'] } & VisitResult) : { error: message(r) };
     },
-    postKitchen: async (): Promise<{ url: string } | { error: string }> => {
-      const r = await this.http('POST', '/api/kitchen-post');
+    reminder: {
+      status: async (): Promise<boolean> => { const r = await this.http('GET', '/api/reminder'); return r.status === 200 && (r.body as { on?: boolean }).on === true; },
+      set: async (on: boolean): Promise<string | null> => { const r = await this.http('POST', '/api/reminder', { on }); return r.status === 200 && !isError(r.body) ? null : message(r); },
+    },
+    postKitchen: async (image?: string): Promise<{ url: string } | { error: string }> => {
+      const r = await this.http('POST', '/api/kitchen-post', image ? { image } : {});
       return r.status === 200 && !isError(r.body) ? { url: (r.body as { url: string }).url } : { error: message(r) };
     },
   };

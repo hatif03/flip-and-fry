@@ -10,6 +10,8 @@ export interface PostApi {
   comment(postId: string, text: string): Promise<{ id: string; makeSticky(): Promise<void> }>;
   /** Pin the post in the community highlights. Needs moderator rights, so a refusal never blocks the post. */
   highlight?(postId: string): Promise<void>;
+  /** Show the game badge for this post until the end of the day. Best effort, like the highlight. */
+  badge?(postId: string): Promise<void>;
 }
 export const POSTS_KEY = 'posts';
 /** A claim older than this is a crashed request, not a slow one; another request may take over. */
@@ -59,6 +61,7 @@ export async function rollDay(store: Store, api: PostApi, now: number, date: str
       await sticky.makeSticky().catch(() => undefined);
     } catch { /* the post exists and is playable; a missing sticky is retried by the nightly report */ }
     await api.highlight?.(post.id).catch(() => undefined);
+    await api.badge?.(post.id).catch(() => undefined);
     await store.hSet(POSTS_KEY, { [date]: JSON.stringify({ postId: post.id, stickyId } satisfies Stored) });
     return { ok: true, postId: post.id, stickyId, created: true };
   } catch (error) {

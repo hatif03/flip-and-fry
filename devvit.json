@@ -34,7 +34,8 @@
       ]
     },
     "journeys": true,
-    "realtime": true
+    "realtime": true,
+    "media": true
   },
   "menu": {
     "items": [
@@ -88,6 +89,10 @@
       "roll-day": {
         "endpoint": "/internal/scheduler/roll-day",
         "cron": "5 0 * * *"
+      },
+      "streak-reminders": {
+        "endpoint": "/internal/scheduler/streak-reminders",
+        "cron": "0 17 * * *"
       },
       "night-report": {
         "endpoint": "/internal/scheduler/night-report",

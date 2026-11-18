@@ -2,6 +2,7 @@ import type { DoorSummary } from '../../management/social';
 import { VISITOR_NAME } from '../../management/types';
 import { doorSummary, isDoorOpen } from './doors';
 import { utcDate, type Deps, type Fail, type Player } from './game';
+import { uploadKitchenImage, type MediaApi } from './media';
 import { withinRate } from './store';
 
 /**
@@ -11,7 +12,7 @@ import { withinRate } from './store';
  */
 export interface KitchenPostApi {
   /** Create the post as the player. Before the app is approved this runs as the app account, except for the app owner. */
-  createAsUser(options: { title: string; postData: Record<string, string>; text: string }): Promise<{ id: string; url: string }>;
+  createAsUser(options: { title: string; postData: Record<string, string>; text: string; imageUrls?: string[] }): Promise<{ id: string; url: string }>;
 }
 const postedKey = (date: string): string => `kitchen-posts:${date}`;
 const fail = (status: Fail['status'], error: string): Fail => ({ ok: false, status, error });
@@ -24,7 +25,7 @@ export function kitchenPostContent(kitchen: string, host: string | null, door: s
   };
 }
 
-export async function postKitchen(deps: Deps, api: KitchenPostApi, user: Player): Promise<{ ok: true; value: { postId: string; url: string } } | Fail> {
+export async function postKitchen(deps: Deps, api: KitchenPostApi, user: Player, picture: { image?: unknown; media?: MediaApi | null } = {}): Promise<{ ok: true; value: { postId: string; url: string } } | Fail> {
   if (!(await withinRate(deps.store, `rate:kitchen-post:${user.id}`, 5, 60))) return fail(429, 'Slow down a little and try again.');
   if (!(await isDoorOpen(deps, user))) return fail(409, 'Leave your door open first, so there is a kitchen to visit.');
   const date = utcDate(deps.now());
@@ -34,7 +35,9 @@ export async function postKitchen(deps: Deps, api: KitchenPostApi, user: Player)
   try {
     const listed = await doorSummary(deps, user.id);
     const content = kitchenPostContent(listed?.kitchen ?? 'A kitchen', VISITOR_NAME.test(user.name) ? user.name : null, user.id, date);
-    const made = await api.createAsUser({ title: content.title, postData: content.postData, text: content.text });
+    // A picture is a bonus: if it is missing, not a real small PNG, or Reddit will not take it, the post is made without one.
+    const imageUrl = await uploadKitchenImage(picture.media ?? null, picture.image);
+    const made = await api.createAsUser({ title: content.title, postData: content.postData, text: content.text, ...(imageUrl ? { imageUrls: [imageUrl] } : {}) });
     await deps.store.hSet(postedKey(date), { [user.id]: made.id });
     return { ok: true, value: { postId: made.id, url: made.url } };
   } catch {

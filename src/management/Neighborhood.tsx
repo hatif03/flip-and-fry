@@ -4,8 +4,9 @@ import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
-import { pixelFace } from './pixel-face';
-import { bulletinLine, houseDish, type NeighborhoodView, type VisitResult } from './social';
+import { kitchenCardImage } from './kitchen-card';
+import { NeighborAvatar } from './NeighborAvatar';
+import { bulletinLine, houseDish, houseStyle, type NeighborhoodView, type VisitResult } from './social';
 import { DISHES, type RestaurantState } from './types';
 
 /**
@@ -20,7 +21,7 @@ export function Neighborhood({ state }: { state: RestaurantState }) {
   if (!hood) return null;
   const dish = houseDish(state);
   const toggle = async (open: boolean): Promise<void> => { setBusy('door'); const e = await hood.setDoor(open); setBusy(null); if (e) toast.error(e); else { toast.success(open ? 'Your door is open. Neighbors can visit.' : 'Your door is closed.'); await load(); } };
-  const post = async (): Promise<void> => { setBusy('post'); const r = await hood.postKitchen(); setBusy(null); if ('error' in r) toast.error(r.error); else toast.success('Your kitchen is posted.'); };
+  const post = async (): Promise<void> => { setBusy('post'); const r = await hood.postKitchen(kitchenCardImage({ name: state.name, style: houseStyle(state), host: null, reputation: state.reputation })); setBusy(null); if ('error' in r) toast.error(r.error); else toast.success('Your kitchen is posted.'); };
   const go = async (id: string): Promise<void> => { setBusy(id); const r = await hood.visit(id, dish); setBusy(null); if ('error' in r) toast.error(r.error); else { setVisit(r); await load(); } };
   return <section aria-label="The neighborhood" className="mb-5 rounded-2xl border border-ink/10 bg-white/40 p-3">
     <h3 className="flex items-center gap-2 text-lg"><Footprints size={18} aria-hidden />The neighborhood</h3>
@@ -33,7 +34,7 @@ export function Neighborhood({ state }: { state: RestaurantState }) {
       {view.mine && <p className="mt-1 text-[11px] text-ink/60">This posts as you, in this community. Neighbors who open the post can stop by your kitchen.</p>}
       <p className="mb-1 mt-3 text-[11px] font-extrabold uppercase tracking-wider text-ink/50">Kitchens to visit · you would order {DISHES[dish].name.toLowerCase()}</p>
       <ul className="space-y-2">{view.doors.map(door => <li key={door.id} className="flex items-center gap-2 rounded-xl border border-ink/10 bg-white/50 p-2">
-        <div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold">{door.kitchen}</p><p className="truncate text-[11px] text-ink/60">{door.kind === 'sample' ? <span className="mr-1 rounded bg-gold/30 px-1 font-extrabold text-ink">Sample kitchen</span> : door.host ? <span className="mr-1"><img src={pixelFace(door.host)} alt="" width={12} height={12} className="mr-1 inline-block size-3 align-[-2px] [image-rendering:pixelated]" />by {door.host} ·</span> : null}{door.style} · {door.blurb}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold">{door.kitchen}</p><p className="truncate text-[11px] text-ink/60">{door.kind === 'sample' ? <span className="mr-1 rounded bg-gold/30 px-1 font-extrabold text-ink">Sample kitchen</span> : door.host ? <span className="mr-1"><NeighborAvatar name={door.host} className="mr-1" />by {door.host} ·</span> : null}{door.style} · {door.blurb}</p></div>
         <button className="min-h-[44px] shrink-0 rounded-xl bg-teal px-3 text-sm font-extrabold text-paper disabled:opacity-50" disabled={busy !== null} aria-label={`Visit ${door.kitchen}`} onClick={() => void go(door.id)}>{busy === door.id ? 'Visiting…' : 'Visit'}</button>
       </li>)}</ul>
       {visit && <div role="status" className="mt-3 rounded-xl bg-gold/20 p-3 text-sm"><p className="font-extrabold">{visit.door.kitchen}</p><p>{visit.line}.</p><button className="mt-1 text-xs font-extrabold underline" onClick={() => setVisit(null)}>Close</button></div>}

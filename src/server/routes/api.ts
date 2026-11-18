@@ -7,7 +7,9 @@ import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
-import { kitchenPostApi, postApi, socialApi } from '../reddit';
+import { avatarApi, kitchenPostApi, mediaApi, notifyApi, postApi, socialApi } from '../reddit';
+import { avatarFor } from '../core/avatar';
+import { reminderStatus, setReminder } from '../core/notify';
 import { arcadePreview, commentPreview, follow, postArcadeResult, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
@@ -158,7 +160,8 @@ api.post('/visit', async c => {
 });
 api.post('/kitchen-post', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
-  const r = await postKitchen(deps, kitchenPostApi, user);
+  const body = z.object({ image: z.string().max(450_000).optional() }).safeParse(await c.req.json().catch(() => ({})));
+  const r = await postKitchen(deps, kitchenPostApi, user, { image: body.success ? body.data.image : undefined, media: mediaApi });
   return 'error' in r ? failure(c, r) : c.json({ type: 'kitchen-post', ...r.value });
 });
 api.post('/comment/arcade/preview', async c => {
@@ -172,4 +175,21 @@ api.post('/comment/arcade', async c => {
   const body = z.object({ level: z.number(), mode: z.string() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await postArcadeResult(deps, socialApi, user, body.data.level, body.data.mode);
   return 'error' in r ? failure(c, r) : c.json({ type: 'posted', ...r.value });
+});
+
+// ---- avatars and reminders ---------------------------------------------------------------------------------------------------
+api.get('/avatar', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await avatarFor(deps, avatarApi, user, c.req.query('name'));
+  return 'error' in r ? failure(c, r) : c.json({ type: 'avatar', ...r.value });
+});
+api.get('/reminder', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  return c.json({ type: 'reminder', on: await reminderStatus(notifyApi, user) });
+});
+api.post('/reminder', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await setReminder(deps, notifyApi, user, body.data.on);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'reminder', ...r.value });
 });

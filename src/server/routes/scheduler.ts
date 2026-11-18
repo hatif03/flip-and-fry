@@ -4,9 +4,16 @@ import { rollDay } from '../core/daily-post';
 import { shiftDate } from '../../management/daily-headline';
 import { utcDate } from '../core/game';
 import { postNightReport } from '../core/neighborhood';
-import { postApi } from '../reddit';
+import { sendStreakReminders } from '../core/notify';
+import { notifyApi, postApi } from '../reddit';
 
 export const scheduler = new Hono();
+
+/** Late afternoon UTC: a reminder to opted-in players whose streak is at risk. Claimed once a day; harmless if the beta is not available. */
+scheduler.post('/streak-reminders', async c => {
+  const now = Date.now(), r = await sendStreakReminders({ store: redis, now: () => now }, notifyApi, utcDate(now));
+  return c.json({ status: 'success', ...r });
+});
 
 /** Just after midnight: the app's comment on yesterday's post. Claimed once, so the lazy path in /api/today and this job cannot both post. */
 scheduler.post('/night-report', async c => {
