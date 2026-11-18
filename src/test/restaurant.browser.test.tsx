@@ -142,7 +142,7 @@ it.each([320, 1280])('offers independent traffic audio without changing saves or
   expect(restaurant.paused).toBe(false);
 });
 
-const sampleReport: Report = { challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, profit: 140, served: 10, missed: 2, rating: 4 };
+const sampleReport: Report = { headline: null, challenges: [], day: 1, revenue: 300, tips: 20, ingredients: 90, wages: 60, rent: 30, debtPayment: 0, profit: 140, served: 10, missed: 2, rating: 4 };
 it('reopens a saved daily summary without changing money, wages or the current day', async () => {
   restaurant.state.history = [{ ...sampleReport }]; restaurant.state.day = 2;
   restaurant.train(10);

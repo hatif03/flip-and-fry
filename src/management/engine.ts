@@ -1,5 +1,6 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { CATALOG, DAY_LENGTH, DISHES, SAVE_KEY, capacity, comfort, createRestaurant, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { CATALOG, DAY_LENGTH, DISHES, SAVE_KEY, capacity, comfort, createRestaurant, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
 import type { CashReceipt } from './cash-feedback';
@@ -130,6 +131,14 @@ export class RestaurantEngine {
       this.notify();
     }
   }
+  private fxKey = '';
+  private fxValue: HeadlineEffects = headlineEffects(null);
+  /** The weights of tonight's headline; memoised because step() reads them many times a second. */
+  private get fx(): HeadlineEffects {
+    const h = this.state.headline, key = h ? `${h.id}:${h.seed}` : '';
+    if (key !== this.fxKey) { this.fxKey = key; this.fxValue = headlineEffects(h); }
+    return this.fxValue;
+  }
   /** One fixed 0.1 s simulation step. Replay, bots and co-op call this directly instead of update(). */
   tick(): void { if (this.state.phase === 'service') this.step(.1); }
   private random(): number { this.state.seed = (Math.imul(this.state.seed, 1664525) + 1013904223) >>> 0; return this.state.seed / 4294967296; }
@@ -223,9 +232,14 @@ export class RestaurantEngine {
     return errors;
   }
   operatingCost(): number { return this.state.staff.reduce((sum, staff) => sum + staffWage(staff), 0) + (this.state.expanded ? 50 : 30); }
-  open(): string | null {
+  /** Open the doors. With a headline, its seed is mixed into the engine seed so every kitchen sees a different queue. */
+  open(headline?: DailyHeadline): string | null {
     if (this.state.phase !== 'planning') return 'The restaurant is already open.';
     const errors = this.readiness(); if (errors.length) return errors[0];
+    if (headline) {
+      this.state.seed = mixSeed(this.state.seed ^ headline.seed);
+      this.state.headline = { id: headline.id, date: headline.date, seed: headline.seed, walkouts: 0, dirtyAtClose: 0, closed: false };
+    } else this.state.headline = null;
     Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [] });
     this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Your team has it from here.'); return null;
   }
@@ -235,6 +249,8 @@ export class RestaurantEngine {
   }
   private beginNextDay(): void {
     const renovate = this.state.renovation || !this.autoRoll;
+    // A headline belongs to the service it opened. Days that roll on by themselves (autoRoll) run without one.
+    if (this.autoRoll) this.state.headline = null;
     this.state.day++; this.state.phase = 'planning'; this.state.guests = []; this.state.dirty = []; this.state.elapsed = 0; this.state.nextArrival = 1; this.state.totals = freshTotals(); this.relocateStaff();
     this.state.renovation = false; this.incomeReceipts = []; this.state.dailyChallenges = [];
     const errors = this.readiness();
@@ -253,12 +269,15 @@ export class RestaurantEngine {
     }
     if (!selected) { s.totals.missed++; this.event = 'A guest found no free seat. More tables or faster clearing would help.'; return; }
     const dishes = (['salad', 'burger'] as const).filter(dish => s.menu[dish].enabled);
-    const dish = dishes[Math.floor(this.random() * dishes.length)]; if (!dish) return;
+    const fx = this.fx;
+    let dish = dishes[Math.floor(this.random() * dishes.length)]; if (!dish) return;
+    // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.
+    if (fx.burgerBias > 0 && dish !== 'burger' && dishes.includes('burger') && this.random() < fx.burgerBias) dish = 'burger';
     const price = s.menu[dish].price;
-    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * .7)) { s.totals.missed++; this.event = 'A guest thought the menu was too expensive.'; return; }
+    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * .7 * fx.priceRoll)) { s.totals.missed++; this.event = 'A guest thought the menu was too expensive.'; return; }
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
-    const special = isSpecialGuest(s.day, s.nextId);
+    const special = fx.specialAlways || isSpecialGuest(s.day, s.nextId);
     s.guests.push({ id: s.nextId++, special, ...entrance, yaw: Math.PI, route, species: (['mouse', 'rabbit', 'bear', 'crocodile'] as const)[Math.floor(this.random() * 4)], tableId: selected.table.id, seat: selected.seat, dish, price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false });
   }
   private leave(guest: Guest, happy: boolean): void {
@@ -268,6 +287,7 @@ export class RestaurantEngine {
     guest.route = [access, ...(this.route(access, entrance) ?? []), { x: entrance.x, z: entrance.z + 1 }];
     if (!happy) {
       this.state.totals.missed++; this.event = 'A guest waited too long. Another chef or server could help.';
+      if (guest.special && this.state.headline) this.state.headline.walkouts++;
       this.state.staff.filter(s => s.guestId === guest.id).forEach(resetStaff);
     }
   }
@@ -278,10 +298,11 @@ export class RestaurantEngine {
       if (member.role === 'chef') {
         for (const guest of s.guests.filter(g => g.stage === 'waiting')) {
           const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !s.staff.some(worker => worker.stationId === f.id && worker.role === 'chef' && worker.task !== 'idle'));
-          if (!station || s.cash < DISHES[guest.dish].cost) continue;
+          const cost = dishCost(s, guest.dish);
+          if (!station || s.cash < cost) continue;
           const route = this.route(member, accessPoints(station)[0]); if (!route) continue;
           guest.stage = 'cooking'; guest.stationId = station.id; member.guestId = guest.id; member.stationId = station.id; member.task = 'toKitchen'; member.route = route;
-          s.cash -= DISHES[guest.dish].cost; s.totals.ingredients += DISHES[guest.dish].cost; break;
+          s.cash -= cost; s.totals.ingredients += cost; break;
         }
       } else {
         const guest = s.guests.find(g => g.stage === 'ready');
@@ -301,11 +322,14 @@ export class RestaurantEngine {
   }
   private step(dt: number): void {
     const s = this.state; s.clock += dt; s.elapsed += dt;
-    if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + Math.max(5.5, 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12) + this.random() * 2; }
+    const fx = this.fx;
+    if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + Math.max(5.5 + Math.min(0, fx.gapDelta), 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12 + fx.gapDelta) + this.random() * 2; }
+    // The inspector counts the dirty seats once, at the moment the doors close.
+    if (s.headline && !s.headline.closed && s.elapsed >= DAY_LENGTH) { s.headline.closed = true; s.headline.dirtyAtClose = s.dirty.length; }
     for (const guest of s.guests) {
-      if (guest.stage === 'arriving' && walk(guest, dt, 1.7)) {
+      if (guest.stage === 'arriving' && walk(guest, dt, 1.7 * fx.walk)) {
         guest.stage = 'waiting'; const table = s.furniture.find(f => f.id === guest.tableId); guest.yaw = Math.PI - (table?.rotation ?? 0) * Math.PI / 2;
-      } else if (guest.stage === 'leaving') walk(guest, dt, 1.8);
+      } else if (guest.stage === 'leaving') walk(guest, dt, 1.8 * fx.walk);
       else if (guest.stage === 'eating') {
         guest.timer -= dt;
         if (guest.timer <= 0) { s.dirty.push(seatKey(guest)); this.leave(guest, true); }
@@ -317,7 +341,7 @@ export class RestaurantEngine {
     this.assignJobs();
     for (const staff of s.staff) {
       if (staff.task === 'idle') continue;
-      if (!walk(staff, dt, 2 + (staff.level - 1) * .4)) continue;
+      if (!walk(staff, dt, (2 + (staff.level - 1) * .4) * fx.walk)) continue;
       if (staff.task === 'clean') {
         staff.timer -= dt / (1 - (staff.level - 1) * .17);
         if (staff.timer <= 0) { s.dirty = s.dirty.filter(key => key !== `${staff.stationId}:${staff.guestId}`); resetStaff(staff); }
@@ -335,7 +359,7 @@ export class RestaurantEngine {
       } else if (staff.task === 'deliver') {
         guest.stage = 'eating'; guest.timer = 10; guest.happy = true;
         if (!guest.paid) {
-          const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001) * Math.max(.15, 1 - guest.waiting / 60)));
+          const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60)));
           const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
           this.recordIncome(earned, 'service', guest.id, tip);
           this.event = `${DISHES[guest.dish].name} served. +$${earned}${tip ? ` including $${tip} tip` : ''}`;
@@ -356,9 +380,11 @@ export class RestaurantEngine {
     for (const guest of s.guests) if (!guest.paid && guest.stage !== 'leaving') s.totals.missed++;
     const wages = s.staff.reduce((sum, staff) => sum + staffWage(staff), 0), rent = s.expanded ? 50 : 30, debtPayment = Math.min(30, s.debt);
     s.cash -= wages + rent + debtPayment; s.debt -= debtPayment;
-    const rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06));
+    const fx = this.fx, h = s.headline;
+    let rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06 - (h ? h.dirtyAtClose * fx.dirtyPenalty : 0)));
+    if (fx.criticCap && h && h.walkouts > 0) rating = Math.min(rating, 2);
     s.reputation = Math.round((s.reputation * .65 + rating * .35) * 100) / 100;
-    s.history.push({ ...s.totals, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit: s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment, rating }); s.history = s.history.slice(-20);
+    s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit: s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment, rating }); s.history = s.history.slice(-20);
     this.beginNextDay(); this.changed();
   }
 }

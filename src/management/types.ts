@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { headlineEffects, headlineId } from './daily-headline';
 
 // Zod validates required fields at runtime; preserve them in the legacy non-strict TS project too.
 type Validated<T> = T extends (infer U)[] ? Validated<U>[] : T extends object ? { [K in keyof T]-?: Validated<T[K]> } : T;
@@ -25,7 +26,10 @@ const challengeSchema = z.object({
 }).refine(c => c.progress <= c.target && c.rewarded === (c.progress === c.target), 'Invalid challenge progress');
 export type DailyChallenge = Validated<z.infer<typeof challengeSchema>>;
 const challengesSchema = z.array(challengeSchema).max(3).default([]).refine(items => new Set(items.map(c => c.kind)).size === items.length, 'Duplicate challenges');
-const reportSchema = totalsSchema.extend({ challenges: challengesSchema, day: z.number().int().positive(), wages: z.number().nonnegative(), rent: z.number().nonnegative(), debtPayment: z.number().nonnegative(), profit: z.number().finite(), rating: z.number().min(1).max(5) });
+/** The headline a service ran under, with the counters its star line and rating rules read. */
+const headlineStateSchema = z.object({ id: headlineId, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), seed: z.number().int().nonnegative(), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
+export type HeadlineState = Validated<z.infer<typeof headlineStateSchema>>;
+const reportSchema = totalsSchema.extend({ headline: headlineId.nullable().default(null), challenges: challengesSchema, day: z.number().int().positive(), wages: z.number().nonnegative(), rent: z.number().nonnegative(), debtPayment: z.number().nonnegative(), profit: z.number().finite(), rating: z.number().min(1).max(5) });
 export type Report = Validated<z.infer<typeof reportSchema>>;
 /** Validated versioned save. Arcade records live under a different key. */
 export const restaurantSchema = z.object({
@@ -33,7 +37,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: z.object({ salad: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }), burger: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }) }),
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -61,7 +65,9 @@ export const freshTotals = (): Totals => ({ revenue: 0, ingredients: 0, served: 
 export const staffWage = (staff: Staff): number => (staff.role === 'chef' ? 34 : 26) + (staff.level - 1) * 12;
 export const comfort = (state: RestaurantState): number => Math.min(100, state.furniture.reduce((total, item) => total + CATALOG[item.kind].comfort, 20));
 /** Shared service deadline, including the restaurant's existing atmosphere bonus. */
-export const guestPatienceSeconds = (state: RestaurantState): number => 48 + comfort(state) * .18;
+export const guestPatienceSeconds = (state: RestaurantState): number => (48 + comfort(state) * .18) * headlineEffects(state.headline).patience;
+/** Ingredient cost for one dish tonight; the supplier headline raises the grill dishes. */
+export const dishCost = (state: RestaurantState, dish: Dish): number => Math.round(DISHES[dish].cost * (DISHES[dish].station === 'grill' ? headlineEffects(state.headline).burgerCost : 1));
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
@@ -75,7 +81,7 @@ export function createRestaurant(): RestaurantState {
       { id: 10, name: 'Basil', role: 'chef', level: 1, x: 1, z: 2, yaw: Math.PI, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
       { id: 11, name: 'Pip', role: 'server', level: 1, x: 4, z: 7, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
     ], guests: [], dirty: [], menu: { salad: { enabled: true, price: 24 }, burger: { enabled: true, price: 38 } },
-    lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
+    headline: null, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
     phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
   };
 }

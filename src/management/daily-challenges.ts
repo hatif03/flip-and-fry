@@ -1,21 +1,17 @@
 import { DISHES, comfort, type DailyChallenge, type Guest, type RestaurantState } from './types';
 
-/** Integer mixing keeps challenge rolls separate from the customer/order random stream. */
-function mix(value: number): number {
-  let n = value >>> 0;
-  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
-  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
-  return (n ^ (n >>> 16)) >>> 0;
-}
+import { mixSeed as mix } from './daily-headline';
 
 /** A real arriving guest can be a star guest; designation never spawns extra customers. */
 export const isSpecialGuest = (day: number, id: number): boolean => mix(Math.imul(day, 7919) ^ id) % 3 !== 0;
 
 /** Roll once at opening, against the actual menu and equipment. Reloads retain the saved board. */
 export function createDailyChallenges(state: RestaurantState): DailyChallenge[] {
-  let seed = mix(state.seed ^ Math.imul(state.day, 104729));
-  const roll = (count: number): number => { seed = mix(seed + 0x9e3779b9); return seed % count; };
   const tier = Math.min(2, Math.floor((state.day - 1) / 3));
+  // Under a headline the goals come from the date and the player's tier, not their private seed, so everyone on the
+  // same menu sees the same three goals today. Without one the original per-player roll is unchanged.
+  let seed = state.headline ? mix(state.headline.seed ^ Math.imul(tier + 1, 104729)) : mix(state.seed ^ Math.imul(state.day, 104729));
+  const roll = (count: number): number => { seed = mix(seed + 0x9e3779b9); return seed % count; };
   const make = (kind: DailyChallenge['kind'], target: number, reward: number): DailyChallenge => ({ day: state.day, kind, target, reward, progress: 0, rewarded: false });
   const available = (['salad', 'burger'] as const).filter(dish => state.menu[dish].enabled && state.furniture.some(f => f.kind === DISHES[dish].station));
   const challenges = [make('special', 6 + tier + roll(3), 65 + tier * 10)];

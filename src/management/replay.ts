@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { RestaurantEngine } from './engine';
+import type { DailyHeadline } from './daily-headline';
 import { layoutError } from './layout';
 import { DAY_LENGTH, furnitureKind, restaurantSchema, width, type Furniture, type Report, type RestaurantState } from './types';
 
@@ -59,7 +60,7 @@ export function stateHash(state: RestaurantState): string {
 }
 
 /** Replay one service from a closed-doors state. The input is never mutated. */
-export function runService(initial: RestaurantState, actions: readonly Action[]): ServiceResult {
+export function runService(initial: RestaurantState, actions: readonly Action[], headline?: DailyHeadline): ServiceResult {
   const parsed = restaurantSchema.safeParse(initial);
   if (!parsed.success) return { ok: false, error: 'Invalid restaurant.' };
   const state = parsed.data as RestaurantState;
@@ -73,7 +74,7 @@ export function runService(initial: RestaurantState, actions: readonly Action[])
   engine.autoRoll = false;
   engine.state = structuredClone(state);
   for (const action of log.data) { const error = apply(engine, action); if (error) return { ok: false, error }; }
-  const error = engine.open();
+  const error = engine.open(headline);
   if (error) return { ok: false, error };
   const day = engine.state.day;
   let ticks = 0;
