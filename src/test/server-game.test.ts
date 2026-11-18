@@ -159,7 +159,9 @@ describe('concurrency', () => {
     const t = await today(), o = good(await openService(deps, alice, t.rev, []));
     good(await savePark(deps, alice, o.rev, [{ tick: 0, kind: 'hire', role: 'server' }]));
     expect(await lockService(deps, alice, o.date, [])).toMatchObject({ ok: false, status: 409, conflict: true });
-    expect((await today()).park.staff).toHaveLength(3);
+    const after = await today(); expect(after.park.staff).toHaveLength(3);
+    expect(after.open).toBeNull(); // the abandoned service is dropped, so a reload is never stuck inside it
+    expect(after.run).toBeNull(); // and nothing was locked
   });
 });
 

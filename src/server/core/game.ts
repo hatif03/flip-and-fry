@@ -55,7 +55,7 @@ function parsePark(raw: string): Park | null {
 export async function loadPark(deps: Deps, user: Player): Promise<Park | Fail> {
   const key = keys.park(user.id), raw = await deps.store.get(key);
   if (raw) { const park = parsePark(raw); return park ?? fail(500, 'Your saved restaurant could not be read.'); }
-  const fresh: Park = { rev: 1, state: { ...createRestaurant(), seed: mixSeed(strHash(user.id)) } };
+  const fresh: Park = { rev: 1, state: { ...createRestaurant(), welcomed: true, seed: mixSeed(strHash(user.id)) } };
   await deps.store.set(key, JSON.stringify(fresh), { nx: true, expiration: expiration(deps.now(), TTL.park) });
   const stored = await deps.store.get(key), park = stored ? parsePark(stored) : null;
   return park ?? fail(500, 'Your saved restaurant could not be created.');
@@ -132,7 +132,11 @@ export async function lockService(deps: Deps, user: Player, date: string, action
     if (!current || current.rev !== opened.parkRev) return { error: 'Your restaurant changed in another tab. Reload to continue.' };
     return { value: { rev: current.rev + 1, state: replay.state } };
   }, { ttlSeconds: TTL.park, now: deps.now });
-  if ('error' in parkResult) return fail(409, parkResult.error, { conflict: true });
+  if ('error' in parkResult) {
+    // The park moved on (another tab). This service can never be applied, so drop it: otherwise every reload re-enters a service that cannot close.
+    await deps.store.hDel(keys.opens(date), [user.id]);
+    return fail(409, parkResult.error, { conflict: true });
+  }
   await deps.store.hDel(keys.opens(date), [user.id]); // one open, one close: the same replay can never be submitted twice
 
   const history = replay.state.history, previousProfit = history.length >= 2 ? history[history.length - 2].profit : null;
