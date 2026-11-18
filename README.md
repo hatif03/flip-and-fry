@@ -1,4 +1,4 @@
-# Too Many Cooks — Rooftop Restaurant Tycoon
+# Flip and Fry — Rooftop Restaurant Tycoon
 
 A cozy 3D restaurant management sim that runs in your browser. Build a sunset rooftop bistro on a grid, hire and train an autonomous animal crew, set your menu prices and watch real guests arrive, order, eat, tip and leave. Then reinvest the profit, one service day at a time.
 
@@ -165,7 +165,7 @@ web-kitchen-rush/
 └── vitest.browser.config.ts
 ```
 
-> **About `src/game`:** Too Many Cooks started as a local co-op arcade cooking game and was later rebuilt into a management sim. The arcade source is kept because the procedural chefs, food models and animation systems are reused, but it is not mounted from the entry page.
+> **About `src/game`:** Flip and Fry (formerly Too Many Cooks) started as a local co-op arcade cooking game and was later rebuilt into a management sim. The arcade source is kept because the procedural chefs, food models and animation systems are reused, but it is not mounted from the entry page.
 
 ---
 

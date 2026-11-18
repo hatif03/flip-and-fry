@@ -1,4 +1,4 @@
-# Too Many Cooks — Reddit Game of the Day plan
+# Flip and Fry — Reddit Game of the Day plan
 
 **Hackathon:** [Reddit's Game of the Day](https://redditgameofday2026.devpost.com/). Submission closes **Tue 8 Dec 2026, 6:00 pm PT** (02:00 UTC on 9 Dec; Devpost shows it as 9 Dec 7:30 am IST). Judging runs 9 Dec 12:00 am PT to 16 Dec 6:00 pm PT. Winners are announced around 17 Dec.
 **Platform:** [Devvit Web](https://developers.reddit.com/docs/capabilities/devvit-web/devvit_web_overview).
@@ -16,7 +16,7 @@ Read from the saved Devpost pages (Overview, Resources, Rules) and the official 
 | Requirement | What we do |
 |---|---|
 | Built on **Devvit Web**, runs on Reddit, uses an Interactive Post. | `devvit.json` with a custom post. No game lives outside Reddit. |
-| **App listing**: your `developers.reddit.com/apps/{app-name}` link, created by `devvit upload`. | App name `too-many-cooks`. Upload, never publish. |
+| **App listing**: your `developers.reddit.com/apps/{app-name}` link, created by `devvit upload`. | App name `flip-and-fry` (the name `too-many-cooks` was taken). Upload, never publish. |
 | **Demo post**: link to a **public** test subreddit with **fewer than 200 members** and a post running the game. Or install `dr-admin-approve` so admins can join. | Create a public subreddit (not private) and install `dr-admin-approve`. One post per UTC day keeps running through the judging window. |
 | **README.md in the repo root** that describes the game and how to play. | **Required, not optional.** The current README describes the browser game and must be rewritten (section 16). |
 | **Text description** of features and functionality. | Written for the Devpost form (section 16). |
@@ -63,7 +63,7 @@ Keep from the existing game: the deterministic simulation, the 3D rooftop and ci
 
 Changes to the player's day: it is bite-sized on the surface and deep underneath. A first-time player sees today's headline, one **Open** button and one result card. Contracts, research, regulars, visits and co-op appear as the restaurant grows.
 
-App name: `too-many-cooks` (14 characters; the docs allow 3–20 lowercase letters, digits and hyphens).
+App name: `flip-and-fry` (12 characters; the docs allow 3–20 lowercase letters, digits and hyphens). The first choice, `too-many-cooks`, was already taken. The game is shown as **Flip and Fry** everywhere. The app listing is `developers.reddit.com/apps/flip-and-fry` and the test subreddit is `r/flip_and_fry_dev`.
 
 ## 2. Architecture: a deterministic engine and an action log
 
@@ -431,11 +431,11 @@ Everything below is a simple object, so Codixel draws it in code without a refer
 
 ## 15. Devvit architecture
 
-Web layout. Server bundle is CommonJS, client is ESM. Node 22 for the CLI. Vitest stays on the sim.
+Web layout. Server bundle is CommonJS, client is ESM. Node 24 for the CLI (the Devvit template requires 24 or newer). Vitest stays on the sim.
 
 ```text
 devvit.json
-src/server/index.ts        Express, bundled to dist/server/index.cjs
+src/server/index.ts        Hono, bundled to dist/server/index.cjs
 src/client/splash/         inline entry (no three.js)
 src/client/game/           expanded entry: the current React app, retargeted
 src/management/            pure sim, imported by client and server
@@ -448,7 +448,7 @@ public/                    pixel kit, models, audio
 ```json
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "too-many-cooks",
+  "name": "flip-and-fry",
   "post": { "dir": "dist/client", "entrypoints": {
     "default": { "entry": "splash.html", "height": "tall" },
     "game": { "entry": "game.html", "height": "tall" } } },
@@ -479,7 +479,7 @@ public/                    pixel kit, models, audio
   } },
   "marketingAssets": { "icon": "public/pixel/icon-1024.png" },
   "scripts": { "dev": "vite build --watch", "build": "vite build && node scripts/build-server.mjs" },
-  "dev": { "subreddit": "too-many-cooks-dev" }
+  "dev": { "subreddit": "flip_and_fry_dev" }
 }
 ```
 
@@ -553,7 +553,7 @@ An older post's webview still calls `GET /api/today` and rolls to the new headli
 Nothing is built until these are done, in this order.
 
 1. **Baseline.** `git tag pre-devvit`. Install dependencies (`node_modules` is not present, and the repo has a `bun.lock` but no npm lockfile; use `npm`, because the Devvit CLI and the scripts assume it, and commit the new `package-lock.json`). Run `npm run lint` and `npm test`. Record the green baseline in the build log. Record frame time and bundle size **without changing anything**, in `docs/perf-log.md`.
-2. **Accounts and places.** Node 22. `devvit login`. Create a **public** subreddit with under 200 members (`too-many-cooks-dev` or a separate demo subreddit). Install `dr-admin-approve`. Join the Devvit Discord and r/devvit. Apply for the push-notification beta.
+2. **Accounts and places.** Node 24. `devvit login`. Create a **public** subreddit with under 200 members (`r/flip_and_fry_dev` was created by `devvit upload`; use it or a separate demo subreddit). Install `dr-admin-approve`. Join the Devvit Discord and r/devvit. Apply for the push-notification beta.
 3. **Spikes.** Each one has a pass condition and a fallback, and its result goes in the build log.
 
 | Spike | Question | Pass | Fallback |
@@ -569,7 +569,7 @@ Nothing is built until these are done, in this order.
 | S9 | Does audio start after the first tap and mute on hide? | Yes | Fix before the audio phase |
 | S10 | Are the existing GLBs and audio licensed? | Provenance recorded | Replace |
 
-4. **Scaffold** `devvit.json`, the Express server and the two client entries on a hello-world path, run `devvit playtest` on the demo subreddit, and open it on a real phone. Then S1–S9.
+4. **Scaffold** `devvit.json`, the Hono server and the two client entries on a hello-world path, run `devvit playtest` on the demo subreddit, and open it on a real phone. Then S1–S9.
 
 ## 18. Build order (dependency order, nothing dropped)
 

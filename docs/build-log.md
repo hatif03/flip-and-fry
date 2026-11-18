@@ -1,8 +1,17 @@
 # Build log
 
-This is the running record for Too Many Cooks on Devvit. The plan lives in `docs/hackathon-plan.md`. This file says why each choice was made, including the ones made before the first line of the port.
+This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit. The plan lives in `docs/hackathon-plan.md`. This file says why each choice was made, including the ones made before the first line of the port.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
+
+## 2026-11-18 — The app is `flip-and-fry`; first upload and the playtest subreddit
+
+`too-many-cooks` was already taken on Reddit, so the app is registered as **flip-and-fry** and the game is shown as **Flip and Fry** in the README, HTML titles, splash, menu text and plan. The old name stays only where it is history (this log, the README's note about the arcade's origin, the `pre-devvit` tag and the repository folder). `name` in `devvit.json` and `package.json` was rewritten by the CLI; the plan's slug, subreddit and `devvit.json` example were updated by hand.
+
+First `devvit upload` succeeded. App listing: https://developers.reddit.com/apps/flip-and-fry. The CLI created and installed the app to the playtest subreddit **r/flip_and_fry_dev**. The upload needed the developer agreement (accepted in the browser) and the app registration through `https://developers.reddit.com/new` with `skip_template=true`, which left the repo untouched. `devvit init` was not used because it can write template files.
+
+Devvit or third party: Reddit developer account; no new permission.
+Code or plan: `devvit.json`, `package.json`, `README.md`, `src/client/*.html`, plan sections 0, 1, 15 and 17.
 
 ## 2026-11-18 — Daily headline, economy calibration and star lines (gate G3)
 
@@ -34,7 +43,7 @@ Corrections to the plan, found by reading the official three.js template and the
 - **Client and server need different TypeScript conditions.** `@devvit/web/client` only resolves under the `browser` condition. `tsconfig.app.json` now has `customConditions: ["browser"]` and excludes `src/server`; `tsconfig.server.json` covers `src/server` and `src/shared`. `npx tsc -p tsconfig.app.json` and `-p tsconfig.server.json` are both clean.
 - The plugin forbids importing `src/server` from the client. Shared code lives outside it (`src/shared`, `src/management`).
 
-Not done yet: `devvit login`, creating the public demo subreddit, and the first `devvit playtest`. Those need the account owner's browser login, so spike S1 (the 3D scene on a real phone) waits for that. The `dev.subreddit` value in `devvit.json` is a placeholder, `too_many_cooks_dev`.
+Not done at the time of this entry (login, the developer agreement and the app registration were all done later; see the entry above): the first `devvit playtest` and spike S1.
 
 Devvit or third party: `@devvit/web`, `@devvit/start`, `@devvit/analytics` (0.15.4), `hono`, `@hono/node-server`, and `devvit` (CLI, dev dependency). Permissions in `devvit.json`: `redis`, `reddit`, and `http` explicitly disabled. No realtime yet.
 Code or plan: `devvit.json`, `src/server`, `src/client`, `vite.devvit.config.ts`, plan sections 15 and 17.

@@ -1,24 +1,36 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "too-many-cooks",
+  "name": "flip-and-fry",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
-      "default": { "inline": true, "entry": "splash.html" },
-      "game": { "entry": "game.html" }
+      "default": {
+        "inline": true,
+        "entry": "splash.html"
+      },
+      "game": {
+        "entry": "game.html"
+      }
     }
   },
-  "server": { "dir": "dist/server", "entry": "index.cjs" },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
   "permissions": {
     "redis": true,
-    "http": { "enable": false },
-    "reddit": { "enable": true }
+    "http": {
+      "enable": false
+    },
+    "reddit": {
+      "enable": true
+    }
   },
   "menu": {
     "items": [
       {
         "label": "Post today's service",
-        "description": "Create a Too Many Cooks post",
+        "description": "Create a Flip and Fry post",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-today"
@@ -31,5 +43,8 @@
   "scripts": {
     "build": "vite build --config vite.devvit.config.ts",
     "dev": "vite build --config vite.devvit.config.ts --watch"
+  },
+  "dev": {
+    "subreddit": "flip_and_fry_dev"
   }
 }
