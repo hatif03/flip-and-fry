@@ -19,11 +19,11 @@ export function guestMood(value: number, stage: Guest['stage'], happy: boolean):
 
 /** What a guest is thinking, from the same numbers the simulation already uses. Display only: it never changes tips or saves. */
 export type Thought = { text: string; tone: 'good' | 'bad' };
-export function guestThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'> & { regular?: string | null }, patienceSeconds: number): Thought | null {
-  const thought = baseThought(guest, patienceSeconds);
-  if (!guest.regular || guest.stage === 'arriving' || guest.stage === 'leaving') return thought;
-  // A regular carries their name, so the player can see who is who and who is about to give up on them.
-  return thought ? { ...thought, text: `${guest.regular}: ${thought.text.toLowerCase()}` } : { text: `${guest.regular}, a regular`, tone: 'good' };
+export function guestThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'> & { regular?: string | null; visitor?: string | null }, patienceSeconds: number): Thought | null {
+  const thought = baseThought(guest, patienceSeconds), name = guest.regular ?? guest.visitor;
+  if (!name || guest.stage === 'arriving' || guest.stage === 'leaving') return thought;
+  // A regular or a neighbor from the thread carries their name, so the player can see who is who and who is about to give up on them.
+  return thought ? { ...thought, text: `${name}: ${thought.text.toLowerCase()}` } : { text: `${name}, ${guest.regular ? 'a regular' : 'from the thread'}`, tone: 'good' };
 }
 function baseThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'>, patienceSeconds: number): Thought | null {
   const fair = DISHES[guest.dish].fair, ratio = guest.price / fair;

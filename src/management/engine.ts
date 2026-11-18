@@ -368,6 +368,9 @@ export class RestaurantEngine {
     s.night.arrivals++;
     const regular = s.regulars.find((_, k) => s.night.arrivals === 3 + 4 * k) ?? null;
     if (regular && dishes.length && !s.guests.some(g => g.regular === regular.name)) return this.arriveRegular(selected, regular, dishes);
+    // Neighbors from the thread take the 2nd, 6th and 10th arrival. Also no random draw.
+    const visitor = s.visitors.find((_, k) => s.night.arrivals === 2 + 4 * k) ?? null;
+    if (visitor && dishes.length) return this.arriveVisitor(selected, visitor);
     let dish = dishes[Math.floor(this.random() * dishes.length)]; if (!dish) return;
     // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.
     if (fx.burgerBias > 0 && dish !== 'burger' && dishes.includes('burger') && this.random() < fx.burgerBias) dish = 'burger';
@@ -376,14 +379,24 @@ export class RestaurantEngine {
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
     const special = fx.specialAlways || isSpecialGuest(s.day, s.nextId);
-    s.guests.push({ id: s.nextId++, special, ...entrance, yaw: Math.PI, route, species: (['mouse', 'rabbit', 'bear', 'crocodile'] as const)[Math.floor(this.random() * 4)], tableId: selected.table.id, seat: selected.seat, dish, price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null });
+    s.guests.push({ id: s.nextId++, special, ...entrance, yaw: Math.PI, route, species: (['mouse', 'rabbit', 'bear', 'crocodile'] as const)[Math.floor(this.random() * 4)], tableId: selected.table.id, seat: selected.seat, dish, price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null, visitor: null });
   }
   /** The regular sits and orders their usual if it is on the menu, and the first dish otherwise (which will not please them). They never turn at the door over price. */
   private arriveRegular(selected: { table: Furniture; seat: number }, regular: RestaurantState['regulars'][number], dishes: Dish[]): void {
     const s = this.state, dish = dishes.includes(regular.dish) ? regular.dish : dishes[0], route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
-    s.guests.push({ id: s.nextId++, special: false, ...entrance, yaw: Math.PI, route, species: regular.species, tableId: selected.table.id, seat: selected.seat, dish, price: s.menu[dish].price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: regular.name });
+    s.guests.push({ id: s.nextId++, special: false, ...entrance, yaw: Math.PI, route, species: regular.species, tableId: selected.table.id, seat: selected.seat, dish, price: s.menu[dish].price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: regular.name, visitor: null });
     this.event = `${regular.name} the ${regular.species} is here.`;
+  }
+  /** A neighbor orders their house dish if it is on the menu. If not, they look and move on: nobody is missed, nothing is lost. */
+  private arriveVisitor(selected: { table: Furniture; seat: number }, visitor: RestaurantState['visitors'][number]): void {
+    const s = this.state;
+    if (!s.menu[visitor.dish].enabled) { this.event = `${visitor.name} came over from the thread, but nothing here was for them.`; return; }
+    const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
+    route.push(seatPoint(selected.table, selected.seat));
+    let hash = 0; for (const ch of visitor.name) hash = (Math.imul(hash, 31) + ch.charCodeAt(0)) >>> 0;
+    s.guests.push({ id: s.nextId++, special: false, ...entrance, yaw: Math.PI, route, species: SPECIES[hash % SPECIES.length], tableId: selected.table.id, seat: selected.seat, dish: visitor.dish, price: s.menu[visitor.dish].price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null, visitor: visitor.name });
+    this.event = `${visitor.name} came over from the thread.`;
   }
   /** A regular's visit ends happy when they got their usual, did not wait long, and were not overcharged. */
   private regularVisit(guest: Guest, served: boolean): void {
@@ -514,7 +527,7 @@ export class RestaurantEngine {
     const honest = DISH_IDS.filter(dish => s.menu[dish].enabled).every(dish => Math.abs(s.menu[dish].price - DISHES[dish].fair) <= HONEST_BAND);
     s.streaks.nailed++; s.streaks.honest = honest && profit > 0 ? s.streaks.honest + 1 : 0;
     s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, research, profit, rating }); s.history = s.history.slice(-20);
-    this.recruit();
+    this.recruit(); s.visitors = [];
     this.beginNextDay(); this.changed();
   }
 }

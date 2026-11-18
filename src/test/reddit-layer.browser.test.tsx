@@ -38,7 +38,7 @@ it('shows the date, the headline and the streak in the daily bar', async () => {
 });
 
 it('puts the moderators’ neighborhood name in front of the date, and leaves it out when none is set', async () => {
-  const named = remote(null); named.today = { ...today, neighborhood: 'Maple Street' }; restaurant.remote = named;
+  restaurant.remote = { ...remote(null), today: { ...today, neighborhood: 'Maple Street' } };
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
   await expect.element(bar).toHaveTextContent('Maple Street · Wed 9 Dec');
   await screen.unmount(); restaurant.remote = remote(null);

@@ -26,7 +26,7 @@ describe('the neighborhood name', () => {
     expect(neighborhoodProblem('bad/name')).toMatch(/letters, numbers/i); expect(neighborhoodProblem('')).toBeUndefined(); expect(neighborhoodProblem(undefined)).toBeUndefined(); expect(neighborhoodProblem('Maple Street')).toBeUndefined();
   });
   it('is checked by the settings endpoint the moderator form calls', async () => {
-    const post = (value: unknown) => settingsRoutes.request('/validate-neighborhood', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value, isEditing: false }) }).then(r => r.json());
+    const post = (value: unknown) => Promise.resolve(settingsRoutes.request('/validate-neighborhood', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ value, isEditing: false }) })).then(r => r.json());
     expect(await post('Maple Street')).toEqual({ success: true }); expect(await post('a/b')).toMatchObject({ success: false, error: expect.stringContaining('Use letters') });
     const bad = await settingsRoutes.request('/validate-neighborhood', { method: 'POST', body: 'nope' }); expect(await bad.json()).toEqual({ success: true });
   });

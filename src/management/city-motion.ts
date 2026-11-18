@@ -20,7 +20,9 @@ export function sampleStreet(loop: CityLoop, distance: number, direction: 1 | -1
   else if ((d -= arc) < h) line(right, back + r, 0, 1);
   else if ((d -= h) < arc) turn(right - r, front - r, 0);
   else if ((d -= arc) < w) line(right - r, front, -1, 0);
+  // eslint-disable-next-line no-dupe-else-if -- each test mutates d, so the repeated text is not a duplicate condition
   else if ((d -= w) < arc) turn(left + r, front - r, Math.PI / 2);
+  // eslint-disable-next-line no-dupe-else-if -- same: d changes between tests
   else if ((d -= arc) < h) line(left, front - r, 0, -1);
   else { d -= h; turn(left + r, back + r, Math.PI); }
   return out;

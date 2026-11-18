@@ -5,6 +5,7 @@ import { houseStyle } from '../../management/social';
 import { evaluateStars, packScore } from '../../management/stars';
 import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
 import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse } from '../../shared/api';
+import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
 
 /** Everything here is deterministic and talks only to `Store`, so the rules run unchanged in tests and on Devvit. */
@@ -103,6 +104,8 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
   }, { ttlSeconds: TTL.park, now: deps.now });
   if ('error' in result) return casFail(result);
   if (!snapshot) return fail(400, 'Could not open.');
+  // Neighbors who have the post open come over. They live only in this service's snapshot: the park itself never holds them.
+  snapshot = { ...(snapshot as RestaurantState), visitors: await pickVisitors(deps, user.id) };
   const entry: StoredOpen = { snapshot, parkRev: result.value.rev, openedAt: deps.now() };
   await deps.store.hSet(keys.opens(date), { [user.id]: JSON.stringify(entry) });
   await deps.store.expire(keys.opens(date), TTL.run);

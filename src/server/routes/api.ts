@@ -9,6 +9,7 @@ import { getToday, lockService, openService, savePark, utcDate, type Deps, type 
 import { postApi, socialApi } from '../reddit';
 import { commentPreview, follow, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
+import { recordPresence } from '../core/presence';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
 import { shiftDate } from '../../management/daily-headline';
 import { telemetry } from '@devvit/analytics/server/reddit';
@@ -120,4 +121,12 @@ api.post('/arcade', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const r = await saveArcade(deps, user, await c.req.json().catch(() => null));
   return 'error' in r ? failure(c, r) : c.json({ type: 'arcade', ...r.value });
+});
+
+// ---- who is here right now ---------------------------------------------------------------------------------------------------
+api.post('/presence', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await recordPresence(deps, user, body.data.dish);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'presence', ...r.value });
 });

@@ -4,6 +4,23 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Neighbors from the thread come over (presence diners)
+
+**Why:** plan section 8. A person with the post open is the best source of a "crowd" this game can have, and it makes opening the doors feel like it happens in a place with other people in it.
+
+**How it works:**
+- A tab that is visible sends `POST /api/presence` every 20 seconds with one thing besides who it is: the dish it would order (its own most expensive menu item). The server keeps a sorted set by time (`presence`) and a small hash of names and dishes (`presence:info`), both expiring after two days; a heartbeat counts for 60 seconds.
+- When a kitchen **opens**, the server takes the three most recent visitors other than the host and writes them into the opening snapshot (`visitors`). The snapshot is what the server replays at lock, and what the client plays, so the night is identical everywhere and the lock stays verifiable. The park (the saved restaurant) never holds visitors, and the engine clears them at closing.
+- In the room, visitors take the 2nd, 6th and 10th arrival (the regulars keep the 3rd, 7th, 11th and 15th). They order their dish at the menu price, never turn away at the door, pay and tip like anyone, and their bubble reads "name, from the thread". If their dish is not on the menu they look in and move on: the event line says so, and nobody is counted as missed because of them. The slots use no random draw, so a night with no visitors is exactly as before.
+
+**Privacy and safety:** only the Reddit display name Reddit gave the visitor (letters, numbers, `_` and `-`, up to 20) and a dish id are stored or shown. A name that fails that check just means that person is not offered as a visitor. The snapshot schema refuses anything else, so a forged name cannot reach the room. Names never appear in the journey events or the night report.
+
+**Refused:** letting a client name its own visitors (they come only from the server's registry), and showing a player's visit to the host in realtime for now (a "neighbor visits" toast waits for the realtime step).
+
+**Also in this change:** the long-standing lint errors in `city-motion.ts` (false positives from a chained `(d -= w) < arc` test) are silenced with a reason, so `npm run lint` is clean for the first time.
+
+**Code:** `src/server/core/presence.ts`, `src/client/presence.ts`, `game.ts` (open), `types.ts` (`visitors`, `VISITOR_NAME`), `engine.ts` (`arriveVisitor`), `satisfaction.ts`; tests in `src/test/presence.test.ts`. Golden hashes refreshed for the new field.
+
 ## 2026-11-19 — The street: neighborhood name, nightly report comment, highlighted post
 
 **Why:** plan section 8 ("the thread is the street"). Players who play after the first hour of a day should still find something new in the post, and a moderator should be able to make the neighborhood theirs.
