@@ -65,12 +65,36 @@ function daysFromCivil(y: number, m: number, d: number): number {
   return era * 146097 + doe - 719468;
 }
 
-/** 0 = Sunday ... 6 = Saturday. Throws on anything that is not a real 'YYYY-MM-DD'. */
-export function weekday(date: string): number {
+/** Inverse of daysFromCivil. */
+function civilFromDays(z0: number): [number, number, number] {
+  const z = z0 + 719468, era = Math.floor(z / 146097), doe = z - era * 146097;
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365);
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)), mp = Math.floor((5 * doy + 2) / 153);
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1, m = mp + (mp < 10 ? 3 : -9), y = yoe + era * 400 + (m <= 2 ? 1 : 0);
+  return [y, m, d];
+}
+function parseDate(date: string): [number, number, number] {
   const match = DATE.exec(date);
   if (!match) throw new Error(`Invalid date: ${date}`);
   const y = Number(match[1]), m = Number(match[2]), d = Number(match[3]);
   if (m < 1 || m > 12 || d < 1 || d > daysInMonth(y, m)) throw new Error(`Invalid date: ${date}`);
+  return [y, m, d];
+}
+/** The date `days` after (or before, if negative) a 'YYYY-MM-DD'. */
+export function shiftDate(date: string, days: number): string {
+  const [y, m, d] = parseDate(date), [ny, nm, nd] = civilFromDays(daysFromCivil(y, m, d) + days);
+  return `${String(ny).padStart(4, '0')}-${String(nm).padStart(2, '0')}-${String(nd).padStart(2, '0')}`;
+}
+/** 0-based day of the year (Jan 1 is 0), and the year, for the streak bitmap. */
+export function dayOfYear(date: string): { year: number; index: number } {
+  const [y, m, d] = parseDate(date);
+  return { year: y, index: daysFromCivil(y, m, d) - daysFromCivil(y, 1, 1) };
+}
+export function daysInYear(year: number): number { return daysInMonth(year, 2) === 29 ? 366 : 365; }
+
+/** 0 = Sunday ... 6 = Saturday. Throws on anything that is not a real 'YYYY-MM-DD'. */
+export function weekday(date: string): number {
+  const [y, m, d] = parseDate(date);
   return (((daysFromCivil(y, m, d) + 4) % 7) + 7) % 7;
 }
 function daysInMonth(y: number, m: number): number { return m === 2 ? (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28) : [31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]; }

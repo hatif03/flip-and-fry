@@ -59,21 +59,44 @@ export function stateHash(state: RestaurantState): string {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 }
 
-/** Replay one service from a closed-doors state. The input is never mutated. */
-export function runService(initial: RestaurantState, actions: readonly Action[], headline?: DailyHeadline): ServiceResult {
+/** Validate a closed-doors state and an action log, and build an engine holding a private copy of the state. */
+function prepare(initial: RestaurantState, actions: readonly Action[]): { engine: RestaurantEngine; log: Action[] } | { error: string } {
   const parsed = restaurantSchema.safeParse(initial);
-  if (!parsed.success) return { ok: false, error: 'Invalid restaurant.' };
+  if (!parsed.success) return { error: 'Invalid restaurant.' };
   const state = parsed.data as RestaurantState;
-  if (state.phase !== 'planning') return { ok: false, error: 'A service starts with the doors closed.' };
+  if (state.phase !== 'planning') return { error: 'A service starts with the doors closed.' };
   const layout = layoutError(state.furniture, width(state));
-  if (layout) return { ok: false, error: layout };
+  if (layout) return { error: layout };
   const log = actionLogSchema.safeParse(actions);
-  if (!log.success) return { ok: false, error: 'Invalid action log.' };
+  if (!log.success) return { error: 'Invalid action log.' };
   // now() is pinned: save() stamps lastActiveAt from the clock, which would make the receipt depend on the host.
   const engine = new RestaurantEngine(undefined, () => 0);
   engine.autoRoll = false;
   engine.state = structuredClone(state);
-  for (const action of log.data) { const error = apply(engine, action); if (error) return { ok: false, error }; }
+  return { engine, log: log.data };
+}
+
+/** Why this state cannot open the doors yet (the same first message the engine's open() would give), or null. */
+export function openError(state: RestaurantState): string | null {
+  const prepared = prepare(state, []);
+  if ('error' in prepared) return prepared.error;
+  return prepared.engine.readiness()[0] ?? null;
+}
+
+/** Apply planning actions to a closed-doors state without opening. Used to persist the owner's between-service changes. */
+export function applyPlanning(initial: RestaurantState, actions: readonly Action[]): { ok: true; state: RestaurantState } | { ok: false; error: string } {
+  const prepared = prepare(initial, actions);
+  if ('error' in prepared) return { ok: false, error: prepared.error };
+  for (const action of prepared.log) { const error = apply(prepared.engine, action); if (error) return { ok: false, error }; }
+  return { ok: true, state: prepared.engine.state };
+}
+
+/** Replay one service from a closed-doors state. The input is never mutated. */
+export function runService(initial: RestaurantState, actions: readonly Action[], headline?: DailyHeadline): ServiceResult {
+  const prepared = prepare(initial, actions);
+  if ('error' in prepared) return { ok: false, error: prepared.error };
+  const { engine, log } = prepared;
+  for (const action of log) { const error = apply(engine, action); if (error) return { ok: false, error }; }
   const error = engine.open(headline);
   if (error) return { ok: false, error };
   const day = engine.state.day;

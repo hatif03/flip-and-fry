@@ -4,6 +4,24 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Server: park, open, lock, streak (gate G4)
+
+`src/server/core/game.ts` holds the rules and `src/server/core/store.ts` the `Store` interface they talk to; `src/server/routes/api.ts` wires them to Hono and to Devvit's real `redis` (the assignment type-checks, so the interface matches the client). Routes: `GET /api/today`, `POST /api/save`, `POST /api/open`, `POST /api/lock`.
+
+- **The server owns the park.** Each player has `park:{uid}` with a revision. Planning actions are applied on the server with the engine's own methods (`applyPlanning`), so a client cannot post its own cash or staff. `open` stores the opening snapshot; `lock` replays it with the server-derived headline and stores the replayed receipt. A client total is never read.
+- **One open, one close.** Locking deletes the stored open, so a replay cannot be submitted twice. A service that opened before UTC midnight may close after it and keeps the headline it opened under; anything older than yesterday is refused.
+- **Concurrency.** Writes use WATCH/MULTI/EXEC with a revision; a stale tab or a lost race gets a 409 conflict and reloads. ASSUMPTION still to confirm in the playtest: a failed EXEC returns an empty or null result rather than throwing. Both are handled as a conflict.
+- **Official result.** The first locked service of a UTC day counts; a later one replaces it only with more stars, or equal stars and higher profit. The streak bit is set only for a server-verified 1★ result, in a per-player-per-year Redis bitfield, and the count is forgiving (it starts from yesterday if today is unplayed) and carries over the new year and a leap day.
+- **Limits.** Per-player rate limits (open 30/min, lock 10/min, save 120/min, today 120/min), a 256 KB request body cap, per-key TTLs (park 30 days, runs 30 days, board and community 45 days, streak 400 days), and about 25 Redis commands per open and 40 per lock.
+- **Date helpers** `shiftDate`, `dayOfYear` and `daysInYear` (no `Date` object) are in `daily-headline.ts`.
+
+Tests: `src/test/server-game.test.ts` (28 tests) runs against `src/test/fake-store.ts`, an in-memory Redis that honors per-key expiry from an injected clock, has no key scan, orders bitfield bits MSB-first and fails EXEC when a watched key changed. They cover forged logs, wrong identity, stale revisions, races injected between read and commit, the midnight crossing, the streak across years and a 300-day run, TTLs, and command budgets.
+
+Not yet verified on Reddit: the EXEC conflict behavior above, `reddit.getCurrentUsername()` for logged-out viewers, and rate-limit key expiry. They are checked in the first playtest.
+
+Devvit or third party: Redis (already enabled). `hono/body-limit`, `zod` on the server.
+Code or plan: `src/server/**`, `src/shared/api.ts`, plan sections 12 and 15 (routes, Redis keys) and 19 (G4).
+
 ## 2026-11-18 — The app is `flip-and-fry`; first upload and the playtest subreddit
 
 `too-many-cooks` was already taken on Reddit, so the app is registered as **flip-and-fry** and the game is shown as **Flip and Fry** in the README, HTML titles, splash, menu text and plan. The old name stays only where it is history (this log, the README's note about the arcade's origin, the `pre-devvit` tag and the repository folder). `name` in `devvit.json` and `package.json` was rewritten by the CLI; the plan's slug, subreddit and `devvit.json` example were updated by hand.

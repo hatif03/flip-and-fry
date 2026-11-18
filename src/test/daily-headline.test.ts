@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NEUTRAL, WEEK, createDailyHeadline, headlineEffects, weekday, type HeadlineId } from '@/management/daily-headline';
+import { NEUTRAL, WEEK, createDailyHeadline, dayOfYear, daysInYear, headlineEffects, shiftDate, weekday, type HeadlineId } from '@/management/daily-headline';
 
 /** Real calendar anchors, so a bug in the day arithmetic cannot hide behind a self-consistent table. */
 const KNOWN: Array<[string, number]> = [['1970-01-01', 4], ['2000-02-29', 2], ['2024-02-29', 4], ['2026-11-18', 3], ['2026-12-08', 2], ['2026-12-09', 3], ['2026-12-13', 0], ['2026-12-16', 3], ['2100-03-01', 1]];
@@ -10,6 +10,24 @@ describe('weekday', () => {
   });
   it('rejects anything that is not a real date', () => {
     for (const bad of ['2026-02-30', '2026-13-01', '2026-00-10', '26-11-18', '2026/11/18', '', '2026-11-1', '2100-02-29']) expect(() => weekday(bad), bad).toThrow();
+  });
+});
+
+describe('date arithmetic', () => {
+  it('shifts across month, year and leap boundaries', () => {
+    expect(shiftDate('2026-11-30', 1)).toBe('2026-12-01'); expect(shiftDate('2026-12-31', 1)).toBe('2027-01-01');
+    expect(shiftDate('2027-01-01', -1)).toBe('2026-12-31'); expect(shiftDate('2024-02-28', 1)).toBe('2024-02-29');
+    expect(shiftDate('2100-02-28', 1)).toBe('2100-03-01'); expect(shiftDate('2026-12-09', 7)).toBe('2026-12-16');
+    expect(shiftDate('2026-12-09', 0)).toBe('2026-12-09'); expect(shiftDate('1970-01-01', -1)).toBe('1969-12-31');
+  });
+  it('round-trips over several years', () => {
+    let d = '2024-01-01'; for (let i = 0; i < 1500; i++) d = shiftDate(d, 1);
+    expect(d).toBe('2028-02-09'); // 2024 has 366 days, so +1461 is 2028-01-01 and +39 more is Feb 9 for (let i = 0; i < 1500; i++) d = shiftDate(d, -1); expect(d).toBe('2024-01-01');
+  });
+  it('numbers days from 0 within a year, and knows leap years', () => {
+    expect(dayOfYear('2026-01-01')).toEqual({ year: 2026, index: 0 }); expect(dayOfYear('2026-12-31')).toEqual({ year: 2026, index: 364 });
+    expect(dayOfYear('2024-12-31')).toEqual({ year: 2024, index: 365 }); expect(dayOfYear('2026-12-09').index).toBe(342);
+    expect(daysInYear(2024)).toBe(366); expect(daysInYear(2026)).toBe(365); expect(daysInYear(2100)).toBe(365); expect(daysInYear(2000)).toBe(366);
   });
 });
 
