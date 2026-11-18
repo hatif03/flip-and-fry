@@ -34,6 +34,8 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'cook': return engine.plate(a.guestId);
     case 'abandon': return engine.abandonCook(a.guestId);
     case 'priority': return engine.rush(a.guestId);
+    case 'hold': return engine.holdPrep(a.guestId);
+    case 'release': return engine.releasePrep(a.guestId);
     case 'comp': return engine.comp(a.guestId);
   }
 }

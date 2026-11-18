@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Hands-on cooking inside the night: prep by hand (the author's approval used, and not needed)
+
+**The author's question:** "I can approve whatever is needed, just tell me how to." The hands-on kitchen inside the night would normally mean letting the browser report a result ("I cooked it perfectly") and having the server accept it within bounds. That is the trade the author offered to approve.
+
+**What I built instead, and why it is better.** I made the hands-on part **send inputs, not results**, so nothing needs to be trusted and nothing needs approving. While cooking a ticket the owner can **hold a Prep button** (chopping, trimming, seasoning) and let go when the bar sits in the green. Only two things are sent, a `hold` and a `release`, each stamped with the tick it happened on. The engine counts the held simulated seconds and judges them against the dish's ideal (`idealPrep`: 40% of its cooking time, at least two seconds): within a fifth of it is a clean prep, within half is decent, otherwise rough. The plate's quality then combines prep and cooking (`plateQuality`): a clean prep forgives a slightly late plate, a rough one costs the perfect plate, and a dish never prepped by hand is judged on cooking alone, so every calibrated night and every bot is exactly as before. Because the result is a pure function of tick-stamped inputs, the server's replay lands on the same night as the phone (tested), and a forged `hold` or `release` is simply ignored (counted in `rejected`, no effect on the receipt).
+
+**Why not the 3D station.** The Test Kitchen's `KitchenEngine` station is a separate 3D game with its own simulation, so using it inside the night would need either a second WebGL scene on top of the restaurant (heavy on a phone, and the restaurant's own loop would have to be kept running underneath) or trusting a reported quality. The hold-and-release prep is hands-on, touch-friendly (a 44 px button, also Space or Enter), optional, and keeps the one property the port is built on. If the author still wants the 3D station inside the night, the cost is a server rule accepting a reported quality inside bounds; that is the approval they offered, and it is not needed for this.
+
+**Limits:** `MAX_SERVICE_ACTIONS` rose from 80 to 140 (a prepped dish is four actions: claim, hold, release, plate). The pass shows the prep meter with its green window and says how the prep went. State gained `hands` (the dish in the owner's hands and its prep), so the golden replay hashes were refreshed once more.
+
+**Code:** `src/management/{types,engine,actions,replay,Pass,RedditLayer}.ts(x)`; tests in `prep.test.ts` (11) and `pass.browser.test.tsx`.
+
 ## 2026-11-19 — The icon is redrawn, and the animals get portraits (drawn pixel art, no asset files)
 
 **What "hand-drawn" meant and what I did about it.** The plan's UI kit calls for drawn pixel art (icon, portraits) approved by the author before it ships. The earlier icon was a mechanical reduction of a photo-like image, which left stray specks. The author asked me to just do it, so the art is now drawn deliberately, as code that places pixels, which is how it can be reviewed, changed and reproduced:

@@ -16,7 +16,7 @@ export const prettyDate = formatDate;
 
 /** What the player should do right now, in one sentence. Tied to the real state of the game, never generic. */
 export function coachLine(phase: 'planning' | 'service' | 'report', hasResultToday: boolean): string {
-  if (phase === 'service') return 'Your team is cooking, serving and cleaning. When a ticket is waiting, tap Cook in the pass below and plate it in the green zone.';
+  if (phase === 'service') return 'Your team is cooking, serving and cleaning. When a ticket is waiting, tap Cook in the pass below, hold Prep if you like, and plate it in the green zone.';
   if (hasResultToday) return 'Tonight’s result is saved. Rebuild, rehire or reprice, then open again: only your best night of the day counts.';
   return 'Set up first: build tables and decor, hire a team, set prices. Then tap Open to run tonight’s service.';
 }

@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, plateQuality, prepQuality, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -302,6 +302,7 @@ export class RestaurantEngine {
       this.state.seed = mixSeed(this.state.seed ^ headline.seed);
       this.state.headline = { id: headline.id, date: headline.date, seed: headline.seed, walkouts: 0, dirtyAtClose: 0, closed: false };
     } else this.state.headline = null;
+    this.state.hands = null;
     Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [], comps: 0, night: freshNight() });
     this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Your team has it from here.'); return null;
   }
@@ -327,7 +328,7 @@ export class RestaurantEngine {
   tickCount(): number { return Math.round(this.state.elapsed * 10); }
   private stationBusy(id: number): boolean { return this.state.staff.some(w => w.stationId === id && w.role === 'chef' && w.task !== 'idle') || this.state.guests.some(g => g.owner && g.stationId === id); }
   private failCook(guest: Guest, message: string): void {
-    guest.owner = false; guest.cook = 0; guest.stage = 'waiting'; guest.stationId = null; this.event = message; this.changed();
+    guest.owner = false; guest.cook = 0; guest.stage = 'waiting'; guest.stationId = null; this.state.hands = null; this.event = message; this.changed();
   }
   /** Take a waiting ticket and cook it yourself. You have one pair of hands: one dish at a time. */
   claimTicket(guestId: number): string | null {
@@ -336,16 +337,36 @@ export class RestaurantEngine {
     if (s.guests.some(g => g.owner)) return 'Finish the dish you are cooking first.';
     const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + stationName(DISHES[guest.dish].station) + ' is busy.';
     const cost = dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
-    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost;
+    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; s.hands = { guestId, holding: false, prep: 0, quality: 0 };
     this.record({ tick: this.tickCount(), kind: 'claimTicket', guestId }); this.changed(`You are cooking ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
+  }
+  private settlePrep(guest: Guest): void {
+    const h = this.state.hands; if (!h || h.guestId !== guest.id) return;
+    h.holding = false; if (h.prep > 0) h.quality = prepQuality(h.prep, guest.dish);
+  }
+  /** Start prepping the dish in your hands: chopping, trimming, seasoning. It counts for as long as you hold. */
+  holdPrep(guestId: number): string | null {
+    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.state.hands;
+    if (!guest || !h || h.guestId !== guestId) return 'There is nothing in your hands to prepare.';
+    if (h.holding) return 'You are already preparing it.';
+    h.holding = true; this.record({ tick: this.tickCount(), kind: 'hold', guestId }); this.changed(); return null;
+  }
+  /** Stop prepping. How good it was depends only on how long you held, against the dish's ideal. */
+  releasePrep(guestId: number): string | null {
+    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.state.hands;
+    if (!guest || !h || h.guestId !== guestId || !h.holding) return 'You are not preparing anything.';
+    this.settlePrep(guest); this.record({ tick: this.tickCount(), kind: 'release', guestId });
+    this.changed(h.quality === 3 ? 'A clean, even prep.' : h.quality === 2 ? 'A decent prep.' : 'A rough prep. It will cost you at the plate.'); return null;
   }
   /** Plate the dish you are cooking. How well it went depends only on how long it cooked. */
   plate(guestId: number): string | null {
     const guest = this.state.guests.find(g => g.id === guestId && g.owner); if (!guest) return 'There is nothing to plate.';
-    const quality = cookQuality(guest.cook / DISHES[guest.dish].seconds);
+    const hands = this.state.hands;
+    if (hands?.guestId === guestId && hands.holding) this.settlePrep(guest); // plating lets go of whatever is in your hands
+    const quality = plateQuality(cookQuality(guest.cook / DISHES[guest.dish].seconds), this.state.hands?.guestId === guestId ? this.state.hands.quality as 0 | 1 | 2 | 3 : 0);
     this.record({ tick: this.tickCount(), kind: 'cook', guestId });
     if (quality === 0) { this.failCook(guest, guest.cook < DISHES[guest.dish].seconds * .6 ? 'Too early: the dish is still raw. The ingredients are lost.' : 'Too late: the dish burnt. The ingredients are lost.'); return null; }
-    guest.owner = false; guest.cook = 0; guest.quality = quality; guest.stage = 'ready';
+    guest.owner = false; guest.cook = 0; guest.quality = quality; guest.stage = 'ready'; this.state.hands = null;
     this.changed(quality === 3 ? 'Perfect plate! The guest will tip more.' : quality === 2 ? 'Slightly over, but it goes out.' : 'Plated. A little early, but it goes out.'); return null;
   }
   /** Walk away from the dish. The ingredients are spent and the ticket goes back to the line. */
@@ -487,7 +508,7 @@ export class RestaurantEngine {
         if (guest.timer <= 0) { s.dirty.push(seatKey(guest)); this.leave(guest, true); }
       } else if (['waiting', 'cooking', 'ready', 'delivering'].includes(guest.stage)) {
         guest.waiting += dt;
-        if (guest.owner) { guest.cook += dt; if (guest.cook > DISHES[guest.dish].seconds * COOK_BURN) { this.failCook(guest, 'The dish burnt while you were away from it.'); continue; } }
+        if (guest.owner) { if (this.state.hands?.holding && this.state.hands.guestId === guest.id) this.state.hands.prep += dt; guest.cook += dt; if (guest.cook > DISHES[guest.dish].seconds * COOK_BURN) { this.failCook(guest, 'The dish burnt while you were away from it.'); continue; } }
         if (guest.waiting > guestPatienceSeconds(s)) this.leave(guest, false);
       }
     }

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
-import { COMPS_PER_NIGHT, COOK_BURN, DISHES, cookQuality, guestPatienceSeconds, type Guest } from './types';
+import { COMPS_PER_NIGHT, COOK_BURN, DISHES, cookQuality, guestPatienceSeconds, idealPrep, type Guest } from './types';
 
 /** Where the dish is in its cooking, as a share of its normal time. Uses the engine's own bands, so the bar can never disagree with the plate. */
 export type CookZone = 'raw' | 'early' | 'perfect' | 'over' | 'burnt';
@@ -59,6 +59,29 @@ function Tickets({ guests }: { guests: Guest[] }) {
   </div>;
 }
 
+/**
+ * Prep by hand: hold the button while the dish is being chopped or seasoned and let go when the bar sits in the green. The engine counts
+ * the held seconds, so what the hold was worth is the same on every device and on the server. Optional: skipping it never costs anything.
+ */
+const PREP_TEXT = ['', 'A rough prep: it will cost you at the plate', 'A decent prep', 'A clean, even prep'] as const;
+function Prep({ guest }: { guest: Guest }) {
+  const hands = restaurant.state.hands, mine = hands?.guestId === guest.id ? hands : null, ideal = idealPrep(guest.dish), span = ideal * 1.6;
+  const held = mine?.prep ?? 0, holding = mine?.holding ?? false, quality = mine?.quality ?? 0;
+  const start = (): void => { tell(restaurant.holdPrep(guest.id)); }, stop = (): void => { if (restaurant.state.hands?.holding) tell(restaurant.releasePrep(guest.id)); };
+  return <div className="mt-2">
+    <div role="progressbar" aria-label="Prep" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, held / span) * 100)} aria-valuetext={holding ? 'Preparing' : quality ? PREP_TEXT[quality] : 'Not started'} className="relative h-3 rounded-full bg-ink/10">
+      <div className="absolute inset-y-0 rounded-full bg-teal/30" style={{ left: `${.8 * ideal / span * 100}%`, width: `${.4 * ideal / span * 100}%` }} aria-hidden />
+      <div className="absolute inset-y-0 left-0 rounded-full bg-gold" style={{ width: `${Math.min(1, held / span) * 100}%` }} />
+    </div>
+    <button type="button" aria-pressed={holding} className={cn('mt-1.5 flex min-h-[44px] w-full touch-none select-none items-center justify-center gap-2 rounded-xl border-2 px-3 text-sm font-extrabold', holding ? 'border-gold bg-gold text-ink' : 'border-ink/20 bg-white/50 text-ink')}
+      onContextMenu={e => e.preventDefault()} onPointerDown={e => { try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic pointer */ } start(); }} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}
+      onKeyDown={e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); start(); } }} onKeyUp={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); stop(); } }}>
+      <Hand size={16} aria-hidden />{holding ? 'Release when the bar is in the green' : 'Hold to prep (optional)'}
+    </button>
+    {quality > 0 && !holding && <p role="status" className="mt-1 text-xs font-extrabold text-teal">{PREP_TEXT[quality]}</p>}
+  </div>;
+}
+
 function CookCard({ guest }: { guest: Guest }) {
   const dish = DISHES[guest.dish], ratio = guest.cook / dish.seconds, zone = cookZone(ratio), at = Math.min(1, ratio / COOK_BURN) * 100;
   return <div className="rounded-xl border border-teal/50 bg-teal/5 p-2">
@@ -67,6 +90,7 @@ function CookCard({ guest }: { guest: Guest }) {
       <div className="absolute -top-1 h-6 w-1.5 -translate-x-1/2 rounded-full border border-paper bg-ink" style={{ left: `${at}%` }} />
     </div>
     <p role="status" aria-live="polite" className={cn('mt-1 text-sm font-extrabold', ZONE_STYLE[zone])}>{ZONE_TEXT[zone]}</p>
+    <Prep guest={guest} />
     <div className="mt-1.5 flex gap-2">
       <button className="min-h-14 flex-1 rounded-xl bg-tomato px-4 text-base font-extrabold text-paper shadow-[0_3px_0_#9a3a29] active:translate-y-0.5 active:shadow-none" onClick={() => tell(restaurant.plate(guest.id))}>Plate it</button>
       <button className="min-h-14 rounded-xl bg-ink/8 px-3 text-xs font-extrabold" aria-label="Put the dish down; the ingredients are lost" onClick={() => tell(restaurant.abandonCook(guest.id))}>Put down</button>

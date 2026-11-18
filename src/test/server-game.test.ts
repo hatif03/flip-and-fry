@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { cozyBot, greedyBot } from '@/management/bots';
 import { createDailyHeadline } from '@/management/daily-headline';
-import { runService, type Action } from '@/management/replay';
+import { MAX_SERVICE_ACTIONS, runService, type Action } from '@/management/replay';
 import { getToday, keys, loadPark, lockService, markPlayed, openService, savePark, streakFor, utcDate, type Deps, type Player } from '@/server/core/game';
 import { FakeStore } from './fake-store';
 
@@ -210,7 +210,7 @@ describe('owner actions at the pass', () => {
   });
   it('rejects too many owner actions, and rejects planning actions mixed in, at the lock', async () => {
     const t = await today(), o = good(await openService(deps, alice, t.rev, []));
-    const many: Action[] = Array.from({ length: 81 }, (_, i) => ({ tick: 10 + i, kind: 'priority', guestId: 1 }));
+    const many: Action[] = Array.from({ length: MAX_SERVICE_ACTIONS + 1 }, (_, i) => ({ tick: 10 + i, kind: 'priority', guestId: 1 }));
     expect(await lockService(deps, alice, o.date, many)).toMatchObject({ ok: false, status: 400, error: 'Too many owner actions for one service.' });
     expect(await lockService(deps, alice, o.date, [{ tick: 0, kind: 'hire', role: 'chef' }])).toMatchObject({ ok: false, status: 400 });
     expect(good(await lockService(deps, alice, o.date, [])).official).toBe(true); // the open service survived the bad attempts

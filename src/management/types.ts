@@ -79,6 +79,21 @@ export const OUTFIT_IDS = ['cream', 'tomato', 'teal', 'gold', 'apricot', 'dusk']
 export type OutfitId = typeof OUTFIT_IDS[number];
 const researchSchema = z.object({ budget: z.union([z.literal(0), z.literal(20), z.literal(40)]).default(0), points: z.number().int().nonnegative().default(0) });
 const outfitSchema = z.object({ hat: z.enum(OUTFIT_IDS), apron: z.enum(OUTFIT_IDS) });
+/**
+ * The owner's hands while cooking a ticket. Holding the prep button (chopping, trimming, seasoning) adds to `prep` for as long as it is
+ * held, in simulated seconds, so the result is a function of the tick-stamped hold and release alone and replays identically.
+ */
+const handsSchema = z.object({ guestId: z.number().int(), holding: z.boolean(), prep: z.number().nonnegative(), quality: z.number().int().min(0).max(3) });
+export type Hands = Validated<z.infer<typeof handsSchema>>;
+/** How long a good prep takes: a share of the dish's cooking time, never less than two seconds. */
+export const idealPrep = (dish: Dish): number => Math.max(2, DISHES[dish].seconds * .4);
+/** Prep quality from how long the button was held, against the ideal: 3 within a fifth of it, 2 within half, 1 otherwise. */
+export const prepQuality = (held: number, dish: Dish): 1 | 2 | 3 => { const off = Math.abs(held / idealPrep(dish) - 1); return off <= .2 ? 3 : off <= .5 ? 2 : 1; };
+/**
+ * The plate's quality from the cooking time and the prep. A dish that was never prepped by hand is judged on its cooking alone, so a
+ * night with no hand prep is exactly what it always was. A perfect prep forgives a slightly late plate; a messy one costs perfection.
+ */
+export const plateQuality = (cooked: 0 | 1 | 2 | 3, prepped: 0 | 1 | 2 | 3): 0 | 1 | 2 | 3 => cooked === 0 ? 0 : prepped === 3 && cooked === 2 ? 3 : prepped === 1 && cooked === 3 ? 2 : cooked;
 /** A guest who keeps coming back. Every regular visits once a service, in a fixed arrival slot, and a happy visit adds to their streak. */
 export const REGULAR_NAMES = ['Maple', 'Biscuit', 'Juniper', 'Pepper', 'Clover', 'Waffle', 'Olive', 'Hazel', 'Pickle', 'Nutmeg', 'Basil', 'Mochi'] as const;
 export const MAX_REGULARS = 4;
@@ -106,7 +121,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), visitors: z.array(visitorSchema).max(MAX_VISITORS).default([]), research: researchSchema.default({ budget: 0, points: 0 }), outfit: outfitSchema.default({ hat: 'cream', apron: 'tomato' }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), visitors: z.array(visitorSchema).max(MAX_VISITORS).default([]), research: researchSchema.default({ budget: 0, points: 0 }), hands: handsSchema.nullable().default(null), outfit: outfitSchema.default({ hat: 'cream', apron: 'tomato' }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -168,7 +183,7 @@ export const companyValue = (state: Pick<RestaurantState, 'cash' | 'furniture' |
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
-  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), regulars: [], visitors: [], research: { budget: 0, points: 0 }, outfit: { hat: 'cream', apron: 'tomato' }, day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
+  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), regulars: [], visitors: [], hands: null, research: { budget: 0, points: 0 }, outfit: { hat: 'cream', apron: 'tomato' }, day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
     furniture: [
       { id: 1, kind: 'prep', x: 1, z: 1, rotation: 0 }, { id: 2, kind: 'grill', x: 3, z: 1, rotation: 0 },
       { id: 3, kind: 'table', x: 1, z: 4, rotation: 0 }, { id: 4, kind: 'table', x: 5, z: 4, rotation: 0 }, { id: 5, kind: 'table', x: 7, z: 1, rotation: 0 },

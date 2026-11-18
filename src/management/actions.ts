@@ -31,12 +31,15 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...service, kind: z.literal('claimTicket'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('cook'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('abandon'), guestId: z.number().int() }),
+  // Prep by hand: press and hold, then let go. Only the two ticks are sent; what the hold was worth is worked out by the engine.
+  z.object({ ...service, kind: z.literal('hold'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('release'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('priority'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('comp'), guestId: z.number().int() }),
 ]);
 export type Action = z.infer<typeof actionSchema>;
 export const MAX_ACTIONS = 400;
 /** The most owner actions one service may carry. A busy night needs a few dozen. */
-export const MAX_SERVICE_ACTIONS = 80;
+export const MAX_SERVICE_ACTIONS = 140;
 export const isServiceAction = (a: Action): boolean => a.tick > 0;
 export const actionLogSchema = z.array(actionSchema).max(MAX_ACTIONS);
