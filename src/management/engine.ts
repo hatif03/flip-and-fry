@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { CATALOG, DAY_LENGTH, DISHES, SAVE_KEY, capacity, comfort, createRestaurant, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -274,7 +274,7 @@ export class RestaurantEngine {
     // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.
     if (fx.burgerBias > 0 && dish !== 'burger' && dishes.includes('burger') && this.random() < fx.burgerBias) dish = 'burger';
     const price = s.menu[dish].price;
-    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * .7 * fx.priceRoll)) { s.totals.missed++; this.event = 'A guest thought the menu was too expensive.'; return; }
+    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * PRICE_SLOPE * fx.priceRoll)) { s.totals.missed++; this.event = 'A guest thought the menu was too expensive.'; return; }
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
     const special = fx.specialAlways || isSpecialGuest(s.day, s.nextId);
@@ -323,7 +323,7 @@ export class RestaurantEngine {
   private step(dt: number): void {
     const s = this.state; s.clock += dt; s.elapsed += dt;
     const fx = this.fx;
-    if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + Math.max(5.5 + Math.min(0, fx.gapDelta), 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12 + fx.gapDelta) + this.random() * 2; }
+    if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + (Math.max(5.5 + Math.min(0, fx.gapDelta), 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12 - Math.min(COMFORT_GAP_MAX, Math.max(0, comfort(s) - 20) * COMFORT_GAP) + fx.gapDelta) + this.random() * 2) * (1 - discountLift(s)); }
     // The inspector counts the dirty seats once, at the moment the doors close.
     if (s.headline && !s.headline.closed && s.elapsed >= DAY_LENGTH) { s.headline.closed = true; s.headline.dirtyAtClose = s.dirty.length; }
     for (const guest of s.guests) {

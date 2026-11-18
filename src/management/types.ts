@@ -56,6 +56,13 @@ export const DISHES: Record<Dish, { name: string; cost: number; fair: number; se
   burger: { name: 'Sunset burger', cost: 12, fair: 38, seconds: 10, station: 'grill', description: 'Charcoal-grilled, stacked high, made with love.' },
 };
 export const DAY_LENGTH = 150;
+/** How fast the walk-away chance grows with a price above fair: refusal = (price / fair - 1) * PRICE_SLOPE. Calibrated by the bots. */
+export const PRICE_SLOPE = 1.2;
+/** Seconds of arrival gap one point of atmosphere above the 20 every room starts with takes off; capped so decor never doubles the crowd. */
+export const COMFORT_GAP = .033;
+export const COMFORT_GAP_MAX = 1.5;
+/** Cheaper menus draw more people: up to 15% shorter gaps for a menu priced below fair. */
+export const DISCOUNT_LIFT_MAX = .15;
 export const SAVE_KEY = 'kitchen-rush-restaurant-v1';
 export const CELL = 1.4;
 export const HEIGHT = 10;
@@ -68,6 +75,13 @@ export const comfort = (state: RestaurantState): number => Math.min(100, state.f
 export const guestPatienceSeconds = (state: RestaurantState): number => (48 + comfort(state) * .18) * headlineEffects(state.headline).patience;
 /** Ingredient cost for one dish tonight; the supplier headline raises the grill dishes. */
 export const dishCost = (state: RestaurantState, dish: Dish): number => Math.round(DISHES[dish].cost * (DISHES[dish].station === 'grill' ? headlineEffects(state.headline).burgerCost : 1));
+/** Average share below fair across the enabled dishes, as a fraction of the arrival gap (0 at or above fair). */
+export const discountLift = (state: RestaurantState): number => {
+  const on = (Object.keys(DISHES) as Dish[]).filter(dish => state.menu[dish].enabled);
+  if (!on.length) return 0;
+  const ratio = on.reduce((sum, dish) => sum + state.menu[dish].price / DISHES[dish].fair, 0) / on.length;
+  return Math.min(DISCOUNT_LIFT_MAX, Math.max(0, 1 - ratio));
+};
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {

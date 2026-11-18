@@ -4,6 +4,23 @@ This is the running record for Too Many Cooks on Devvit. The plan lives in `docs
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Daily headline, economy calibration and star lines (gate G3)
+
+`createDailyHeadline(date)` and `headlineEffects` live in `src/management/daily-headline.ts` (pure, no `Date`), the engine reads the effects through a memoised getter, and `open(headline)` mixes the headline seed into the engine seed. With no headline every formula is unchanged. `src/management/stars.ts` holds the seven 1★ goals, the 2★ rule (two of three challenges) and the 3★ rule (beat the previous profit, or a stretch figure on a first night). `src/management/bots.ts` has three bots that replay one service from the starter park.
+
+**What the bots showed, and what changed because of it.** The first calibration run (28 dates) showed the starter economy did not discriminate at all:
+
+- The bold-price bot out-earned the fair-price bots on every headline ($360–500 against $210–250) because the one-server floor, not demand, limits throughput, so refused guests cost nothing. Fixed with a steeper walk-away slope (`PRICE_SLOPE`, 0.7 → 1.2).
+- A cheaper menu now draws more guests (`discountLift`, up to 15% shorter gaps), and atmosphere shortens the arrival gap (`COMFORT_GAP`, capped at 1.5 s), as the plan intended.
+- A second chef changed nothing, because the lone **server** carries every plate and cleans every table. The realistic good first hire is a second server. `cozyBot` is now: second server, one planter, one lantern, fair prices. `bareBot` sells the starter decor. `greedyBot` is +50% on both prices.
+
+Result over the next 21 dates and the judging week: `cozyBot` earns 1★ on at least 18 of 21 dates and on every judging day; `bareBot` clears quiet and payday and mostly misses inspection and critic nights; `greedyBot` beats the fair menu on every payday and loses on at least 80% of other nights. These are tests now (`src/test/bots.test.ts`); a balance change that breaks them must change a headline weight or a star line, not the arrival code.
+
+Corrections to the plan: the bot definitions in section 5 of the plan changed as above; the stretch figures for 3★ are in `stars.ts`. The golden replay hashes were refreshed because state gained a `headline` field and the economy changed.
+
+Devvit or third party: none.
+Code or plan: `src/management/daily-headline.ts`, `stars.ts`, `bots.ts`, `src/test/{daily-headline,headline-engine,bots}.test.ts`, plan sections 4–6 and 19 (G3).
+
 ## 2026-11-18 — Devvit scaffold: Hono server, splash and game entries
 
 Added `devvit.json`, `src/server` (Hono, `@hono/node-server`, `createServer` and `getServerPort` from `@devvit/web/server`), `src/client/splash.{html,ts,css}` (inline entry) and `src/client/game.{html,tsx}` (expanded entry, which imports the existing `main.tsx`), `src/shared/api.ts`, and `vite.devvit.config.ts`. `npm run build:devvit` produces `dist/client` (`splash.html`, `game.html`) and `dist/server/index.cjs` (1.5 MB, CommonJS, all dependencies bundled).
