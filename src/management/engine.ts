@@ -5,6 +5,7 @@ import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } fr
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
 import type { CashReceipt } from './cash-feedback';
 import type { Action } from './actions';
+import type { NeighborhoodView, VisitResult } from './social';
 import type { LockResponse, TodayResponse } from '../shared/api';
 
 export const GOALS = [
@@ -35,6 +36,12 @@ export interface RemoteSession {
   previewComment?(note: string): Promise<{ text: string; reply: boolean } | { error: string }>;
   postResult?(note: string): Promise<string | null>;
   wearFlair?(): Promise<string | null>;
+  /** The neighborhood: look around, leave the door open, visit a kitchen. Each is its own explicit button. */
+  neighborhood?: {
+    load(): Promise<NeighborhoodView | { error: string }>;
+    setDoor(open: boolean): Promise<string | null>;
+    visit(doorId: string, dish: string): Promise<VisitResult | { error: string }>;
+  };
   follow?(): Promise<string | null>;
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
@@ -391,12 +398,17 @@ export class RestaurantEngine {
   /** A neighbor orders their house dish if it is on the menu. If not, they look and move on: nobody is missed, nothing is lost. */
   private arriveVisitor(selected: { table: Furniture; seat: number }, visitor: RestaurantState['visitors'][number]): void {
     const s = this.state;
-    if (!s.menu[visitor.dish].enabled) { this.event = `${visitor.name} came over from the thread, but nothing here was for them.`; return; }
+    if (!s.menu[visitor.dish].enabled) { this.event = `${visitor.name} came over from the thread, but nothing here was for them.`; this.settleVisitor(visitor.name, 'passed', 0, 0, 0); return; }
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
     let hash = 0; for (const ch of visitor.name) hash = (Math.imul(hash, 31) + ch.charCodeAt(0)) >>> 0;
     s.guests.push({ id: s.nextId++, special: false, ...entrance, yaw: Math.PI, route, species: SPECIES[hash % SPECIES.length], tableId: selected.table.id, seat: selected.seat, dish: visitor.dish, price: s.menu[visitor.dish].price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null, visitor: visitor.name });
     this.event = `${visitor.name} came over from the thread.`;
+  }
+  /** One entry per neighbor, written when their visit is settled. */
+  private settleVisitor(name: string, outcome: 'served' | 'left' | 'passed', tip: number, wait: number, quality: number): void {
+    const log = this.state.night.visitors; if (log.some(v => v.name === name)) return;
+    log.push({ name, outcome, tip, wait: Math.round(wait), quality });
   }
   /** A regular's visit ends happy when they got their usual, did not wait long, and were not overcharged. */
   private regularVisit(guest: Guest, served: boolean): void {
@@ -419,7 +431,7 @@ export class RestaurantEngine {
     guest.route = [access, ...(this.route(access, entrance) ?? []), { x: entrance.x, z: entrance.z + 1 }];
     if (!happy) {
       this.state.totals.missed++; this.event = 'A guest waited too long. Another chef or server could help.';
-      this.state.night.walkouts++; if (guest.regular) this.regularVisit(guest, false);
+      this.state.night.walkouts++; if (guest.regular) this.regularVisit(guest, false); if (guest.visitor) this.settleVisitor(guest.visitor, 'left', 0, guest.waiting, 0);
       if (guest.special && this.state.headline) this.state.headline.walkouts++;
       this.state.staff.filter(s => s.guestId === guest.id).forEach(resetStaff);
     }
@@ -496,7 +508,7 @@ export class RestaurantEngine {
         guest.stage = 'eating'; guest.timer = 10; guest.happy = true;
         if (!guest.paid) {
           const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075)));
-          if (guest.regular) this.regularVisit(guest, true);
+          if (guest.regular) this.regularVisit(guest, true); if (guest.visitor) this.settleVisitor(guest.visitor, 'served', tip, guest.waiting, guest.quality);
           s.night.waitSeconds += guest.waiting; const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
           this.recordIncome(earned, 'service', guest.id, tip);
           this.event = `${DISHES[guest.dish].name} served. +$${earned}${tip ? ` including $${tip} tip` : ''}`;
@@ -527,6 +539,7 @@ export class RestaurantEngine {
     const honest = DISH_IDS.filter(dish => s.menu[dish].enabled).every(dish => Math.abs(s.menu[dish].price - DISHES[dish].fair) <= HONEST_BAND);
     s.streaks.nailed++; s.streaks.honest = honest && profit > 0 ? s.streaks.honest + 1 : 0;
     s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, research, profit, rating }); s.history = s.history.slice(-20);
+    for (const g of s.guests) if (g.visitor && !g.paid) this.settleVisitor(g.visitor, 'left', 0, g.waiting, 0);
     this.recruit(); s.visitors = [];
     this.beginNextDay(); this.changed();
   }

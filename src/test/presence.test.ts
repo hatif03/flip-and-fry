@@ -91,6 +91,23 @@ describe('visitors in the opening snapshot', () => {
   });
 });
 
+describe('how a neighbors visit is recorded', () => {
+  const night = (dish: 'burger' | 'ramen', extra: (s: ReturnType<typeof createRestaurant>) => void = () => undefined) => {
+    const s = createRestaurant(); s.visitors = [{ name: 'bob', dish }]; extra(s);
+    const r = runService(s, [], createDailyHeadline('2026-12-09')); if ('error' in r) throw new Error(r.error); return r.state.night.visitors;
+  };
+  it('notes a served neighbor with their wait and tip', () => {
+    const [note] = night('burger'); expect(note).toMatchObject({ name: 'bob', outcome: 'served' }); expect(note.tip).toBeGreaterThanOrEqual(0); expect(note.wait).toBeGreaterThan(0);
+  });
+  it('notes a neighbor who found nothing for them as passed', () => { expect(night('ramen')).toEqual([{ name: 'bob', outcome: 'passed', tip: 0, wait: 0, quality: 0 }]); });
+  it('notes a neighbor who waited too long as left', () => {
+    const [note] = night('burger', s => { s.staff = s.staff.map(m => ({ ...m, role: 'server' as const })); }); // nobody to cook
+    expect(note).toMatchObject({ name: 'bob', outcome: 'left', tip: 0 });
+  });
+  it('writes one entry per neighbor, never two', () => { expect(night('burger').filter(n => n.name === 'bob')).toHaveLength(1); });
+  it('starts a new night with an empty log', () => { expect(createRestaurant().night.visitors).toEqual([]); });
+});
+
 describe('what a visitor is thinking', () => {
   const base = { stage: 'waiting' as const, waiting: 4, happy: false, dish: 'salad' as const, price: 24, quality: 0, paid: false };
   it('says where they came from, and keeps any complaint under their name', () => {

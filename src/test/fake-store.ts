@@ -56,8 +56,10 @@ export class FakeStore implements Store {
     this.calls++; if (!this.live(key)) return [];
     const all = [...(this.zsets.get(key) ?? [])].map(([member, score]) => ({ member, score })).sort((a, b) => a.score - b.score || (a.member < b.member ? -1 : 1));
     if (options?.by === 'score') { const hits = all.filter(m => m.score >= Number(start) && m.score <= Number(stop)); return (options.reverse ? hits.reverse() : hits).slice(0, 1000); }
-    const ordered = options?.reverse ? all.reverse() : all, s = Number(start), e = Number(stop);
-    return ordered.slice(s, e < 0 ? undefined : e + 1);
+    const ordered = options?.reverse ? all.reverse() : all, n = ordered.length, norm = (i: number): number => i < 0 ? n + i : i;
+    // Redis rank ranges: a negative index counts from the end, and both ends are inclusive.
+    const to = norm(Number(stop));
+    return to < 0 ? [] : ordered.slice(Math.max(0, norm(Number(start))), to + 1);
   }
 
   /** Redis bit order: offset 0 is the most significant bit of the first byte. Supports `get uN` and `set uN`. */

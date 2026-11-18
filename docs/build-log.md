@@ -4,6 +4,24 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Open doors, sample kitchens and the bulletin
+
+**Why:** plan section 8. The neighborhood is where this stops being a solo tycoon: a kitchen you leave open is a place someone else can walk into, and a note on your bulletin is a reason to come back tomorrow. Every part of it has a designed empty state, because on day one nobody else is here.
+
+**What it is, and what it changed from the plan:**
+- **Leave the door open** (ledger, Neighborhood, its own switch, off by default; also off when a moderator turns the `openDoors` setting off). Needs a closed night today. The server stores the kitchen as it stands (closed-doors state, 7 days) and lists it for neighbors.
+- **Visit** is one service played in that kitchen with the visitor as a guest, ordering their own dearest dish. The plan had the visitor playing the pass with their own action log. I built it as a server replay with the visitor as a guest instead: it is the same machinery as presence diners, it is exactly as verifiable as a lock, it needs no second "visiting" mode in the client engine (which would have displaced the player's own restaurant on screen), and a visit takes one tap. The visitor sees how it went in plain words; the host gets a note.
+- **Rules that keep it fair and quiet:** one visit to a given kitchen per day, three a day in all; a visit never touches the host's saved restaurant, cash, stars or streak (it runs on a copy); the visitor's name must be a safe Reddit name; a damaged or missing door is simply skipped.
+- **Sample kitchens:** four ship in the code (Basil's Garden, Smoke and Fire, The Noodle Cart, The Quiet Corner), built from the same planning actions a player takes, checked to be openable in tests, always labelled "Sample kitchen", never presented as players. A visit to a sample leaves no note.
+- **The bulletin:** each real visit adds a canned line to the host's bulletin (visitor name, how the visit went, the kitchen card's weakest point in words). The last 20 are kept for 30 days, the last 10 are shown. Nothing a player types ever reaches it.
+- **Neighbors on the result card:** nights with presence diners now say how each neighbor's visit went ("bob was served in 12s and left a $3 tip"), from a per-night record the engine keeps (`night.visitors`), so the host and the visitor read the same facts.
+
+**Devvit:** Redis only (`door:{uid}`, `doors`, `bulletin:{uid}`, `visited:{date}`), the `openDoors` subreddit setting. Nothing new to approve. The realtime "a neighbor is visiting" toast is still to do with the hosted co-op step.
+
+**Also fixed:** the fake Redis used in tests now honours negative rank ranges (`zRange(key, 0, -21)`) the way Redis does. The old fake treated any negative end as "to the end", which hid a trimming bug until the bulletin test caught it.
+
+**Code:** `src/server/core/{doors,samples}.ts`, `src/server/routes/api.ts`, `src/client/session.ts`, `src/management/{Neighborhood,Panels,RedditLayer,social,engine,types}.tsx/ts`; tests in `doors.test.ts`, `session-neighborhood.test.ts`, `neighborhood-panel.browser.test.tsx`, additions to `presence.test.ts` and `reddit-layer.browser.test.tsx`.
+
 ## 2026-11-19 — Neighbors from the thread come over (presence diners)
 
 **Why:** plan section 8. A person with the post open is the best source of a "crowd" this game can have, and it makes opening the doors feel like it happens in a place with other people in it.

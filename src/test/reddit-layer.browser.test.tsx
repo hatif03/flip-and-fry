@@ -13,7 +13,7 @@ vi.mock('@/management/RestaurantScene', () => ({ default: ({ weatherMode }: { we
 
 const headline = createDailyHeadline('2026-12-09');
 const today: TodayResponse = { type: 'today', date: '2026-12-09', headline, rev: 3, park: createRestaurant(), open: null, run: null, streak: 4, community: { opens: 5, locks: 2 } };
-const NIGHT = { card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm' as const, title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 };
+const NIGHT = { neighbors: [], card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm' as const, title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 };
 const lock = (stars: 0 | 1 | 2 | 3): LockResponse => ({
   type: 'lock', night: NIGHT, hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
   report: { ...createRestaurant().totals, served: 17, missed: 2, revenue: 400, tips: 38, ingredients: 150, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 198, rating: 4.2 },
@@ -159,6 +159,16 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
     await expect.element(card).toHaveTextContent('Company value $2,400'); await expect.element(card).toHaveTextContent('a new best!');
   });
 
+  it('lists the neighbors from the thread in plain words, and nothing when nobody came', async () => {
+    const withNeighbors = { ...lock(2), night: { ...NIGHT, neighbors: [{ name: 'bob', outcome: 'served' as const, tip: 3, wait: 12, quality: 3 }, { name: 'cara', outcome: 'left' as const, tip: 0, wait: 40, quality: 0 }, { name: 'dan', outcome: 'passed' as const, tip: 0, wait: 0, quality: 0 }] } };
+    restaurant.remote = remote(withNeighbors); const screen = await render(<ManagementGame />); const list = screen.getByRole('region', { name: 'Neighbors tonight' });
+    await expect.element(list).toHaveTextContent('bob was served in 12s, perfectly cooked and left a $3 tip'); await expect.element(list).toHaveTextContent('cara waited too long and left'); await expect.element(list).toHaveTextContent('dan looked in, but nothing on the menu was for them');
+  });
+  it('shows no neighbors section when nobody came', async () => {
+    restaurant.remote = remote(lock(2)); const none = await render(<ManagementGame />);
+    await expect.element(none.getByText('Nice work.').or(none.getByRole('dialog'))).toBeVisible();
+    expect(document.querySelector('[aria-label="Neighbors tonight"]')).toBeNull();
+  });
   it('has three separate optional buttons, and Continue works without touching any of them', async () => {
     const { r } = social(); const screen = await render(<ManagementGame />);
     for (const name of [/Post this result/, /Wear .Regular. flair|Wear .*flair/, /Follow this kitchen/]) await expect.element(screen.getByRole('button', { name })).toBeVisible();

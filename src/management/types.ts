@@ -51,9 +51,13 @@ const challengeSchema = z.object({
 export type DailyChallenge = Validated<z.infer<typeof challengeSchema>>;
 const challengesSchema = z.array(challengeSchema).max(3).default([]).refine(items => new Set(items.map(c => c.kind)).size === items.length, 'Duplicate challenges');
 /** What one service did that the star rules do not already count. Reset when the doors open; read by the kitchen card and the awards. */
-const nightSchema = z.object({ waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false), arrivals: z.number().int().nonnegative().default(0) });
+/** How a neighbor's visit went, from the thread or through an open door. One entry per neighbor, written when it is settled. */
+export const VISIT_OUTCOMES = ['served', 'left', 'passed'] as const;
+const visitNoteSchema = z.object({ name: z.string().regex(/^[A-Za-z0-9_-]{1,20}$/), outcome: z.enum(VISIT_OUTCOMES), tip: z.number().int().nonnegative(), wait: z.number().int().nonnegative(), quality: z.number().int().min(0).max(3).default(0) });
+export type VisitNote = Validated<z.infer<typeof visitNoteSchema>>;
+const nightSchema = z.object({ visitors: z.array(visitNoteSchema).max(3).default([]), waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false), arrivals: z.number().int().nonnegative().default(0) });
 export type Night = Validated<z.infer<typeof nightSchema>>;
-export const freshNight = (): Night => ({ waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false, arrivals: 0 });
+export const freshNight = (): Night => ({ visitors: [], waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false, arrivals: 0 });
 /** Running counts the contracts read: services since furniture was last sold, services in a row at honest prices, and whether the recovery loan was ever cleared. */
 const streaksSchema = z.object({ nailed: z.number().int().nonnegative().default(0), honest: z.number().int().nonnegative().default(0), loanCleared: z.number().int().min(0).max(1).default(0) });
 export type Streaks = Validated<z.infer<typeof streaksSchema>>;

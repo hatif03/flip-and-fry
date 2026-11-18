@@ -10,6 +10,7 @@ import { postApi, socialApi } from '../reddit';
 import { commentPreview, follow, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
+import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
 import { shiftDate } from '../../management/daily-headline';
 import { telemetry } from '@devvit/analytics/server/reddit';
@@ -129,4 +130,24 @@ api.post('/presence', async c => {
   const body = z.object({ dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await recordPresence(deps, user, body.data.dish);
   return 'error' in r ? failure(c, r) : c.json({ type: 'presence', ...r.value });
+});
+
+// ---- open doors, visits and the bulletin ----------------------------------------------------------------------------------------
+const openDoorsAllowed = async (): Promise<boolean> => (await settings.get<boolean>('openDoors').catch(() => undefined)) !== false;
+api.get('/doors', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const [doors, mine, bulletin, allowed] = await Promise.all([listDoors(deps, user), isDoorOpen(deps, user), readBulletin(deps, user), openDoorsAllowed()]);
+  return c.json({ type: 'doors', doors, mine, allowed, bulletin });
+});
+api.post('/door', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ open: z.boolean() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await setDoor(deps, user, body.data.open, await openDoorsAllowed());
+  return 'error' in r ? failure(c, r) : c.json({ type: 'door', ...r.value });
+});
+api.post('/visit', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ doorId: z.string().max(40), dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await visitDoor(deps, user, body.data.doorId, body.data.dish);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'visit', ...r.value });
 });

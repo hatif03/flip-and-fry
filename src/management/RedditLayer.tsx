@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
 import { formatDate, shiftDate } from './daily-headline';
-import { NOTE_MAX, flairForStreak } from './social';
+import { NOTE_MAX, flairForStreak, neighborLine } from './social';
 import { GOALS as STAR_GOALS } from './stars';
 
 /** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
@@ -69,6 +69,7 @@ function ResultCard() {
         <Meter label="Speed" value={night.card.speed} hint="How long guests waited against their patience" />
         <Meter label="Value" value={night.card.value} hint="How your prices sit against fair" />
       </section>
+      {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
       <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-white/40 p-3 text-center">
         <Stat label="Served" value={String(report.served)} /><Stat label="Missed" value={String(report.missed)} /><Stat label="Rating" value={report.rating.toFixed(1)} />
         <Stat label="Sales" value={money(report.revenue)} /><Stat label="Tips" value={money(report.tips)} /><Stat label="Profit" value={money(report.profit)} strong />

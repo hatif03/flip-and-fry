@@ -3,7 +3,7 @@ import { noJourneys, interactionName, type Journeys } from './journeys';
 import { DAY_LENGTH } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
-import { houseStyle } from '../management/social';
+import { houseStyle, type NeighborhoodView, type VisitResult } from '../management/social';
 import type { ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse } from '../shared/api';
 
 /** One round trip to /api. Injected so the session is tested against the real server rules without a network. */
@@ -170,4 +170,18 @@ export class Session implements RemoteSession {
     if (r.status !== 200 || isError(r.body)) return message(r);
     this.social = { ...this.social, followed: true }; this.engine.notify(); return null;
   }
+
+  // ---- the neighborhood: open doors, visits and the bulletin. Optional; nothing in the game waits for any of it. ----------------
+  readonly neighborhood = {
+    load: async (): Promise<NeighborhoodView | { error: string }> => {
+      const r = await this.http('GET', '/api/doors');
+      if (r.status !== 200 || isError(r.body)) return { error: message(r) };
+      const { doors, mine, allowed, bulletin } = r.body as NeighborhoodView; return { doors, mine, allowed, bulletin };
+    },
+    setDoor: async (open: boolean): Promise<string | null> => { const r = await this.http('POST', '/api/door', { open }); return r.status === 200 && !isError(r.body) ? null : message(r); },
+    visit: async (doorId: string, dish: string): Promise<VisitResult | { error: string }> => {
+      const r = await this.http('POST', '/api/visit', { doorId, dish });
+      return r.status === 200 && !isError(r.body) ? (r.body as { door: VisitResult['door'] } & VisitResult) : { error: message(r) };
+    },
+  };
 }

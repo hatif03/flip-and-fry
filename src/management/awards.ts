@@ -1,5 +1,5 @@
 import { findPath, accessPoints } from './layout';
-import { CATALOG, DISHES, entrance, guestPatienceSeconds, width, type Dish, type Report, type RestaurantState } from './types';
+import { CATALOG, DISHES, entrance, guestPatienceSeconds, width, type Dish, type Report, type RestaurantState, type VisitNote } from './types';
 
 /**
  * The end-of-night read of a service: the kitchen card (Welcome, Speed, Value), one award banner, and the company value. All of it
@@ -8,7 +8,7 @@ import { CATALOG, DISHES, entrance, guestPatienceSeconds, width, type Dish, type
 export type AwardId = 'untidy' | 'quiet' | 'prices' | 'food' | 'warm' | 'confusing' | 'steady';
 export type Award = { id: AwardId; title: string; text: string };
 export type KitchenCard = { welcome: number; speed: number; value: number };
-export type NightSummary = { card: KitchenCard; award: Award; companyValue: number; best: { value: number; day: number }; newBest: boolean; avgWait: number; pathLength: number };
+export type NightSummary = { neighbors: VisitNote[]; card: KitchenCard; award: Award; companyValue: number; best: { value: number; day: number }; newBest: boolean; avgWait: number; pathLength: number };
 
 const clamp = (v: number, lo = 0, hi = 100): number => Math.max(lo, Math.min(hi, v));
 const AWARDS: Record<AwardId, { title: string; text: string }> = {
@@ -52,7 +52,7 @@ export function nightSummary(state: RestaurantState, report: Report): NightSumma
     : comfortPoints >= 50 && n.walkouts <= 1 ? 'warm'
     : pathLength >= 14 ? 'confusing' : 'steady';
   const value = state.best.day === report.day ? state.best.value : 0;
-  return { card, award: { id, ...AWARDS[id] }, companyValue: Math.round(state.cash + state.furniture.reduce((s, f) => s + Math.floor(CATALOG[f.kind].price * .7), 0) - state.debt), best: { value: state.best.value, day: state.best.day }, newBest: value > 0 && state.best.day === report.day, avgWait, pathLength };
+  return { neighbors: n.visitors.map(v => ({ ...v })), card, award: { id, ...AWARDS[id] }, companyValue: Math.round(state.cash + state.furniture.reduce((s, f) => s + Math.floor(CATALOG[f.kind].price * .7), 0) - state.debt), best: { value: state.best.value, day: state.best.day }, newBest: value > 0 && state.best.day === report.day, avgWait, pathLength };
 }
 
 /** The one-line thought the kitchen card gives a visitor or a reader: its weakest number, in plain words. */

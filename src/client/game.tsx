@@ -2,6 +2,7 @@ import { restaurant } from '../management/engine';
 import { redditJourneys } from './journeys.reddit';
 import { connectArcade } from './arcade-sync';
 import { startPresence } from './presence';
+import { houseDish } from '../management/social';
 import { Session, type Http } from './session';
 
 /** The expanded entry. It loads today's park from the server first, then mounts the existing game on top of it. */
@@ -37,7 +38,7 @@ async function boot(): Promise<void> {
     document.addEventListener('visibilitychange', () => { if (document.hidden) void session.flush(); });
     window.addEventListener('pagehide', () => { void session.flush(); void arcade.flush(); });
     // The dish a visiting neighbor would order: the most expensive one on this menu.
-    startPresence(http, () => { const menu = restaurant.state.menu; return (Object.keys(menu) as (keyof typeof menu)[]).filter(d => menu[d].enabled).sort((a, b) => menu[b].price - menu[a].price)[0] ?? 'salad'; });
+    startPresence(http, () => houseDish(restaurant.state));
     await import('../main');
     // Ready once the scene has had a frame or two to draw, not merely when the code has loaded.
     requestAnimationFrame(() => requestAnimationFrame(() => redditJourneys.appReady()));
