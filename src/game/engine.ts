@@ -7,7 +7,7 @@ import { EMOTION_SECONDS, sampleChefEmotion, type ChefEmotion, type ChefEmotionC
 import { CHEF_HOP_SECONDS, type ChefHopCue } from './chef-hop';
 import { DiningRoom } from './diners';
 import { MAX_SERVICE_REWARDS, SERVICE_REWARD_SECONDS, type ServiceReward } from './service-reward';
-import type { Chef, ChefActionEffect, GameState, Ingredient, Item, Mode, PlayerInput, SoundEvent, Station } from './types';
+import type { Chef, ChefActionEffect, GameState, Ingredient, Item, Mode, PlayerInput, Progress, SoundEvent, Station } from './types';
 
 const EMPTY_INPUT: PlayerInput = { x: 0, y: 0, pick: false, work: false, dash: false };
 const INGREDIENTS: string[] = ['lettuce', 'tomato', 'patty', 'bun'];
@@ -36,6 +36,12 @@ export class KitchenEngine {
   getSnapshot = (): GameState => this.snapshot;
   notify(): void { this.state.revision++; this.snapshot = { ...this.state }; this.listeners.forEach(fn => fn()); }
   unlocked(level: number, mode = this.state.mode): boolean { return level === 0 || starsFor(this.state.progress[mode][level - 1], level - 1, mode) >= 1; }
+  /** Take the scores and outfits the server holds for this player. A best in this session is never lowered by an older copy. */
+  hydrate(progress: Progress, outfits: ChefOutfits): void {
+    const best = (a: number[], b: number[]): number[] => a.map((v, i) => Math.max(v, b[i] ?? 0));
+    this.state.progress = { solo: best(this.state.progress.solo, progress.solo), coop: best(this.state.progress.coop, progress.coop) };
+    this.state.outfits = outfits; this.notify();
+  }
   select(level: number, mode: Mode): void { this.dining.reset(); this.chefHops.clear(); this.resetEmotions(); this.actionEffects = []; this.serviceRewards = []; this.state.mode = mode; this.state.level = this.unlocked(level, mode) ? level : 0; this.state.stations = makeStations(this.state.level); this.notify(); }
   setPhase(phase: GameState['phase']): void { this.dining.reset(); this.chefHops.clear(); this.resetEmotions(); this.actionEffects = []; this.serviceRewards = []; this.state.phase = phase; this.state.paused = false; this.state.chefs.forEach(c => { c.moving = false; c.working = false; }); this.notify(); }
   setAudio(key: 'sound' | 'music', value: boolean): void { this.state[key] = value; this.notify(); }

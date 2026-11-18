@@ -4,6 +4,22 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The Test Kitchen is mounted: three shifts, solo and couch co-op, touch controls, saved on Reddit
+
+**Why:** plan section 7.2. The hands-on kitchen (`KitchenEngine`, its scenes and screens) had been built and never mounted. It is now reachable from the restaurant any time the doors are closed (a "Test Kitchen" button beside "Open restaurant"), and everything that was in the arcade ships: the three shifts, solo and two-chef play, the practice tutorial, the scorecard and the chef wardrobe.
+
+**How it fits:**
+- `src/arcade/TestKitchen.tsx` assembles the existing screens (home, briefing, HUD, results, toolbar) around `KitchenScene`. It replaces the rooftop view while open, so only one WebGL context is alive on a phone. It is a separate chunk (about 115 KB), loaded only when the button is pressed.
+- **Touch controls** (`src/arcade/TouchControls.tsx`): a stick and Work, Pick and Dash buttons, all at least 44 px, shown for solo play on touch screens. They write into the same `KitchenInput.touch` the keyboard path already reads, so there is one input path, not two. Two-chef play needs two keyboards and has no touch layer.
+- **Persistence moved off `localStorage`** (plan change E8, arcade half). `src/game/storage.ts` now has a driver; the browser build keeps `localStorage`, and on Reddit `src/client/arcade-sync.ts` swaps in a driver that loads the player's save at boot and sends changes in small debounced posts (`GET` and `POST /api/arcade`). The server (`src/server/core/arcade.ts`, Redis key `arcade:{uid}`, one year expiry) validates every post: whole scores from 0 to 6000, six palette colours, and a best score can never go down (concurrent saves are merged under WATCH).
+- **Bounded trust:** the arcade cannot be replayed on the server, so its numbers never touch the leaderboard, the daily stars, or the restaurant's money. They only keep the player's own bests and outfits.
+
+**Devvit:** Redis only (a new key and two routes). No new permission.
+
+**Not yet done from section 7.2:** the old share button still builds an image card; it is replaced by the Reddit comment flow later. The daily shift, the research bonus from stars and online co-op come with the later phases. The pass in ticket mode (7.1) is the next step.
+
+**Code:** `src/arcade/`, `src/game/storage.ts`, `src/game/arcade-save.ts`, `src/client/arcade-sync.ts`, `src/server/core/arcade.ts`, `src/server/routes/api.ts`, `src/pages/Index.tsx`, `src/management/ManagementGame.tsx`. Tests: `arcade-server.test.ts`, `arcade-sync.test.ts`, `test-kitchen.browser.test.tsx` (the 3D scene is a stand-in so the controls are tested without WebGL setup per test) and `test-kitchen-scene.browser.test.tsx` (one test with the real scene, where a touch input moves the real chef).
+
 ## 2026-11-19 — Tycoon depth wrap-up: reputation on the sign, and what was left out of P6
 
 **Added:** the sign over the terrace now shows the reputation as five stars in place of the tagline (`signStars` in `RestaurantScene.tsx`, drawn on the sign's canvas texture, redrawn when the rounded reputation changes).

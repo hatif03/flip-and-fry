@@ -15,6 +15,8 @@ import { Diners } from './Diners';
 import { ServiceRewards } from './ServiceRewards';
 
 export let activeInput:KitchenInput|null=null;
+/** The live input bridge, or null until the canvas has mounted. A function, so a caller never holds a stale binding. */
+export const getActiveInput=():KitchenInput|null=>activeInput;
 Object.values(MODELS).forEach(asset=>useGLTF.preload(asset.url));
 class GraphicsBoundary extends Component<{children:ReactNode},{failed:boolean}> {
  state={failed:false};

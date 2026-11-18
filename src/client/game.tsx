@@ -1,5 +1,6 @@
 import { restaurant } from '../management/engine';
 import { redditJourneys } from './journeys.reddit';
+import { connectArcade } from './arcade-sync';
 import { Session, type Http } from './session';
 
 /** The expanded entry. It loads today's park from the server first, then mounts the existing game on top of it. */
@@ -29,9 +30,11 @@ async function boot(): Promise<void> {
     const session = new Session(restaurant, http, undefined, redditJourneys);
     const error = await session.start();
     if (error) { show(error, () => void boot()); return; }
+    // The Test Kitchen's scores live on the server too. Set before the kitchen code loads; a failure only means it starts empty.
+    const arcade = await connectArcade(http);
     // Changes are batched for under a second; make sure the last ones leave before the tab is hidden.
     document.addEventListener('visibilitychange', () => { if (document.hidden) void session.flush(); });
-    window.addEventListener('pagehide', () => void session.flush());
+    window.addEventListener('pagehide', () => { void session.flush(); void arcade.flush(); });
     await import('../main');
     // Ready once the scene has had a frame or two to draw, not merely when the code has loaded.
     requestAnimationFrame(() => requestAnimationFrame(() => redditJourneys.appReady()));

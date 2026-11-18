@@ -8,6 +8,7 @@ import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
 import { postApi, socialApi } from '../reddit';
 import { commentPreview, follow, postResult, wearFlair } from '../core/social';
+import { loadArcade, saveArcade } from '../core/arcade';
 import { telemetry } from '@devvit/analytics/server/reddit';
 import { officialEnd } from '../core/telemetry';
 
@@ -101,4 +102,16 @@ api.post('/subscribe', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const r = await follow(deps, socialApi, user);
   return 'error' in r ? failure(c, r) : c.json({ type: 'followed', ...r.value });
+});
+
+// ---- the Test Kitchen's own save ---------------------------------------------------------------------------------------------
+api.get('/arcade', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await loadArcade(deps, user);
+  return c.json({ type: 'arcade', ...r.value });
+});
+api.post('/arcade', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await saveArcade(deps, user, await c.req.json().catch(() => null));
+  return 'error' in r ? failure(c, r) : c.json({ type: 'arcade', ...r.value });
 });
