@@ -18,7 +18,8 @@ const seatKey = (g: Pick<Guest, 'tableId' | 'seat'>): string => `${g.tableId}:${
 function walk(agent: Point & { route: Point[]; yaw: number }, dt: number, speed: number): boolean {
   let remaining = dt * speed;
   while (agent.route.length && remaining > 0) {
-    const next = agent.route[0], dx = next.x - agent.x, dz = next.z - agent.z, length = Math.hypot(dx, dz);
+    // sqrt is exactly rounded in every JS engine; the built-in hypotenuse helper is not, and replay must match across V8 and JavaScriptCore.
+    const next = agent.route[0], dx = next.x - agent.x, dz = next.z - agent.z, length = Math.sqrt(dx * dx + dz * dz);
     if (length > .001) agent.yaw = Math.atan2(dx, dz);
     if (length <= remaining) { agent.x = next.x; agent.z = next.z; agent.route.shift(); remaining -= length; }
     else { agent.x += dx / length * remaining; agent.z += dz / length * remaining; remaining = 0; }
@@ -31,6 +32,8 @@ export class RestaurantEngine {
   state: RestaurantState = createRestaurant();
   get paused(): boolean { return this.state.isPaused; }
   set paused(value: boolean) { this.state.isPaused = value; }
+  /** When false, finish() stops at the receipt with the doors closed instead of opening the next day. */
+  autoRoll = true;
   catchingUp = false;
   catchUpProgress = 0;
   awaySummary: AwaySummary | null = null;
@@ -127,6 +130,8 @@ export class RestaurantEngine {
       this.notify();
     }
   }
+  /** One fixed 0.1 s simulation step. Replay, bots and co-op call this directly instead of update(). */
+  tick(): void { if (this.state.phase === 'service') this.step(.1); }
   private random(): number { this.state.seed = (Math.imul(this.state.seed, 1664525) + 1013904223) >>> 0; return this.state.seed / 4294967296; }
   private route(from: Point, to: Point): Point[] | null {
     const layout = `${width(this.state)}:${JSON.stringify(this.state.furniture)}`;
@@ -229,7 +234,7 @@ export class RestaurantEngine {
     this.state.dailyChallenges = createDailyChallenges(this.state);
   }
   private beginNextDay(): void {
-    const renovate = this.state.renovation;
+    const renovate = this.state.renovation || !this.autoRoll;
     this.state.day++; this.state.phase = 'planning'; this.state.guests = []; this.state.dirty = []; this.state.elapsed = 0; this.state.nextArrival = 1; this.state.totals = freshTotals(); this.relocateStaff();
     this.state.renovation = false; this.incomeReceipts = []; this.state.dailyChallenges = [];
     const errors = this.readiness();
