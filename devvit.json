@@ -24,7 +24,8 @@
     },
     "reddit": {
       "enable": true
-    }
+    },
+    "journeys": true
   },
   "menu": {
     "items": [

@@ -1,9 +1,10 @@
 import { restaurant } from '../management/engine';
+import { redditJourneys } from './journeys.reddit';
 import { Session, type Http } from './session';
 
 /** The expanded entry. It loads today's park from the server first, then mounts the existing game on top of it. */
-const http: Http = async (method, path, body) => {
-  const response = await fetch(path, { method, headers: body === undefined ? undefined : { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+const http: Http = async (method, path, body, extra) => {
+  const response = await fetch(path, { method, headers: body === undefined ? extra : { 'content-type': 'application/json', ...extra }, body: body === undefined ? undefined : JSON.stringify(body) });
   return { status: response.status, body: await response.json().catch(() => null) };
 };
 
@@ -25,13 +26,15 @@ function show(message: string, retry?: () => void): void {
 async function boot(): Promise<void> {
   show('Opening the doors…');
   try {
-    const session = new Session(restaurant, http);
+    const session = new Session(restaurant, http, undefined, redditJourneys);
     const error = await session.start();
     if (error) { show(error, () => void boot()); return; }
     // Changes are batched for under a second; make sure the last ones leave before the tab is hidden.
     document.addEventListener('visibilitychange', () => { if (document.hidden) void session.flush(); });
     window.addEventListener('pagehide', () => void session.flush());
     await import('../main');
+    // Ready once the scene has had a frame or two to draw, not merely when the code has loaded.
+    requestAnimationFrame(() => requestAnimationFrame(() => redditJourneys.appReady()));
   } catch {
     show('Could not reach your restaurant. Check your connection.', () => void boot());
   }

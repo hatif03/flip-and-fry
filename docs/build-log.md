@@ -4,6 +4,23 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — First phone test, journeys and the collapsed dock (P4)
+
+**Spike S1 and S2, first result (Android Reddit app, a real phone):** the 3D scene draws, there is no black canvas, and the load takes about 2–4 s. The first screenshot showed the old playtest build (`v0.0.1.23`): `devvit upload` creates a version but does not install it, and the subreddit kept the old one. `devvit install flip_and_fry_dev flip-and-fry@latest` installs the new version. Version 0.0.3 is installed; every upload from here needs that install step.
+
+**Journeys (Devvit's analytics).** `src/client/journeys.ts` is the small interface the session talks to; `src/client/journeys.reddit.ts` is the only file that imports the browser-only package. Events follow the plan: app-ready after the scene has had two frames, Start on the Open tap, interactions after the engine accepts a change (purchase, move, price, hire, train, dismiss, sell, expand, loan, claim; renaming and music are not worth an event), progress 0.3 / 0.6 / 0.9 once each and in order, and the **official end written by the server** from the replayed receipt (win means at least one star, score is the packed stars and rating). The client sends the journey id as `x-devvit-journey-id` on the lock request and clears it afterwards. Nothing carries a username or free text.
+
+- **Devvit's telemetry router is Express-only,** and this app is Hono. The five endpoints the client calls (`/api/telemetry/journey/start|progress|interaction|end|app-ready`) are served from Hono with the same shapes, backed by the server telemetry client. Request bodies are validated with zod and tested.
+- `permissions.journeys` is on. Journey maps need Reddit's review, so events are probably dropped in playtest; the game never depends on them (tested with and without a journey).
+- **Cost:** importing the server telemetry module pulls Express into the server bundle (1.6 MB to 2.2 MB). Listed for the optimization phase.
+
+**Collapsed dock.** While the doors are open on Reddit the four management tabs fold away and only the pause and speed controls and the status line remain; they return when the service closes. The plain browser game is unchanged. "Saved on this device" now says "Saved on Reddit" there.
+
+Tests: 610 unit and 140 browser, all passing (9 new journeys tests, 2 new dock tests).
+
+Devvit or third party: `@devvit/analytics` (client and server), `permissions.journeys`.
+Code or plan: `src/client/journeys*.ts`, `src/server/routes/telemetry.ts`, `src/server/core/telemetry.ts`, plan section 12 (Journeys).
+
 ## 2026-11-18 — The daily post is created lazily and safely
 
 `src/server/core/daily-post.ts` creates one custom post per UTC day, with the headline in `postData` (so the splash needs no server call), a Markdown text fallback for old Reddit and search, the headline as flair text, and a stickied "Results for today" comment. It is called from three places: the 00:05 scheduler task, the moderator menu ("Post today's service"), and the **first player request of a new UTC day** (`GET /api/today`), so the game never depends on the cron's undocumented timezone.

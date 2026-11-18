@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import { createServer, getServerPort } from '@devvit/web/server';
 import { api } from './routes/api';
 import { menu } from './routes/menu';
+import { journeys } from './routes/telemetry';
 import { scheduler } from './routes/scheduler';
 import { triggers } from './routes/triggers';
 
@@ -14,6 +15,7 @@ internal.route('/triggers', triggers);
 
 // Client-facing routes live under /api, platform callbacks (menu, scheduler, triggers) under /internal.
 app.route('/api', api);
+app.route('/api/telemetry', journeys);
 app.route('/internal', internal);
 
 serve({ fetch: app.fetch, createServer, port: getServerPort() });

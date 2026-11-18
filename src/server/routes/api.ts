@@ -7,6 +7,8 @@ import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
 import { postApi } from '../reddit';
+import { telemetry } from '@devvit/analytics/server/reddit';
+import { officialEnd } from '../core/telemetry';
 
 export const api = new Hono();
 
@@ -68,5 +70,9 @@ api.post('/lock', async c => {
   const body = lockBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await lockService(deps, user, body.data.date, body.data.actions);
-  return 'error' in r ? failure(c, r) : c.json(r.value);
+  if ('error' in r) return failure(c, r);
+  // The official end of the journey carries the replayed score, never a client claim. Optional: a dropped event changes nothing the player sees.
+  const journeyId = c.req.header('x-devvit-journey-id');
+  if (journeyId) { try { await telemetry.endJourney(officialEnd(journeyId, r.value)); } catch (error) { console.error(`journey end failed: ${error}`); } }
+  return c.json(r.value);
 });

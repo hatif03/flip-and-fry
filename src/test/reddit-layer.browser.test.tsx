@@ -70,3 +70,24 @@ it('hides actions that would diverge from the server and says why', async () => 
   await expect.element(screen.getByRole('button', { name: 'Start a new restaurant' })).not.toBeInTheDocument();
   await expect.element(screen.getByText('One service a night · saved on Reddit')).toBeVisible();
 });
+
+it('folds the management tabs away while the doors are open on Reddit, keeps the controls, and brings the tabs back after', async () => {
+  restaurant.remote = remote(null);
+  const screen = await render(<ManagementGame />);
+  const tabs = screen.getByRole('navigation', { name: 'Restaurant management' });
+  await expect.element(tabs).toBeVisible();
+  restaurant.open(); // a local open stands in for the server-confirmed one
+  await expect.element(screen.getByRole('navigation', { name: 'Restaurant management' })).not.toBeInTheDocument();
+  const pause = screen.getByRole('button', { name: 'Pause service' });
+  await expect.element(pause).toBeVisible(); expect((await pause.element()).getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+  await expect.element(screen.getByText('Saved on Reddit')).toBeVisible();
+  restaurant.state.phase = 'planning'; restaurant.notify();
+  await expect.element(screen.getByRole('navigation', { name: 'Restaurant management' })).toBeVisible();
+});
+
+it('keeps the tabs in the plain browser game while the doors are open', async () => {
+  const screen = await render(<ManagementGame />);
+  restaurant.open();
+  await expect.element(screen.getByRole('navigation', { name: 'Restaurant management' })).toBeVisible();
+  await expect.element(screen.getByText('Saved on this device')).toBeVisible();
+});
