@@ -12,7 +12,7 @@ A rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a 
 4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night.
 5. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
 
-Between nights you can step into the **Test Kitchen** and cook by hand (three shifts, solo or two chefs).
+Between nights you can step into the **Test Kitchen** and cook by hand: three shifts, solo or two chefs, and a **Today's shift** picked by the date. New stars there earn a little research for your restaurant (at most 10 a day), and a result can be posted to the thread with the same confirm step as the restaurant's.
 
 ## The daily headline
 

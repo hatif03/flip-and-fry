@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Award, Flame, Star } from 'lucide-react';
+import { Award, ChefHat, Coins, Flame, Heart, Moon, Route, Sparkles, Star, Trash2 } from 'lucide-react';
+import type { AwardId } from './awards';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -58,7 +59,7 @@ function ResultCard() {
       <div className="flex items-center justify-center gap-2" role="img" aria-label={`${stars.stars} of 3 stars`}>
         {[1, 2, 3].map(n => <Star key={n} size={40} className={n <= stars.stars ? 'fill-gold text-gold' : 'text-ink/20'} />)}
       </div>
-      <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm"><Award size={20} className="shrink-0 text-tomato" aria-hidden /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
+      <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
       <ul className="space-y-1 text-sm">
         <li className={cn('flex gap-2', stars.goal ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.goal ? '★' : '☆'}</span><span><b>Tonight's goal:</b> {stars.goalText}</span></li>
         <li className={cn('flex gap-2', stars.challenges >= 2 ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.challenges >= 2 ? '★' : '☆'}</span><span><b>Two of three challenges:</b> {stars.challenges} done</span></li>
@@ -83,6 +84,10 @@ function ResultCard() {
     </DialogContent>
   </Dialog>;
 }
+
+/** One small icon per award, so the banner reads at a glance. */
+const STAMPS: Record<AwardId, typeof Award> = { untidy: Trash2, quiet: Moon, prices: Coins, food: ChefHat, warm: Heart, confusing: Route, steady: Sparkles };
+function AwardStamp({ id }: { id: AwardId }) { const Icon = STAMPS[id] ?? Award; return <span className="grid size-9 shrink-0 place-items-center rounded-lg border-2 border-tomato/70 bg-paper text-tomato"><Icon size={20} aria-hidden /></span>; }
 
 /** The next thing the research budget will open, with progress, or nothing when everything is open. */
 export function nextUnlock(park: Pick<RestaurantState, 'research'>): string | null {

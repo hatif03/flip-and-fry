@@ -228,3 +228,14 @@ describe('the tomorrow line on the result card', () => {
     await expect.element(screen.getByLabelText('Tomorrow')).not.toHaveTextContent('Next unlock');
   });
 });
+
+describe('the award stamp', () => {
+  it('shows an icon for each of the seven awards, beside its title', async () => {
+    for (const id of ['untidy', 'quiet', 'prices', 'food', 'warm', 'confusing', 'steady'] as const) {
+      const result = { ...lock(2), night: { ...NIGHT, award: { id, title: `Award ${id}`, text: 'Because.' } } };
+      restaurant.remote = remote(result); const screen = await render(<ManagementGame />);
+      const banner = document.querySelector(`[data-award="${id}"]`); expect(banner, id).not.toBeNull(); expect(banner!.querySelector('svg'), id).not.toBeNull(); await expect.element(screen.getByText(`Award ${id}.`)).toBeVisible();
+      await screen.unmount();
+    }
+  });
+});

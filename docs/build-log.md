@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Award stamps, and what stays open from section 7 and section 12
+
+**Added:** each of the seven end-of-night awards has its own small stamp icon beside the banner (`AwardStamp` in `RedditLayer.tsx`), so the banner reads at a glance. Drawn art for stamps and portraits is still the preview-first step with the author.
+
+**Decision: the pass keeps its deterministic timing bar, and the hands-on station is not wired into it (plan 7.1).** The plan's "ticket mode" would open a reduced `KitchenEngine` station for one dish and report `{seconds, quality, burnt}` back, which the server could only bound, not replay. The bar I built instead computes quality in the engine from simulated time, so the server's replay is the whole truth and a client cannot claim a perfect plate. That is the property the port is built around, so I kept it. The hands-on kitchen lives on as the Test Kitchen (7.2), which is unranked on purpose and feeds the restaurant only through the small, bounded research bonus. If the author wants the station inside the night anyway, the cost is a server rule that accepts a reported quality within bounds; I would want that decision from them, not make it here.
+
+**Still not built, for the author to decide:** the hosted co-op (plan 7.3 and 12). It needs two things first: a hands id on the owner's cook (today one pair of hands cooks at a time), and a stamped-input protocol that can only be tested for real on two phones. The realtime channel it would use is already on (visit heads-ups). Of the Reddit features in section 3, the ones not yet used are push notifications (a gated beta the author applies for), media upload (spike S8, needs a device and a published permission check), and the snoovatar image (spike S3; the pixel face stands in).
+
+**Code:** `src/management/RedditLayer.tsx`; test in `reddit-layer.browser.test.tsx`.
+
 ## 2026-11-19 — The Test Kitchen's share button becomes the Reddit comment flow
 
 **Why:** plan section 7.2: "the old share button is replaced by the Reddit comment flow (canned text, explicit button)". The old one built an image card and called the browser's share sheet, which is not what a Reddit game should offer.
