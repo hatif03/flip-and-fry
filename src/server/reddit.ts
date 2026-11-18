@@ -13,6 +13,7 @@ export const postApi: PostApi = {
     const comment = await reddit.submitComment({ id: postId as PostId, text, runAs: 'APP' });
     return { id: comment.id, makeSticky: () => comment.distinguish(true) };
   },
+  async highlight(postId) { await (await reddit.getPostById(postId as `t3_${string}`)).highlight(); },
 };
 
 import { context } from '@devvit/web/server';

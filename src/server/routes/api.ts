@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { z } from 'zod';
-import { context, redis, reddit } from '@devvit/web/server';
+import { context, redis, reddit, settings } from '@devvit/web/server';
 import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
@@ -9,6 +9,8 @@ import { getToday, lockService, openService, savePark, utcDate, type Deps, type 
 import { postApi, socialApi } from '../reddit';
 import { commentPreview, follow, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
+import { neighborhoodName, postNightReport } from '../core/neighborhood';
+import { shiftDate } from '../../management/daily-headline';
 import { telemetry } from '@devvit/analytics/server/reddit';
 import { officialEnd } from '../core/telemetry';
 
@@ -45,8 +47,12 @@ api.get('/today', async c => {
   if (!user) return c.json(needLogin, 401);
   // The first request of a new UTC day creates the daily post if the cron has not (its timezone is undocumented). Never fatal.
   try { await rollDay(redis, postApi, deps.now(), utcDate(deps.now())); } catch (error) { console.error(`rollDay failed: ${error}`); }
+  // Yesterday's report is posted by the first request of the new day if the midnight job has not (its timezone is undocumented).
+  try { await postNightReport(deps, postApi, shiftDate(utcDate(deps.now()), -1)); } catch (error) { console.error(`night report failed: ${error}`); }
   const r = await getToday(deps, user);
-  return 'error' in r ? failure(c, r) : c.json(r.value);
+  if ('error' in r) return failure(c, r);
+  const neighborhood = neighborhoodName(await settings.get('neighborhood').catch(() => undefined));
+  return c.json({ ...r.value, neighborhood });
 });
 
 api.post('/save', async c => {

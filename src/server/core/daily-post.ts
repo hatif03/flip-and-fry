@@ -8,6 +8,8 @@ import type { Store } from './store';
 export interface PostApi {
   createPost(options: { title: string; postData: Record<string, string>; textFallback: string; flairText?: string }): Promise<{ id: string }>;
   comment(postId: string, text: string): Promise<{ id: string; makeSticky(): Promise<void> }>;
+  /** Pin the post in the community highlights. Needs moderator rights, so a refusal never blocks the post. */
+  highlight?(postId: string): Promise<void>;
 }
 export const POSTS_KEY = 'posts';
 /** A claim older than this is a crashed request, not a slow one; another request may take over. */
@@ -56,6 +58,7 @@ export async function rollDay(store: Store, api: PostApi, now: number, date: str
       stickyId = sticky.id;
       await sticky.makeSticky().catch(() => undefined);
     } catch { /* the post exists and is playable; a missing sticky is retried by the nightly report */ }
+    await api.highlight?.(post.id).catch(() => undefined);
     await store.hSet(POSTS_KEY, { [date]: JSON.stringify({ postId: post.id, stickyId } satisfies Stored) });
     return { ok: true, postId: post.id, stickyId, created: true };
   } catch (error) {

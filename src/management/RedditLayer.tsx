@@ -27,7 +27,7 @@ export function DailyBar() {
   const hasResult = Boolean(today.run || result);
   return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-2 max-w-[1600px] rounded-2xl border border-paper/70 bg-teal/95 px-4 py-2 text-paper shadow-[0_3px_0_#0e2a2766]">
     <div className="flex items-center gap-x-3">
-      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gold">{prettyDate(today.date)}</span>
+      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
       <span className="min-w-0 flex-1 truncate font-display text-sm leading-tight">{today.headline.title}</span>
       <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold" title="Days in a row with at least one star"><Flame size={14} className={cn(streak > 0 ? 'text-gold' : 'text-paper/40')} />{streak}</span>
     </div>

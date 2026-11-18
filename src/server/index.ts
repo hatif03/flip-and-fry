@@ -5,6 +5,7 @@ import { api } from './routes/api';
 import { menu } from './routes/menu';
 import { journeys } from './routes/telemetry';
 import { scheduler } from './routes/scheduler';
+import { settingsRoutes } from './routes/settings';
 import { triggers } from './routes/triggers';
 
 const app = new Hono();
@@ -12,6 +13,7 @@ const internal = new Hono();
 internal.route('/menu', menu);
 internal.route('/scheduler', scheduler);
 internal.route('/triggers', triggers);
+internal.route('/settings', settingsRoutes);
 
 // Client-facing routes live under /api, platform callbacks (menu, scheduler, triggers) under /internal.
 app.route('/api', api);

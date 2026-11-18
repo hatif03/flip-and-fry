@@ -22,6 +22,8 @@ export type TodayResponse = {
   run: StoredRun | null;
   streak: number;
   community: { opens: number; locks: number };
+  /** The name a moderator gave the neighborhood in the subreddit settings, already checked. */
+  neighborhood?: string | null;
 };
 
 export type SaveRequest = { rev: number; actions: Action[] };

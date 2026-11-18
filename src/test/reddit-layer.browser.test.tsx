@@ -37,6 +37,16 @@ it('shows the date, the headline and the streak in the daily bar', async () => {
   await expect.element(bar).toHaveTextContent('Wed 9 Dec'); await expect.element(bar).toHaveTextContent(headline.title); await expect.element(bar).toHaveTextContent('4');
 });
 
+it('puts the moderators’ neighborhood name in front of the date, and leaves it out when none is set', async () => {
+  const named = remote(null); named.today = { ...today, neighborhood: 'Maple Street' }; restaurant.remote = named;
+  const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
+  await expect.element(bar).toHaveTextContent('Maple Street · Wed 9 Dec');
+  await screen.unmount(); restaurant.remote = remote(null);
+  const plain = await render(<ManagementGame />);
+  await expect.element(plain.getByRole('complementary', { name: 'Today' })).not.toHaveTextContent('· Wed');
+  await expect.element(plain.getByRole('complementary', { name: 'Today' })).toHaveTextContent('Wed 9 Dec');
+});
+
 it('tells the player the goal and what to do before opening', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });

@@ -4,6 +4,23 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The street: neighborhood name, nightly report comment, highlighted post
+
+**Why:** plan section 8 ("the thread is the street"). Players who play after the first hour of a day should still find something new in the post, and a moderator should be able to make the neighborhood theirs.
+
+**Devvit pieces turned on:**
+- **Subreddit settings** (`devvit.json` `settings.subreddit`): `neighborhood` (text, checked by `/internal/settings/validate-neighborhood` against the same letters, numbers, spaces and apostrophes rule as a restaurant name, 24 characters) and `openDoors` (a switch, on by default, read later by the open-doors feature). The checked name arrives in `GET /api/today` and is shown on the daily bar in front of the date. Nothing else reads free text from settings.
+- **Scheduler** `night-report` at 00:20: the app comments on the previous day's post (as the app account, `runAs: 'APP'`). The first request of a new day posts it too if the job has not (the cron's timezone is undocumented, same reasoning as the daily roll). A claim in Redis (`report:{date}`, expiring after 45 days) makes the two paths safe to race, and a failed comment releases the claim.
+- **Community highlight:** the daily post is highlighted when it is created (`post.highlight()`, best effort: a refusal never blocks the post), and a moderator menu item "Highlight today's post" does it by hand. The app needs moderator rights on the subreddit for this; it is on the list for the demo subreddit.
+
+**What the report says** (`src/server/core/neighborhood.ts`): the number of kitchens that closed the night and the guests they served, how many were perfect nights and warm rooms, the most common award, and the best night by restaurant name and rating, then tomorrow's headline. All of it is counted from stored receipts. It names restaurants (an allowlisted string), never players, and a day with no kitchens says so plainly.
+
+**Refused:** a moderator-written event override (a free choice of headline) for now. Headlines are a weekday rotation the bots are calibrated against; an arbitrary pick on a weekday could hand out an uncalibrated night.
+
+**Needs Reddit to confirm:** that the validation endpoint's response shape (`{ success, error }`) is accepted by the settings form, and that `highlight()` works for the app account on the demo subreddit.
+
+**Code:** `src/server/core/neighborhood.ts`, `src/server/routes/{settings,scheduler,menu,api}.ts`, `daily-post.ts`, `reddit.ts`, `devvit.json`; tests in `src/test/neighborhood.test.ts` and one added to `reddit-layer.browser.test.tsx`.
+
 ## 2026-11-19 — The Test Kitchen is mounted: three shifts, solo and couch co-op, touch controls, saved on Reddit
 
 **Why:** plan section 7.2. The hands-on kitchen (`KitchenEngine`, its scenes and screens) had been built and never mounted. It is now reachable from the restaurant any time the doors are closed (a "Test Kitchen" button beside "Open restaurant"), and everything that was in the arcade ships: the three shifts, solo and two-chef play, the practice tutorial, the scorecard and the chef wardrobe.
