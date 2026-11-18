@@ -106,4 +106,4 @@ npx devvit upload       # upload a new version
 
 ## License
 
-No license has been chosen yet. Fonts and icons keep their own licenses.
+The code is released under the [MIT License](LICENSE). Fonts, icons and libraries keep their own licenses (see Credits). The 3D props, audio and original icon are covered by the notes in [`docs/assets-provenance.md`](docs/assets-provenance.md), not by the MIT grant.

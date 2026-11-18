@@ -25,12 +25,23 @@ Frame time and draw calls were not measured on a device. The first phone check (
 4. **Quality tiers** (`src/scene/quality.ts`): the tier is chosen at start from cores, memory and the renderer name, can be forced with `?q=low|medium|high`, and steps down once if the measured frame time stays above 40 ms over 90 frames (`FrameWatch`). Medium halves the shadow map and the rain, low turns shadows and rain off. Only presentation changes, so a score is identical on every tier.
 5. **Splash without a server call**: it reads the post's own data.
 
+## 2026-11-19: models and audio compressed (with the author's go-ahead)
+
+| Measure | Before | After | Budget now |
+|---|---|---|---|
+| Nine GLB models | 4343 KB | 731 KB | 900 KB |
+| Largest model | 608 KB | 101 KB | 150 KB |
+| Five MP3s | 808 KB | 347 KB | 450 KB |
+
+- `tools/compress-models.mjs`: textures cut to 256 px and re-encoded as WebP, geometry welded, deduplicated, quantized and meshopt-compressed with `@gltf-transform`, `sharp` and `meshoptimizer`. The decoder is bundled with three and drei, so nothing is fetched at run time. The full-size originals are kept in `tools/source/models/` (not shipped).
+- `tools/compress-audio.mjs`: mono, 56 kbps for the music and 48 kbps for effects, with `ffmpeg-static`. Originals are in `tools/source/audio/`.
+- Checked after the change: the Test Kitchen scene test with the real models, the pixel pass tests, and a phone screenshot of the restaurant with its cars, bench and bulletin.
+- The tools are dev dependencies only and are not part of the Reddit build.
+
 ## Not done yet, and what it needs
 
 | Item | Why it is waiting |
 |---|---|
-| Shrink the nine GLBs (resize textures, meshopt) | Needs `@gltf-transform/cli` and an image library such as `sharp`, which are not installed here. Installing a build tool and running it over the author's models needs the author's say. The arcade models (burger, salad, tomato, lettuce, knife, grill, 3 MB) load only in the Test Kitchen, so the first night is not affected. |
-| Re-encode audio to mono 48 to 64 kbps | Needs `ffmpeg`, which is not installed here. |
 | Source maps in the upload (about 15 MB, never served to players) | The Devvit Vite plugin forces `sourcemap: true`; a config override has no effect. Removing them is a post-build step. |
 | Draw call and `renderer.info` audit, memory soak, throttled CPU traces | Needs a real device or a throttled desktop session. |
 | One overlay canvas instead of per-guest DOM labels | Large change; the labels are few (at most about 20) and already positioned from one projection pass. |

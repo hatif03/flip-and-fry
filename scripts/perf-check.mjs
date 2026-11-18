@@ -25,9 +25,9 @@ const checks = [
   ['splash (html, css, script, font, icon)', sum(splashFiles, size), 150 * 1024],
   ['initial JavaScript, gzipped', sum(initialJs, gz), 650 * 1024],
   ['lazy chunks (Test Kitchen, scene), gzipped', sum(lazyJs, gz), 120 * 1024],
-  ['3D models in the build', sum(models, size), 4.5 * 1024 * 1024],
-  ['largest single model', biggestModel, 650 * 1024],
-  ['audio in the build', sum(audio, size), 1.1 * 1024 * 1024],
+  ['3D models in the build', sum(models, size), 900 * 1024],
+  ['largest single model', biggestModel, 150 * 1024],
+  ['audio in the build', sum(audio, size), 450 * 1024],
   ['font files a browser loads (woff2)', sum(pick(/\.woff2$/), size), 140 * 1024],
 ];
 let failed = 0;

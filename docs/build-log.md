@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Models and audio compressed, MIT licence, provenance evidence
+
+**Compression (author approved installing the tools).** Dev dependencies added: `@gltf-transform/cli`, `core`, `functions`, `extensions`, `sharp`, `meshoptimizer` and `ffmpeg-static`. None is in the Reddit build. `tools/compress-models.mjs` and `tools/compress-audio.mjs` turn the originals (kept in `tools/source/`, not shipped) into the files in `public/assets/`: the nine models went from 4343 KB to 731 KB (the largest from 608 KB to 101 KB) and the audio from 808 KB to 347 KB. Textures are cut to 256 px because the pixel look hides the detail; geometry is quantized and meshopt-compressed, and the decoder is bundled with three and drei, so no decoder is fetched. The perf budgets in `scripts/perf-check.mjs` were tightened to match. Checked with the real-model scene test, the pixel pass tests and a phone screenshot. Details: `docs/perf-log.md`.
+
+**Licence.** The code is under the MIT licence (`LICENSE`, and `package.json` now says `MIT`, replacing the template's `BSD-3-Clause`). Chosen because it is short, permissive and the usual choice for a hackathon game. The README says the grant covers the code, and that the props, audio and icon are covered by the provenance notes, not the MIT grant.
+
+**Provenance evidence.** The files' own metadata was inspected: the GLBs carry only `generator: glTF-Transform v4.4.0` (they were post-processed, so the original tool is not recorded), the MP3s carry only an ffmpeg (`Lavf60`) encoder tag, and the icon PNG has no text chunks. Git shows the files first entered the repository in commits `b454cef` and `3a84ec0` on 16 November. So the origin cannot be recovered from the files; `docs/assets-provenance.md` states exactly that and asks the author for one sentence of confirmation.
+
+**Demo subreddit.** `devvit list installs` shows `r/flip_and_fry_dev` already has the Devvit Admin Helper App installed alongside Flip and Fry, so `dr-admin-approve` does not need installing. (Installing it again is refused: "You do not have permission to install this app version".)
+
+**Code:** `tools/compress-models.mjs`, `tools/compress-audio.mjs`, `tools/source/`, `public/assets/`, `scripts/perf-check.mjs`, `LICENSE`, `package.json`, `README.md`, `docs/perf-log.md`.
+
 ## 2026-11-19 — Award stamps, and what stays open from section 7 and section 12
 
 **Added:** each of the seven end-of-night awards has its own small stamp icon beside the banner (`AwardStamp` in `RedditLayer.tsx`), so the banner reads at a glance. Drawn art for stamps and portraits is still the preview-first step with the author.
