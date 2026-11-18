@@ -1,4 +1,8 @@
+import { ARCADE_MODES, arcadeComment } from '../../game/arcade-comment';
+import { SHIFTS } from '../../game/config';
+import type { Mode } from '../../game/types';
 import { cleanNote, flairForStreak, FLAIR, receiptComment } from '../../management/social';
+import { loadArcade } from './arcade';
 import type { StoredRun } from '../../shared/api';
 import { POSTS_KEY } from './daily-post';
 import { keys, streakFor, utcDate, type Deps, type Fail, type Player } from './game';
@@ -51,6 +55,27 @@ export async function postResult(deps: Deps, api: SocialApi, user: Player, note 
     await deps.store.hDel(commented(date), [user.id]); // release, so the player can try again
     return fail(500, error instanceof Error ? 'Reddit could not post the comment.' : 'Could not post.');
   }
+}
+
+// ---- a Test Kitchen result, as a comment --------------------------------------------------------------------------------------
+const arcadeCommented = (date: string): string => `arcade-commented:${date}`;
+async function arcadeText(deps: Deps, user: Player, level: unknown, mode: unknown): Promise<{ ok: true; value: string } | Fail> {
+  if (!Number.isInteger(level) || (level as number) < 0 || (level as number) >= SHIFTS.length || !ARCADE_MODES.includes(mode as Mode)) return fail(400, 'That shift does not exist.');
+  const best = (await loadArcade(deps, user)).value.progress[mode as Mode][level as number];
+  return best > 0 ? { ok: true, value: arcadeComment(level as number, mode as Mode, best) } : fail(409, 'Play that shift first.');
+}
+/** The exact line that would be posted, for the confirm step. */
+export const arcadePreview = arcadeText;
+/** Post a Test Kitchen best as the player, under today's results comment. One a day, its own button, separate from the restaurant's result. */
+export async function postArcadeResult(deps: Deps, api: SocialApi, user: Player, level: unknown, mode: unknown): Promise<{ ok: true; value: { commentId: string; text: string } } | Fail> {
+  const guard = await limited(deps, user.id, 'comment'); if (guard) return guard;
+  const text = await arcadeText(deps, user, level, mode); if ('error' in text) return text;
+  const date = utcDate(deps.now()), post = await deps.store.hGet(POSTS_KEY, date), stored = post ? JSON.parse(post) as { postId?: string; stickyId?: string | null } : null;
+  if (!stored?.postId) return fail(409, 'Today’s post is not ready yet.');
+  if ((await deps.store.hSetNX(arcadeCommented(date), user.id, 'pending')) === 0) return fail(409, 'You already posted a Test Kitchen result today.');
+  await deps.store.expire(arcadeCommented(date), TTL);
+  try { const made = await api.comment(stored.stickyId ?? stored.postId, text.value); await deps.store.hSet(arcadeCommented(date), { [user.id]: made.id }); return { ok: true, value: { commentId: made.id, text: text.value } }; }
+  catch { await deps.store.hDel(arcadeCommented(date), [user.id]); return fail(500, 'Reddit could not post the comment.'); }
 }
 
 /** Set the player's flair from their streak. The flair is a reward for a real streak, never for a comment or a vote. */

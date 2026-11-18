@@ -8,7 +8,7 @@ import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
 import { kitchenPostApi, postApi, socialApi } from '../reddit';
-import { commentPreview, follow, postResult, wearFlair } from '../core/social';
+import { arcadePreview, commentPreview, follow, postArcadeResult, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
@@ -160,4 +160,16 @@ api.post('/kitchen-post', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const r = await postKitchen(deps, kitchenPostApi, user);
   return 'error' in r ? failure(c, r) : c.json({ type: 'kitchen-post', ...r.value });
+});
+api.post('/comment/arcade/preview', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ level: z.number(), mode: z.string() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await arcadePreview(deps, user, body.data.level, body.data.mode);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'preview', text: r.value });
+});
+api.post('/comment/arcade', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ level: z.number(), mode: z.string() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await postArcadeResult(deps, socialApi, user, body.data.level, body.data.mode);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'posted', ...r.value });
 });

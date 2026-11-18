@@ -78,7 +78,7 @@ export function GameHUD({state}:{state:GameState}) {
     <div className="absolute bottom-24 left-4 max-w-[calc(100%-184px)] rounded-lg bg-ink/80 px-3 py-2 text-xs font-bold text-paper xl:hidden"><span className="text-[#ffb28e]">Chef 1</span> · {itemLabel(state.chefs[0].held)}<br/>{engine.prompt(state.chefs[0])}</div>
   </div>;
 }
-export function ResultsScreen({state,go,start}:ScreenProps) {
+export function ResultsScreen({state,go,start,share}:ScreenProps & {share?:(result:NonNullable<GameState['results']>)=>React.ReactNode}) {
   const r = state.results; if (!r) return null;
   const thresholds = targets(r.level,r.mode); const next = thresholds.find(n=>n>r.score);
   const canAdvance = r.level<2&&engine.unlocked(r.level+1);
@@ -91,7 +91,7 @@ export function ResultsScreen({state,go,start}:ScreenProps) {
       {canAdvance&&<div className="mt-3 flex items-center gap-4 border-t-2 border-dashed border-ink/20 pt-3 text-left"><div className="h-12 w-20 overflow-hidden rounded-lg"><KitchenMap level={r.level+1}/></div><div><h3 className="text-lg uppercase">{SHIFTS[r.level+1].name} {r.unlocked?'unlocked':'awaits'}</h3><p className="text-xs font-bold text-ink/60">{SHIFTS[r.level+1].subtitle}</p></div></div>}
     </section>
     {state.progressSaveFailed && <ProgressSaveNotice />}
-    <div className="mt-4 flex flex-wrap justify-center gap-3">{canAdvance&&<button className="game-button game-button-primary" onClick={()=>{engine.select(r.level+1,r.mode);go('/briefing');}}><Play className="fill-current size-5"/>Next shift</button>}<ShareScore result={r}/><button className="game-button" onClick={()=>start(false)}><RotateCcw className="size-5"/>Play again</button><button className="game-button" onClick={()=>go('/')}><Home className="size-5"/>Back to rooftop</button></div>
+    <div className="mt-4 flex flex-wrap justify-center gap-3">{canAdvance&&<button className="game-button game-button-primary" onClick={()=>{engine.select(r.level+1,r.mode);go('/briefing');}}><Play className="fill-current size-5"/>Next shift</button>}{share?share(r):<ShareScore result={r}/>}<button className="game-button" onClick={()=>start(false)}><RotateCcw className="size-5"/>Play again</button><button className="game-button" onClick={()=>go('/')}><Home className="size-5"/>Back to rooftop</button></div>
   </main>;
 }
 /** Keep storage failures visible outside the live HUD, with an explicit recovery action. */

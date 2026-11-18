@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — The Test Kitchen's share button becomes the Reddit comment flow
+
+**Why:** plan section 7.2: "the old share button is replaced by the Reddit comment flow (canned text, explicit button)". The old one built an image card and called the browser's share sheet, which is not what a Reddit game should offer.
+
+**What it does on Reddit:** the results screen shows **Post to the thread**. It opens a confirm panel with the exact line ("Test Kitchen · Golden Hour · solo · best 300 points · 2 stars") and "This posts as you, under today's results comment", then **Post as me**. Rules, the same as the restaurant's result: its own button, once a day, claimed before the Reddit call and released if Reddit fails, separate from the restaurant's comment, and never required for anything.
+
+**Where the text comes from:** the server builds it from the **saved best** for that shift and mode (`arcadeComment`, shared with the client's tests), never from a number the browser sends. The arcade cannot be replayed, but this way a forged request cannot make the app post a score the player never saved. A request for a shift that does not exist or has no saved score is refused.
+
+**Outside Reddit** the original image share is unchanged.
+
+**Code:** `src/game/arcade-comment.ts`, `src/server/core/social.ts` (`arcadePreview`, `postArcadeResult`), `src/server/routes/api.ts`, `src/client/arcade-sync.ts` (`arcadeHttp`), `src/arcade/ArcadeShare.tsx`, `src/components/KitchenUI.tsx` (a `share` slot); tests in `arcade-comment.test.ts` and `arcade-share.browser.test.tsx`.
+
 ## 2026-11-19 — The Test Kitchen feeds the restaurant: a research bonus, and today's shift
 
 **Why:** plan section 7.2. The hands-on kitchen and the tycoon should reward each other, and the Test Kitchen needs a reason to open it today.

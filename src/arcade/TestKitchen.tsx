@@ -4,6 +4,7 @@ import { Briefing, GameHUD, HomeScreen, ResultsScreen, Toolbar } from '@/compone
 import { KitchenAudio } from '@/game/audio';
 import { engine } from '@/game/engine';
 import KitchenScene from '@/scene/KitchenScene';
+import { ArcadeShare } from './ArcadeShare';
 import { DailyShiftCard } from './DailyShiftCard';
 import { isTouchDevice, TouchControls } from './TouchControls';
 
@@ -27,7 +28,7 @@ export default function TestKitchen({ onExit, touch = isTouchDevice() }: { onExi
     {state.phase === 'menu' && <HomeScreen {...props} />}
     {state.phase === 'briefing' && <Briefing {...props} />}
     {state.phase === 'playing' && <GameHUD state={state} />}
-    {state.phase === 'results' && <ResultsScreen {...props} />}
+    {state.phase === 'results' && <ResultsScreen {...props} share={result => <ArcadeShare result={result} />} />}
     {state.phase === 'playing' && touch && state.mode === 'solo' && !state.paused && <TouchControls />}
     <Toolbar {...props} />
     {state.phase === 'menu' && <DailyShiftCard date={today} />}

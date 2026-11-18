@@ -7,6 +7,8 @@ import type { Http } from './session';
  * is built from the server's copy. Saves are small and batched; a failed save is retried the next time anything changes or the tab
  * is hidden, and never blocks play (the scores stay in memory for the session).
  */
+/** The page's request function once the Reddit save is connected. Null in the plain browser build, where there is no thread to post to. */
+export let arcadeHttp: Http | null = null;
 export async function connectArcade(http: Http, wait = 600, onBonus: (points: number) => void = () => undefined): Promise<{ flush: () => Promise<void> }> {
   let cache = emptyArcade(), dirty = false, timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -23,6 +25,7 @@ export async function connectArcade(http: Http, wait = 600, onBonus: (points: nu
     } catch { dirty = true; }
   };
   const queue = (): void => { dirty = true; clearTimeout(timer); timer = setTimeout(() => void flush(), wait); };
+  arcadeHttp = http;
   setArcadeDriver({
     loadProgress: () => cache.progress, loadOutfits: () => cache.outfits,
     saveProgress(progress) { cache = { ...cache, progress }; queue(); return true; },
