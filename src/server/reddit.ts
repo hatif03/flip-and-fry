@@ -14,3 +14,18 @@ export const postApi: PostApi = {
     return { id: comment.id, makeSticky: () => comment.distinguish(true) };
   },
 };
+
+import { context } from '@devvit/web/server';
+import type { SocialApi } from './core/social';
+
+/** Comments run as the player (after approval; before it, as the app account except for the app owner). Flair and follow are explicit too. */
+export const socialApi: SocialApi = {
+  async comment(parentId, text) {
+    const comment = await reddit.submitComment({ id: parentId as PostId, text, runAs: 'USER' });
+    return { id: comment.id };
+  },
+  async setFlair(username, text, background) {
+    await reddit.setUserFlair({ subredditName: context.subredditName, username, text, backgroundColor: background, textColor: 'light' });
+  },
+  async subscribe() { await reddit.subscribeToCurrentSubreddit(); },
+};

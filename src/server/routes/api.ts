@@ -6,7 +6,8 @@ import { actionLogSchema } from '../../management/replay';
 import type { ErrorResponse, InitResponse } from '../../shared/api';
 import { rollDay } from '../core/daily-post';
 import { getToday, lockService, openService, savePark, utcDate, type Deps, type Fail, type Player } from '../core/game';
-import { postApi } from '../reddit';
+import { postApi, socialApi } from '../reddit';
+import { commentPreview, follow, postResult, wearFlair } from '../core/social';
 import { telemetry } from '@devvit/analytics/server/reddit';
 import { officialEnd } from '../core/telemetry';
 
@@ -16,6 +17,7 @@ export const api = new Hono();
 const deps: Deps = { store: redis, now: () => Date.now() };
 
 const saveBody = z.object({ rev: z.number().int().nonnegative(), actions: actionLogSchema });
+const noteBody = z.object({ note: z.string().max(200).optional() });
 const lockBody = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), actions: actionLogSchema });
 
 // A 400-action log is about 40 KB. Anything near the 4 MB platform limit is not a game request.
@@ -75,4 +77,28 @@ api.post('/lock', async c => {
   const journeyId = c.req.header('x-devvit-journey-id');
   if (journeyId) { try { await telemetry.endJourney(officialEnd(journeyId, r.value)); } catch (error) { console.error(`journey end failed: ${error}`); } }
   return c.json(r.value);
+});
+
+// ---- the explicit Reddit actions: each its own button, none gates play ------------------------------------------------------
+api.post('/comment/preview', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = noteBody.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await commentPreview(deps, user, body.data.note ?? '');
+  return 'error' in r ? failure(c, r) : c.json({ type: 'preview', ...r.value });
+});
+api.post('/comment', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = noteBody.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await postResult(deps, socialApi, user, body.data.note ?? '');
+  return 'error' in r ? failure(c, r) : c.json({ type: 'posted', ...r.value });
+});
+api.post('/flair', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await wearFlair(deps, socialApi, user);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'flair', ...r.value });
+});
+api.post('/subscribe', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await follow(deps, socialApi, user);
+  return 'error' in r ? failure(c, r) : c.json({ type: 'followed', ...r.value });
 });

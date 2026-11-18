@@ -3,6 +3,7 @@ import { noJourneys, interactionName, type Journeys } from './journeys';
 import { DAY_LENGTH } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
+import { houseStyle } from '../management/social';
 import type { ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse } from '../shared/api';
 
 /** One round trip to /api. Injected so the session is tested against the real server rules without a network. */
@@ -21,6 +22,7 @@ const message = (r: { status: number; body: unknown }): string => isError(r.body
 export class Session implements RemoteSession {
   today: TodayResponse | null = null;
   result: LockResponse | null = null;
+  social = { posted: false, flair: null as string | null, followed: false };
   /** The last problem worth showing the player (a lost connection, a conflict that forced a reload). */
   notice = '';
   private rev = 0;
@@ -49,7 +51,7 @@ export class Session implements RemoteSession {
     const r = await this.http('GET', '/api/today');
     if (r.status !== 200 || isError(r.body)) return message(r);
     const today = r.body as TodayResponse;
-    this.today = today; this.rev = today.rev; this.pending = []; this.cancelTimer(); this.openDate = null;
+    this.today = today; this.rev = today.rev; this.social = { posted: Boolean(today.run?.commentId), flair: null, followed: false }; this.pending = []; this.cancelTimer(); this.openDate = null;
     if (today.open) {
       // A service was opened and never closed (a reload mid-service). It replays from its first tick, which is the same night.
       this.engine.adopt(today.open.snapshot);
@@ -138,7 +140,7 @@ export class Session implements RemoteSession {
       this.rev = lock.rev; this.result = lock; this.serviceLog = []; this.journeys.clear(); // the server wrote the official end with the replayed score
       // The server's replay is the only receipt that counts. If this preview disagrees, the server's park wins.
       if (stateHash(this.engine.state) !== lock.hash) this.engine.adopt(lock.park);
-      if (this.today) this.today = { ...this.today, rev: lock.rev, park: lock.park, streak: lock.streak, run: lock.official ? { report: lock.report, stars: lock.stars, hash: lock.hash, headline: lock.report.headline!, submittedAt: 0, username: '' } : this.today.run, community: { opens: this.today.community.opens, locks: this.today.community.locks + (lock.official && !lock.replaced && !this.today.run ? 1 : 0) } };
+      if (this.today) this.today = { ...this.today, rev: lock.rev, park: lock.park, streak: lock.streak, run: lock.official ? { report: lock.report, stars: lock.stars, hash: lock.hash, headline: lock.report.headline!, submittedAt: 0, username: '', night: lock.night, name: lock.park.name, style: houseStyle(lock.park) } : this.today.run, community: { opens: this.today.community.opens, locks: this.today.community.locks + (lock.official && !lock.replaced && !this.today.run ? 1 : 0) } };
       this.engine.notify();
     });
   }
@@ -147,4 +149,25 @@ export class Session implements RemoteSession {
   idle(): Promise<unknown> { return this.chain; }
 
   dismissResult(): void { this.result = null; this.engine.notify(); }
+
+  // ---- the explicit Reddit actions. Each is its own button; a failure only shows its message and changes nothing else. ----------
+  async previewComment(note: string): Promise<{ text: string; reply: boolean } | { error: string }> {
+    const r = await this.http('POST', '/api/comment/preview', { note });
+    return r.status === 200 && !isError(r.body) ? { text: (r.body as { text: string }).text, reply: (r.body as { reply: boolean }).reply } : { error: message(r) };
+  }
+  async postResult(note: string): Promise<string | null> {
+    const r = await this.http('POST', '/api/comment', { note });
+    if (r.status !== 200 || isError(r.body)) return message(r);
+    this.social = { ...this.social, posted: true }; this.engine.notify(); return null;
+  }
+  async wearFlair(): Promise<string | null> {
+    const r = await this.http('POST', '/api/flair');
+    if (r.status !== 200 || isError(r.body)) return message(r);
+    this.social = { ...this.social, flair: (r.body as { text: string }).text }; this.engine.notify(); return null;
+  }
+  async follow(): Promise<string | null> {
+    const r = await this.http('POST', '/api/subscribe');
+    if (r.status !== 200 || isError(r.body)) return message(r);
+    this.social = { ...this.social, followed: true }; this.engine.notify(); return null;
+  }
 }

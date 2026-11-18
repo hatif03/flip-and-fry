@@ -1,3 +1,4 @@
+import type { NightSummary } from '../management/awards';
 import type { DailyHeadline } from '../management/daily-headline';
 import type { Action } from '../management/replay';
 import type { Stars } from '../management/stars';
@@ -6,7 +7,7 @@ import type { Report, RestaurantState } from '../management/types';
 /** Request and response shapes shared by the client and the server. Import only types and pure modules from here. */
 export type InitResponse = { type: 'init'; postId: string; date: string; username: string };
 
-export type StoredRun = { report: Report; stars: Stars; hash: string; headline: DailyHeadline['id']; submittedAt: number; username: string };
+export type StoredRun = { report: Report; stars: Stars; hash: string; headline: DailyHeadline['id']; submittedAt: number; username: string; night: NightSummary; name: string; style: string; commentId?: string };
 
 export type TodayResponse = {
   type: 'today';
@@ -36,6 +37,8 @@ export type LockResponse = {
   hash: string;
   report: Report;
   stars: Stars;
+  /** The kitchen card, the award banner and the company value, all from the replayed state. */
+  night: NightSummary;
   /** True when this service is now today's locked result (the first of the day, or a better one). */
   official: boolean;
   replaced: boolean;

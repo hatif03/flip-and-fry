@@ -26,6 +26,12 @@ const challengeSchema = z.object({
 }).refine(c => c.progress <= c.target && c.rewarded === (c.progress === c.target), 'Invalid challenge progress');
 export type DailyChallenge = Validated<z.infer<typeof challengeSchema>>;
 const challengesSchema = z.array(challengeSchema).max(3).default([]).refine(items => new Set(items.map(c => c.kind)).size === items.length, 'Duplicate challenges');
+/** What one service did that the star rules do not already count. Reset when the doors open; read by the kitchen card and the awards. */
+const nightSchema = z.object({ waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
+export type Night = Validated<z.infer<typeof nightSchema>>;
+export const freshNight = (): Night => ({ waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false });
+/** The best company value this restaurant has had, and the service day it was set. */
+const bestSchema = z.object({ value: z.number().default(0), day: z.number().int().nonnegative().default(0) });
 /** The headline a service ran under, with the counters its star line and rating rules read. */
 const headlineStateSchema = z.object({ id: headlineId, date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), seed: z.number().int().nonnegative(), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
 export type HeadlineState = Validated<z.infer<typeof headlineStateSchema>>;
@@ -37,7 +43,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: z.object({ salad: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }), burger: z.object({ enabled: z.boolean(), price: z.number().int().min(10).max(60) }) }),
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -92,6 +98,8 @@ export const discountLift = (state: RestaurantState): number => {
   const ratio = on.reduce((sum, dish) => sum + state.menu[dish].price / DISHES[dish].fair, 0) / on.length;
   return Math.min(DISCOUNT_LIFT_MAX, Math.max(0, 1 - ratio));
 };
+/** Cash plus what the furniture would refund (70%, the engine's sell rate) minus the loan: the figure the ledger keeps a best of. */
+export const companyValue = (state: Pick<RestaurantState, 'cash' | 'furniture' | 'debt'>): number => Math.round(state.cash + state.furniture.reduce((sum, f) => sum + Math.floor(CATALOG[f.kind].price * .7), 0) - state.debt);
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
@@ -105,7 +113,7 @@ export function createRestaurant(): RestaurantState {
       { id: 10, name: 'Basil', role: 'chef', level: 1, x: 1, z: 2, yaw: Math.PI, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
       { id: 11, name: 'Pip', role: 'server', level: 1, x: 4, z: 7, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
     ], guests: [], dirty: [], menu: { salad: { enabled: true, price: 24 }, burger: { enabled: true, price: 38 } },
-    headline: null, comps: 0, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
+    headline: null, comps: 0, night: freshNight(), best: { value: 0, day: 0 }, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
     phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
   };
 }

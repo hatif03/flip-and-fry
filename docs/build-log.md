@@ -4,6 +4,25 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — End of night: awards, kitchen card, company value, and explicit Reddit actions
+
+**Why:** the plan asks for a result worth sharing and for Reddit features used honestly. Nothing here gates play, and nothing posts without a tap and a preview.
+
+**Decisions:**
+- **Night stats** (`refused`, `walkouts`, `waitSeconds`, `dirtyAtClose`) are counted by the engine and come back from the server's replay in `LockResponse.night`. The client never reports them.
+- **Kitchen card** (Welcome, Speed, Value, 0–100) and **one award banner** per night (`src/management/awards.ts`, priority: untidy, quiet, prices, food, warm, confusing, steady). **Company value** and a best-ever are kept in state (`best`).
+- **Result comment** (`src/management/social.ts`, `src/server/core/social.ts`): a canned receipt line, plus an optional note of up to 80 characters with no links or mentions. With no note it replies to the sticky results comment; with a note it is a top-level comment. One per day, claimed with `hSetNX` before the Reddit call and released if Reddit fails. The client shows the exact text first ("This posts as you").
+- **Flair** by streak tier (1/3/7/14/30 days) and **Follow** are separate buttons, never combined with the comment. Flair is a reward for a streak, never for a comment or a vote.
+- **Delete triggers** `onCommentDelete` and `onPostDelete` forget stored ids; both are idempotent.
+
+**Devvit:** `reddit.asUser` is `SUBMIT_COMMENT` and `SUBSCRIBE_TO_SUBREDDIT`. Before app approval, comments run as the app account except for the app owner.
+
+**Refused:** auto-posting, one button for all three actions, flair for upvotes, and notes with links.
+
+**Unverified on Reddit:** the flair permission for the app account, and commenting as the user. Both fail visibly with a message instead of pretending to work.
+
+**Code:** `src/management/awards.ts`, `social.ts`, `RedditLayer.tsx`, `src/server/core/social.ts`, `src/server/reddit.ts`, `src/server/routes/api.ts`, `triggers.ts`.
+
 ## 2026-11-18 — The owner at the pass (start of P7): the player's job during service
 
 **Why:** phone feedback said it was unclear what the player does, and it was right: every decision happened before opening and the service ran by itself. The plan's answer is the pass, so it is built now, in its verifiable form first; the full `KitchenEngine` station replaces the timing bar later.

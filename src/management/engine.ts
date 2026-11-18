@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { COMPS_PER_NIGHT, COOK_BURN, cookQuality, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -22,6 +22,13 @@ export interface RemoteSession {
   /** The server's receipt for the service that just closed, until the player dismisses it. */
   result: LockResponse | null;
   dismissResult(): void;
+  /** What the player has done with today's result. Each action is its own explicit button; none is required to play. */
+  social?: { posted: boolean; flair: string | null; followed: boolean };
+  /** The exact comment that would be posted, so the player confirms the real text. */
+  previewComment?(note: string): Promise<{ text: string; reply: boolean } | { error: string }>;
+  postResult?(note: string): Promise<string | null>;
+  wearFlair?(): Promise<string | null>;
+  follow?(): Promise<string | null>;
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };
@@ -263,7 +270,7 @@ export class RestaurantEngine {
       this.state.seed = mixSeed(this.state.seed ^ headline.seed);
       this.state.headline = { id: headline.id, date: headline.date, seed: headline.seed, walkouts: 0, dirtyAtClose: 0, closed: false };
     } else this.state.headline = null;
-    Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [], comps: 0 });
+    Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [], comps: 0, night: freshNight() });
     this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Your team has it from here.'); return null;
   }
   private startChallenges(): void {
@@ -342,7 +349,7 @@ export class RestaurantEngine {
     // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.
     if (fx.burgerBias > 0 && dish !== 'burger' && dishes.includes('burger') && this.random() < fx.burgerBias) dish = 'burger';
     const price = s.menu[dish].price;
-    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * PRICE_SLOPE * fx.priceRoll)) { s.totals.missed++; this.event = 'A guest thought the menu was too expensive.'; return; }
+    if (this.random() < Math.max(0, (price / DISHES[dish].fair - 1) * PRICE_SLOPE * fx.priceRoll)) { s.totals.missed++; s.night.refused++; this.event = 'A guest thought the menu was too expensive.'; return; }
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
     const special = fx.specialAlways || isSpecialGuest(s.day, s.nextId);
@@ -355,6 +362,7 @@ export class RestaurantEngine {
     guest.route = [access, ...(this.route(access, entrance) ?? []), { x: entrance.x, z: entrance.z + 1 }];
     if (!happy) {
       this.state.totals.missed++; this.event = 'A guest waited too long. Another chef or server could help.';
+      this.state.night.walkouts++;
       if (guest.special && this.state.headline) this.state.headline.walkouts++;
       this.state.staff.filter(s => s.guestId === guest.id).forEach(resetStaff);
     }
@@ -393,6 +401,7 @@ export class RestaurantEngine {
     const fx = this.fx;
     if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + (Math.max(5.5 + Math.min(0, fx.gapDelta), 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12 - Math.min(COMFORT_GAP_MAX, Math.max(0, comfort(s) - 20) * COMFORT_GAP) + fx.gapDelta) + this.random() * 2) * (1 - discountLift(s)); }
     // The inspector counts the dirty seats once, at the moment the doors close.
+    if (!s.night.closed && s.elapsed >= DAY_LENGTH) { s.night.closed = true; s.night.dirtyAtClose = s.dirty.length; }
     if (s.headline && !s.headline.closed && s.elapsed >= DAY_LENGTH) { s.headline.closed = true; s.headline.dirtyAtClose = s.dirty.length; }
     for (const guest of s.guests) {
       if (guest.stage === 'arriving' && walk(guest, dt, 1.7 * fx.walk)) {
@@ -430,7 +439,7 @@ export class RestaurantEngine {
         guest.stage = 'eating'; guest.timer = 10; guest.happy = true;
         if (!guest.paid) {
           const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075)));
-          const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
+          s.night.waitSeconds += guest.waiting; const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
           this.recordIncome(earned, 'service', guest.id, tip);
           this.event = `${DISHES[guest.dish].name} served. +$${earned}${tip ? ` including $${tip} tip` : ''}`;
           for (const challenge of advanceDailyChallenges(s.dailyChallenges, guest, tip)) {
@@ -454,6 +463,7 @@ export class RestaurantEngine {
     let rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06 - (h ? h.dirtyAtClose * fx.dirtyPenalty : 0)));
     if (fx.criticCap && h && h.walkouts > 0) rating = Math.min(rating, 2);
     s.reputation = Math.round((s.reputation * .65 + rating * .35) * 100) / 100;
+    const value = companyValue(s); if (value > s.best.value) s.best = { value, day: s.day };
     s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit: s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment, rating }); s.history = s.history.slice(-20);
     this.beginNextDay(); this.changed();
   }

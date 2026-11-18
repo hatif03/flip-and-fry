@@ -1,5 +1,7 @@
 import { createDailyHeadline, dayOfYear, daysInYear, mixSeed, shiftDate } from '../../management/daily-headline';
 import { applyPlanning, actionLogSchema, isServiceAction, MAX_SERVICE_ACTIONS, openError, runService, type Action } from '../../management/replay';
+import { nightSummary } from '../../management/awards';
+import { houseStyle } from '../../management/social';
 import { evaluateStars, packScore } from '../../management/stars';
 import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
 import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse } from '../../shared/api';
@@ -142,7 +144,8 @@ export async function lockService(deps: Deps, user: Player, date: string, action
 
   const history = replay.state.history, previousProfit = history.length >= 2 ? history[history.length - 2].profit : null;
   const stars = evaluateStars(replay.report, replay.state.headline!, previousProfit);
-  const run: StoredRun = { report: replay.report, stars, hash: replay.hash, headline: headline.id, submittedAt: deps.now(), username: user.name };
+  const night = nightSummary(replay.state, replay.report);
+  const run: StoredRun = { report: replay.report, stars, hash: replay.hash, headline: headline.id, submittedAt: deps.now(), username: user.name, night, name: replay.state.name, style: houseStyle(replay.state) };
   const existingRaw = await deps.store.hGet(keys.runs(date), user.id), existing = existingRaw ? (JSON.parse(existingRaw) as StoredRun) : null;
   const official = !existing || better(run, existing), replaced = !!existing && official;
   if (official) {
@@ -154,7 +157,7 @@ export async function lockService(deps: Deps, user: Player, date: string, action
     if (stars.stars >= 1) await markPlayed(deps.store, user.id, date);
   }
   await touchProfile(deps, user);
-  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, official, replaced, streak: await streakFor(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
+  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, streak: await streakFor(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
 }
 
 // ---- streak -----------------------------------------------------------------------------------------------------

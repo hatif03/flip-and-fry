@@ -1,6 +1,7 @@
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import { vi } from 'vitest';
+import { Toaster } from '@/components/ui/sonner';
 import { restaurant, type RemoteSession } from '@/management/engine';
 import ManagementGame from '@/management/ManagementGame';
 import { createDailyHeadline } from '@/management/daily-headline';
@@ -12,8 +13,9 @@ vi.mock('@/management/RestaurantScene', () => ({ default: ({ weatherMode }: { we
 
 const headline = createDailyHeadline('2026-12-09');
 const today: TodayResponse = { type: 'today', date: '2026-12-09', headline, rev: 3, park: createRestaurant(), open: null, run: null, streak: 4, community: { opens: 5, locks: 2 } };
+const NIGHT = { card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm' as const, title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 };
 const lock = (stars: 0 | 1 | 2 | 3): LockResponse => ({
-  type: 'lock', hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
+  type: 'lock', night: NIGHT, hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
   report: { ...createRestaurant().totals, served: 17, missed: 2, revenue: 400, tips: 38, ingredients: 150, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, profit: 198, rating: 4.2 },
   stars: { stars, goal: stars >= 1, challenges: stars >= 2 ? 3 : 1, beatPrevious: stars >= 3, goalText: 'Finish with a rating of 4.0 or better' },
 });
@@ -49,7 +51,7 @@ it('says what is happening while the doors are open', async () => {
 });
 
 it('explains that only the best night of the day counts once a result is saved', async () => {
-  const saved = lock(2); restaurant.remote = remote(null, { report: saved.report, stars: saved.stars, hash: saved.hash, headline: 'rain', submittedAt: 0, username: 'a' });
+  const saved = lock(2); restaurant.remote = remote(null, { report: saved.report, stars: saved.stars, hash: saved.hash, headline: 'rain', submittedAt: 0, username: 'a', night: NIGHT, name: 'Little Rooftop', style: 'Garden & Grill' });
   const screen = await render(<ManagementGame />);
   await expect.element(screen.getByRole('complementary', { name: 'Today' })).toHaveTextContent('only your best night of the day counts');
 });
@@ -124,4 +126,72 @@ it('keeps the tabs in the plain browser game while the doors are open', async ()
   restaurant.open();
   await expect.element(screen.getByRole('navigation', { name: 'Restaurant management' })).toBeVisible();
   await expect.element(screen.getByText('Saved on this device')).toBeVisible();
+});
+
+describe('the end of the night: award, kitchen card and optional sharing', () => {
+  function social(overrides: Partial<RemoteSession> = {}) {
+    const posted: string[] = [], r = remote(lock(2));
+    Object.assign(r, {
+      social: { posted: false, flair: null as string | null, followed: false },
+      previewComment: vi.fn(async (note: string) => ({ text: `Little Rooftop · Garden & Grill · Warmest room · rating 4.2 · 4-day streak${note ? `\n\n${note}` : ''}`, reply: !note })),
+      postResult: vi.fn(async (note: string) => { posted.push(note); r.social!.posted = true; restaurant.notify(); return null; }),
+      wearFlair: vi.fn(async () => { r.social!.flair = 'Regular'; restaurant.notify(); return null; }),
+      follow: vi.fn(async () => { r.social!.followed = true; restaurant.notify(); return null; }),
+      ...overrides,
+    });
+    restaurant.remote = r; return { r, posted };
+  }
+
+  it('shows the award banner, the three kitchen card meters and the company value on the one card', async () => {
+    social(); const screen = await render(<ManagementGame />), card = screen.getByRole('dialog');
+    await expect.element(card).toHaveTextContent('Warmest room.'); await expect.element(card).toHaveTextContent('A cozy room and almost nobody walked out.');
+    for (const [name, value] of [['Welcome', 72], ['Speed', 64], ['Value', 88]] as const) await expect.element(screen.getByRole('progressbar', { name })).toHaveAttribute('aria-valuenow', String(value));
+    await expect.element(card).toHaveTextContent('Company value $2,400'); await expect.element(card).toHaveTextContent('a new best!');
+  });
+
+  it('has three separate optional buttons, and Continue works without touching any of them', async () => {
+    const { r } = social(); const screen = await render(<ManagementGame />);
+    for (const name of [/Post this result/, /Wear .Regular. flair|Wear .*flair/, /Follow this kitchen/]) await expect.element(screen.getByRole('button', { name })).toBeVisible();
+    await screen.getByRole('button', { name: 'Continue' }).click(); expect(r.result).toBeNull(); expect(r.postResult).not.toHaveBeenCalled(); expect(r.wearFlair).not.toHaveBeenCalled(); expect(r.follow).not.toHaveBeenCalled();
+  });
+
+  it('shows the exact comment and who it posts as before anything is sent, with a note limited to 80 characters', async () => {
+    const { r, posted } = social(); const screen = await render(<ManagementGame />);
+    await screen.getByRole('button', { name: 'Post this result' }).click();
+    const card = screen.getByRole('dialog');
+    await expect.element(card).toHaveTextContent('This is exactly what will be posted'); await expect.element(card).toHaveTextContent('Little Rooftop · Garden & Grill · Warmest room · rating 4.2 · 4-day streak');
+    await expect.element(card).toHaveTextContent('This posts as you, under today’s results comment.');
+    expect(r.postResult).not.toHaveBeenCalled(); // viewing the preview posted nothing
+    const input = screen.getByLabelText('Add a short note (optional)'); expect((await input.element()).getAttribute('maxlength')).toBe('80');
+    await input.fill('Great night!'); await expect.element(card).toHaveTextContent('Great night!'); await expect.element(card).toHaveTextContent('as a comment on today’s post');
+    await screen.getByRole('button', { name: 'Post as me' }).click();
+    expect(posted).toEqual(['Great night!']); await expect.element(screen.getByRole('button', { name: /Posted/ })).toBeDisabled();
+  });
+
+  it('can be cancelled without posting', async () => {
+    const { r } = social(); const screen = await render(<ManagementGame />);
+    await screen.getByRole('button', { name: 'Post this result' }).click(); await screen.getByRole('button', { name: 'Cancel' }).click();
+    expect(r.postResult).not.toHaveBeenCalled(); await expect.element(screen.getByRole('button', { name: 'Post this result' })).toBeVisible();
+  });
+
+  it('flair and follow are separate actions that each work on their own', async () => {
+    const { r } = social(); const screen = await render(<ManagementGame />);
+    await screen.getByRole('button', { name: /flair/ }).click(); expect(r.wearFlair).toHaveBeenCalledTimes(1); expect(r.follow).not.toHaveBeenCalled(); expect(r.postResult).not.toHaveBeenCalled();
+    await screen.getByRole('button', { name: /Follow this kitchen/ }).click(); expect(r.follow).toHaveBeenCalledTimes(1); await expect.element(screen.getByRole('button', { name: /Following/ })).toBeDisabled();
+  });
+
+  it('a failed action shows its message and leaves the card usable', async () => {
+    const { r } = social({ follow: vi.fn(async () => 'Reddit could not follow this community.') }); const screen = await render(<><ManagementGame /><Toaster /></>);
+    await screen.getByRole('button', { name: /Follow this kitchen/ }).click();
+    await expect.element(screen.getByText('Reddit could not follow this community.')).toBeVisible(); await expect.element(screen.getByRole('button', { name: /Follow this kitchen/ })).toBeEnabled();
+    await screen.getByRole('button', { name: 'Continue' }).click(); expect(r.result).toBeNull();
+  });
+
+  it('offers no flair until there is a streak, and keeps every button at least 44px tall', async () => {
+    const r = remote({ ...lock(0), streak: 0 }); Object.assign(r, { social: { posted: false, flair: null, followed: false }, previewComment: async () => ({ text: 'x', reply: true }), postResult: async () => null, wearFlair: async () => null, follow: async () => null }); restaurant.remote = r;
+    const screen = await render(<ManagementGame />);
+    await expect.element(screen.getByRole('button', { name: 'Earn a star to wear flair' })).toBeDisabled();
+    await new Promise(r => setTimeout(r, 600)); // the dialog scales in from 95%: measure once it has settled
+    for (const name of ['Post this result', 'Earn a star to wear flair', 'Continue']) expect((await screen.getByRole('button', { name }).element()).getBoundingClientRect().height, name).toBeGreaterThanOrEqual(44);
+  });
 });
