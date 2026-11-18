@@ -4,6 +4,45 @@ This is the running record for Too Many Cooks on Devvit. The plan lives in `docs
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-18 — Plan rewritten from the Devpost rules and the Devvit docs
+
+`docs/hackathon-plan.md` is replaced. It uses the saved Devpost pages (Overview, Resources, Rules) and the official docs in `reddit/devvit-docs`.
+
+Facts that changed the plan:
+
+- **The demo subreddit must be public with under 200 members** (or install `dr-admin-approve`). The earlier plan said private.
+- **README.md in the repo root is required.** The earlier plan said it was optional.
+- **The optional demo video is under 1 minute.** A port must explain how it was significantly updated; `git tag pre-devvit` marks the baseline.
+- **Four equal criteria:** Delightful UX (first in the tie-break), Polish, Reddity, Daily Content. The Overview warns against AI slop, on-the-nose Reddit theming and unstyled generic components, and asks for one result card, not several end screens.
+- **Snoovatars and streaks are named bonuses.** Snoovatars sit behind spike S3 with a pixel-face fallback.
+- **`permissions.http.enable` defaults to true,** so it is set to false explicitly.
+- **The day locks by itself.** A Lock button added an end-screen decision the Overview asks us to avoid.
+- **`KitchenEngine` ships whole:** the pass in ticket mode, plus the Test Kitchen (three shifts, solo and two-chef, tutorial, wardrobe) with progress in Redis.
+- **Added:** a nightly report comment, a highlighted daily post, subreddit settings for the neighborhood name, text fallback, `showForm` for the note, an optional "Post my kitchen" action, a Feedback and Devvit Helper track, test gates G0–G13 and an optimization phase that starts only after the full game passes G11.
+
+Why: each is either a hard requirement on Devpost, a documented platform limit, or a named judging preference. Nothing from the earlier list was dropped; the tests and the optimization plan are new.
+
+Devvit or third party: Silkscreen and a pixel body font (OFL, bundled); `gltf-transform` with meshopt (authoring time); no new Devvit permission beyond the plan's list.
+Code or plan: `docs/hackathon-plan.md`, `docs/plan-review.md`.
+
+## 2026-11-18 — Plan reviewed against the code; amendments proposed
+
+`docs/plan-review.md` compares the plan with the engine. Proposed, not yet applied to the plan:
+
+- Park becomes server-authoritative (the server applies planning actions through the engine's own methods), so a client cannot post its own cash.
+- Park and profile live under `park:{uid}` and `profile:{uid}`, because Redis TTL is per key and not per hash field.
+- `Math.hypot` in `walk()` becomes `Math.sqrt` so the replay matches across JavaScript engines. The server's receipt is the official one.
+- The pass becomes a tap-and-hold micro-action in the tycoon scene, not an embedded `KitchenEngine`, because the arcade cannot be replayed on the server and is too large to embed per ticket.
+- Nothing is cut. Co-op, open-door visits, presence diners, the pass, research and regulars all run on one deterministic engine plus a tick-stamped action log: the server replays it for the lock, visits and bots, and clients run it in lockstep for co-op, so only actions cross the realtime channel (100 messages/s cap, server-send only).
+- Visitors are inputs to the opening snapshot, so presence diners stay replay-verifiable.
+- Added: a static inline splash with `postData` and an expanded `game` entrypoint, a phone spike first, sample kitchens for the empty-subreddit case, a lazy daily-post roll (the cron timezone is undocumented), a streak bitfield, and bot calibration for 9–16 Dec.
+- Push notifications are a gated beta: apply, but build nothing that depends on it.
+
+Why: each item either breaks against the current code or needs a different mechanism on Devvit. Platform limits were checked against the official docs in the `reddit/devvit-docs` GitHub repo. Devpost and `developers.reddit.com` could not be fetched, so Devpost facts come from search excerpts and the Android WebGL claim is still unverified; the review lists them.
+
+Devvit or third party: none turned on or off by this entry.
+Code or plan: `docs/plan-review.md`, `src/management/engine.ts`.
+
 ## 2026-11-18 — The build log is a standing rule for Cursor and Claude
 
 Cursor reads `.cursor/rules/build-log.mdc`. Claude reads `.claude/rules/build-log.md`. The text matches. Neither file is a substitute for this log.
