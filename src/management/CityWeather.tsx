@@ -5,6 +5,7 @@ import { useReducedMotionQuery } from '@/hooks/use-reduced-motion';
 import { restaurant } from './engine';
 import { cityDelta } from './city-motion';
 import { CityLighting } from './CityLighting';
+import { SETTINGS, useTier } from '@/scene/quality';
 import { createRainSeeds, PUDDLE_COUNT, RAIN_COUNT, WeatherAnimation, weatherBlend, writeRainPositions, type WeatherKind, type WeatherMode } from './weather';
 
 const noRaycast = () => {};
@@ -16,6 +17,7 @@ const colors = {
 /** Bounded outdoor rain and blended lighting. No engine writes, audio, postprocessing or hit targets. */
 export const CityWeather = memo(function CityWeather({ columns, mode, building, onChange }: { columns: number; mode: WeatherMode; building: boolean; onChange: (kind: WeatherKind) => void }) {
   const reduced = useReducedMotionQuery(), animation = useRef<WeatherAnimation>(new WeatherAnimation()), identity = useRef(restaurant.state);
+  const tier = useTier(), quality = SETTINGS[tier];
   const reported = useRef<WeatherKind | null>(null), root = useRef<THREE.Group>(null);
   const sun = useRef<THREE.DirectionalLight>(null), ambient = useRef<THREE.AmbientLight>(null), fill = useRef<THREE.DirectionalLight>(null);
   const fog = useRef<THREE.Fog>(null), rain = useRef<THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>>(null);
@@ -31,6 +33,8 @@ export const CityWeather = memo(function CityWeather({ columns, mode, building, 
     return { context, texture, palette, geometry, color: new THREE.Color(), dummy: new THREE.Object3D(), skySun: -1, skyRain: -1 };
   }, []);
   useEffect(() => () => { resources.texture.dispose(); resources.geometry.dispose(); }, [resources]);
+  // The rain is one fixed buffer of line segments (two vertices a drop); a lower tier simply draws fewer of them.
+  useEffect(() => { resources.geometry.setDrawRange(0, Math.floor(RAIN_COUNT * quality.rainShare) * 2); }, [resources, quality.rainShare]);
   useFrame(({ camera }, dt) => {
     if (identity.current !== restaurant.state) { identity.current = restaurant.state; animation.current = new WeatherAnimation(); }
     const weather = animation.current;
@@ -94,7 +98,7 @@ export const CityWeather = memo(function CityWeather({ columns, mode, building, 
     <group ref={root} name="city-weather">
     <ambientLight ref={ambient} intensity={.65} color="#ffedda" />
     <hemisphereLight args={['#fff0d8', '#687b52', 1.1]} />
-    <directionalLight ref={sun} name="weather-sunlight" position={[-5, 20, -8]} intensity={2.4} color="#ffd3a2" castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-22} shadow-camera-right={22} shadow-camera-top={22} shadow-camera-bottom={-22} shadow-normalBias={.03} shadow-bias={-.0001} />
+    <directionalLight key={tier} ref={sun} name="weather-sunlight" position={[-5, 20, -8]} intensity={2.4} color="#ffd3a2" castShadow={quality.shadows} shadow-mapSize={[quality.shadowMap || 256, quality.shadowMap || 256]} shadow-camera-left={-22} shadow-camera-right={22} shadow-camera-top={22} shadow-camera-bottom={-22} shadow-normalBias={.03} shadow-bias={-.0001} />
     <directionalLight ref={fill} position={[10, 8, 20]} intensity={.8} color="#c5dfdf" />
     <lineSegments ref={rain} name="weather-rain" geometry={resources.geometry} frustumCulled={false} raycast={noRaycast} visible={false}>
       <lineBasicMaterial color="#B7E5EF" transparent opacity={0} depthWrite={false} />
