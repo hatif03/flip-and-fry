@@ -19,7 +19,13 @@ export function guestMood(value: number, stage: Guest['stage'], happy: boolean):
 
 /** What a guest is thinking, from the same numbers the simulation already uses. Display only: it never changes tips or saves. */
 export type Thought = { text: string; tone: 'good' | 'bad' };
-export function guestThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'>, patienceSeconds: number): Thought | null {
+export function guestThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'> & { regular?: string | null }, patienceSeconds: number): Thought | null {
+  const thought = baseThought(guest, patienceSeconds);
+  if (!guest.regular || guest.stage === 'arriving' || guest.stage === 'leaving') return thought;
+  // A regular carries their name, so the player can see who is who and who is about to give up on them.
+  return thought ? { ...thought, text: `${guest.regular}: ${thought.text.toLowerCase()}` } : { text: `${guest.regular}, a regular`, tone: 'good' };
+}
+function baseThought(guest: Pick<Guest, 'stage' | 'waiting' | 'happy' | 'dish' | 'price' | 'quality' | 'paid'>, patienceSeconds: number): Thought | null {
   const fair = DISHES[guest.dish].fair, ratio = guest.price / fair;
   if (guest.stage === 'leaving') return guest.happy ? null : { text: 'Too long a wait', tone: 'bad' };
   if (guest.stage === 'arriving') return null;

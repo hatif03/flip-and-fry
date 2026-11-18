@@ -17,7 +17,7 @@ function play(state: RestaurantState, nights: number): RestaurantState[] {
 describe('the contracts', () => {
   it('start after the four first goals and read only saved state', () => {
     expect(GOALS.slice(0, 4).map(g => g.id)).toEqual(['first-service', 'atmosphere', 'more-tables', 'three-days']);
-    expect(GOALS.slice(4).map(g => g.id)).toEqual(['pay-the-roof', 'three-good-nights', 'nailed-down', 'honest-prices', 'full-room']);
+    expect(GOALS.slice(4).map(g => g.id)).toEqual(['pay-the-roof', 'three-good-nights', 'nailed-down', 'honest-prices', 'regulars-table', 'full-room']);
     for (const g of GOALS) { expect(g.value(createRestaurant()), g.id).toBeLessThan(g.target); expect(g.reward, g.id).toBeGreaterThan(0); }
   });
   it('Pay the roof: counts profit banked, or finishes when the recovery loan is cleared', () => {

@@ -39,7 +39,8 @@ export type Role = z.infer<typeof roleSchema>;
 const agentSchema = pointSchema.extend({ yaw: z.number().finite(), route: z.array(pointSchema).max(200) });
 const staffSchema = agentSchema.extend({ id: z.number().int(), name: z.string().max(30), role: roleSchema, level: z.number().int().min(1).max(3), task: z.enum(['idle', 'toKitchen', 'cooking', 'collect', 'deliver', 'clean']), guestId: z.number().int().nullable(), stationId: z.number().int().nullable(), timer: z.number().finite().nonnegative() });
 export type Staff = Validated<z.infer<typeof staffSchema>>;
-const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(['mouse', 'crocodile', 'rabbit', 'bear']), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['arriving', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false) });
+export const SPECIES = ['mouse', 'crocodile', 'rabbit', 'bear'] as const;
+const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(SPECIES), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['arriving', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false), regular: z.string().max(20).nullable().default(null) });
 export type Guest = Validated<z.infer<typeof guestSchema>>;
 const totalsSchema = z.object({ revenue: z.number().nonnegative(), ingredients: z.number().nonnegative(), served: z.number().int().nonnegative(), missed: z.number().int().nonnegative(), tips: z.number().nonnegative() });
 export type Totals = Validated<z.infer<typeof totalsSchema>>;
@@ -50,15 +51,20 @@ const challengeSchema = z.object({
 export type DailyChallenge = Validated<z.infer<typeof challengeSchema>>;
 const challengesSchema = z.array(challengeSchema).max(3).default([]).refine(items => new Set(items.map(c => c.kind)).size === items.length, 'Duplicate challenges');
 /** What one service did that the star rules do not already count. Reset when the doors open; read by the kitchen card and the awards. */
-const nightSchema = z.object({ waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false) });
+const nightSchema = z.object({ waitSeconds: z.number().nonnegative().default(0), refused: z.number().int().nonnegative().default(0), walkouts: z.number().int().nonnegative().default(0), dirtyAtClose: z.number().int().nonnegative().default(0), closed: z.boolean().default(false), arrivals: z.number().int().nonnegative().default(0) });
 export type Night = Validated<z.infer<typeof nightSchema>>;
-export const freshNight = (): Night => ({ waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false });
+export const freshNight = (): Night => ({ waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false, arrivals: 0 });
 /** Running counts the contracts read: services since furniture was last sold, services in a row at honest prices, and whether the recovery loan was ever cleared. */
 const streaksSchema = z.object({ nailed: z.number().int().nonnegative().default(0), honest: z.number().int().nonnegative().default(0), loanCleared: z.number().int().min(0).max(1).default(0) });
 export type Streaks = Validated<z.infer<typeof streaksSchema>>;
 export const freshStreaks = (): Streaks => ({ nailed: 0, honest: 0, loanCleared: 0 });
 /** A dish is priced honestly within this many dollars of fair. */
 export const HONEST_BAND = 4;
+/** A guest who keeps coming back. Every regular visits once a service, in a fixed arrival slot, and a happy visit adds to their streak. */
+export const REGULAR_NAMES = ['Maple', 'Biscuit', 'Juniper', 'Pepper', 'Clover', 'Waffle', 'Olive', 'Hazel', 'Pickle', 'Nutmeg', 'Basil', 'Mochi'] as const;
+export const MAX_REGULARS = 4;
+const regularSchema = z.object({ name: z.enum(REGULAR_NAMES), species: z.enum(SPECIES), dish: z.enum(DISH_IDS), visits: z.number().int().nonnegative(), streak: z.number().int().nonnegative() });
+export type Regular = Validated<z.infer<typeof regularSchema>>;
 /** The best company value this restaurant has had, and the service day it was set. */
 const bestSchema = z.object({ value: z.number().default(0), day: z.number().int().nonnegative().default(0) });
 /** The headline a service ran under, with the counters its star line and rating rules read. */
@@ -76,7 +82,7 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
-  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
+  headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
   totals: totalsSchema, history: z.array(reportSchema).max(20), lifetimeServed: z.number().int().nonnegative(), claimed: z.array(z.string()).max(10), music: z.boolean(), welcomed: z.boolean(),
 });
@@ -136,7 +142,7 @@ export const companyValue = (state: Pick<RestaurantState, 'cash' | 'furniture' |
 export const capacity = (state: RestaurantState): number => state.furniture.filter(item => item.kind === 'table').length * 2;
 /** A playable starter business, with no fabricated revenue or customers served. */
 export function createRestaurant(): RestaurantState {
-  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
+  return { version: 1, name: 'Little Rooftop', streaks: freshStreaks(), regulars: [], day: 1, cash: 1250, reputation: 3.5, debt: 0, expanded: false,
     furniture: [
       { id: 1, kind: 'prep', x: 1, z: 1, rotation: 0 }, { id: 2, kind: 'grill', x: 3, z: 1, rotation: 0 },
       { id: 3, kind: 'table', x: 1, z: 4, rotation: 0 }, { id: 4, kind: 'table', x: 5, z: 4, rotation: 0 }, { id: 5, kind: 'table', x: 7, z: 1, rotation: 0 },

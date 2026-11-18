@@ -1,5 +1,5 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { HONEST_BAND, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -17,6 +17,7 @@ export const GOALS = [
   { id: 'three-good-nights', title: 'Three good nights', text: 'Earn a rating of 4 or more on 3 services', target: 3, reward: 250, value: (s: RestaurantState) => s.history.filter(r => r.rating >= 4).length },
   { id: 'nailed-down', title: 'Nailed down', text: 'Run 3 services in a row without selling any furniture', target: 3, reward: 200, value: (s: RestaurantState) => s.streaks.nailed },
   { id: 'honest-prices', title: 'Honest prices', text: `Run 3 profitable services with every dish within $${HONEST_BAND} of fair`, target: 3, reward: 200, value: (s: RestaurantState) => s.streaks.honest },
+  { id: 'regulars-table', title: 'Regulars’ table', text: 'Keep a regular happy three visits in a row', target: 3, reward: 300, value: (s: RestaurantState) => Math.max(0, ...s.regulars.map(r => r.streak)) },
   { id: 'full-room', title: 'A full room', text: 'Have 8 seats and serve 8 guests in one service', target: 8, reward: 350, value: (s: RestaurantState) => capacity(s) >= 8 ? Math.max(0, ...s.history.map(r => r.served)) : 0 },
 ];
 /** Exact business results computed while the owner was away, not an idle-income estimate. */
@@ -351,6 +352,10 @@ export class RestaurantEngine {
     if (!selected) { s.totals.missed++; this.event = 'A guest found no free seat. More tables or faster clearing would help.'; return; }
     const dishes = DISH_IDS.filter(dish => s.menu[dish].enabled);
     const fx = this.fx;
+    // A regular's slot is a fixed arrival (the 3rd, 7th, 11th, 15th), so it takes no random draw and a night without regulars is unchanged.
+    s.night.arrivals++;
+    const regular = s.regulars.find((_, k) => s.night.arrivals === 3 + 4 * k) ?? null;
+    if (regular && dishes.length && !s.guests.some(g => g.regular === regular.name)) return this.arriveRegular(selected, regular, dishes);
     let dish = dishes[Math.floor(this.random() * dishes.length)]; if (!dish) return;
     // Bright sun nudges toward the grill. The extra roll exists only when that weight is on, so other nights keep their random stream.
     if (fx.burgerBias > 0 && dish !== 'burger' && dishes.includes('burger') && this.random() < fx.burgerBias) dish = 'burger';
@@ -359,7 +364,28 @@ export class RestaurantEngine {
     const route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
     route.push(seatPoint(selected.table, selected.seat));
     const special = fx.specialAlways || isSpecialGuest(s.day, s.nextId);
-    s.guests.push({ id: s.nextId++, special, ...entrance, yaw: Math.PI, route, species: (['mouse', 'rabbit', 'bear', 'crocodile'] as const)[Math.floor(this.random() * 4)], tableId: selected.table.id, seat: selected.seat, dish, price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false });
+    s.guests.push({ id: s.nextId++, special, ...entrance, yaw: Math.PI, route, species: (['mouse', 'rabbit', 'bear', 'crocodile'] as const)[Math.floor(this.random() * 4)], tableId: selected.table.id, seat: selected.seat, dish, price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null });
+  }
+  /** The regular sits and orders their usual if it is on the menu, and the first dish otherwise (which will not please them). They never turn at the door over price. */
+  private arriveRegular(selected: { table: Furniture; seat: number }, regular: RestaurantState['regulars'][number], dishes: Dish[]): void {
+    const s = this.state, dish = dishes.includes(regular.dish) ? regular.dish : dishes[0], route = this.route(entrance, accessPoints(selected.table)[selected.seat]); if (!route) return;
+    route.push(seatPoint(selected.table, selected.seat));
+    s.guests.push({ id: s.nextId++, special: false, ...entrance, yaw: Math.PI, route, species: regular.species, tableId: selected.table.id, seat: selected.seat, dish, price: s.menu[dish].price, stage: 'arriving', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: regular.name });
+    this.event = `${regular.name} the ${regular.species} is here.`;
+  }
+  /** A regular's visit ends happy when they got their usual, did not wait long, and were not overcharged. */
+  private regularVisit(guest: Guest, served: boolean): void {
+    const r = this.state.regulars.find(item => item.name === guest.regular); if (!r) return;
+    r.visits++; r.streak = served && guest.dish === r.dish && guest.waiting <= guestPatienceSeconds(this.state) * .6 && guest.price <= DISHES[guest.dish].fair * 1.15 ? r.streak + 1 : 0;
+  }
+  /** After the third service, one guest at a time asks to be a regular, up to four, from the fixed list of names. */
+  private recruit(): void {
+    const s = this.state; if (s.regulars.length >= MAX_REGULARS || s.regulars.length >= Math.floor((s.history.length - 1) / 2)) return;
+    const dishes = DISH_IDS.filter(dish => s.menu[dish].enabled), pick = mixSeed(Math.imul(s.day, 7919) ^ Math.imul(s.regulars.length + 1, 104729));
+    const free = REGULAR_NAMES.filter(name => !s.regulars.some(r => r.name === name)); if (!dishes.length || !free.length) return;
+    const name = free[pick % free.length];
+    s.regulars.push({ name, species: SPECIES[(pick >>> 8) % SPECIES.length], dish: dishes[(pick >>> 16) % dishes.length], visits: 0, streak: 0 });
+    this.event = `${name} liked it here and will be back as a regular.`;
   }
   private leave(guest: Guest, happy: boolean): void {
     const table = this.state.furniture.find(f => f.id === guest.tableId); if (!table) return;
@@ -368,7 +394,7 @@ export class RestaurantEngine {
     guest.route = [access, ...(this.route(access, entrance) ?? []), { x: entrance.x, z: entrance.z + 1 }];
     if (!happy) {
       this.state.totals.missed++; this.event = 'A guest waited too long. Another chef or server could help.';
-      this.state.night.walkouts++;
+      this.state.night.walkouts++; if (guest.regular) this.regularVisit(guest, false);
       if (guest.special && this.state.headline) this.state.headline.walkouts++;
       this.state.staff.filter(s => s.guestId === guest.id).forEach(resetStaff);
     }
@@ -445,6 +471,7 @@ export class RestaurantEngine {
         guest.stage = 'eating'; guest.timer = 10; guest.happy = true;
         if (!guest.paid) {
           const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075)));
+          if (guest.regular) this.regularVisit(guest, true);
           s.night.waitSeconds += guest.waiting; const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
           this.recordIncome(earned, 'service', guest.id, tip);
           this.event = `${DISHES[guest.dish].name} served. +$${earned}${tip ? ` including $${tip} tip` : ''}`;
@@ -474,6 +501,7 @@ export class RestaurantEngine {
     const honest = DISH_IDS.filter(dish => s.menu[dish].enabled).every(dish => Math.abs(s.menu[dish].price - DISHES[dish].fair) <= HONEST_BAND);
     s.streaks.nailed++; s.streaks.honest = honest && profit > 0 ? s.streaks.honest + 1 : 0;
     s.history.push({ ...s.totals, headline: h ? h.id : null, challenges: s.dailyChallenges.map(c => ({ ...c })), day: s.day, wages, rent, debtPayment, profit, rating }); s.history = s.history.slice(-20);
+    this.recruit();
     this.beginNextDay(); this.changed();
   }
 }

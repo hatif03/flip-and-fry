@@ -4,6 +4,20 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Named regulars
+
+**Why:** plan section 6. A restaurant with people who come back has a reason to keep the doors open tomorrow, and the sixth contract (Regulars' table) needs them.
+
+**Rules** (`recruit()`, `arriveRegular()`, `regularVisit()` in `src/management/engine.ts`):
+- After the third service, one guest asks to be a regular at each closing, until there are four, at one new regular every two services. Name from a fixed list of twelve; species and usual dish come from the date and the number of regulars, with no random draw.
+- Each regular visits once a service, in a fixed arrival slot (the 3rd, 7th, 11th and 15th guest). The slot takes no random draw, so a night without regulars is exactly as it was and the calibrated bots are unaffected. They never turn away at the door over price.
+- A visit is **happy** when they got their usual (it must be on the menu), waited no more than 60% of the patience, and were not charged more than 15% over fair. A happy visit adds one to their streak; any other visit sets it to zero. Three in a row completes the contract.
+- The ledger lists them with their usual and their streak, and their thought bubble carries their name ("Maple: long wait").
+
+**Refused:** regulars who leave for good, and regulars with their own orders beyond the usual. Both are more moving parts than the contract needs.
+
+**Code:** `src/management/engine.ts`, `types.ts` (`regulars`, `REGULAR_NAMES`), `satisfaction.ts`, `Panels.tsx`; tests in `src/test/regulars.test.ts`. The state shape gained a field, so the golden replay hashes were refreshed (reports unchanged).
+
 ## 2026-11-19 — Guest thoughts over the tables
 
 **Why:** plan section 6 ("Guest thoughts") and the phone feedback that it was unclear what was going on. A short phrase over a guest says what they feel, so the player can act on it ("Long wait" says add a chef).
