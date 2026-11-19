@@ -4,11 +4,13 @@ import { RestaurantEngine } from '@/management/engine';
 import { createDailyHeadline } from '@/management/daily-headline';
 import { createRestaurant } from '@/management/types';
 import { getToday, loadPark, openService, type Deps, type Player } from '@/server/core/game';
-import { awardXp, claimParty, deliver, getWorld, harvest, leaveInFridge, plant, rush, takeFromFridge, upgrade, water } from '@/server/core/world';
+import { awardXp, claimParty, collectCraft, startCraft, deliver, getWorld, harvest, leaveInFridge, plant, rush, takeFromFridge, upgrade, water } from '@/server/core/world';
 import { PARTY_TIERS, addPartyStars, weekOf } from '@/server/core/block';
 import { lockService } from '@/server/core/game';
 import { worldKey, loadWorld } from '@/server/core/worldstore';
-import { UPGRADE_STEPS, buildersFor, rushCost, STATION_SPEED, STATION_TIP } from '@/management/crops';
+import { saveLayout, useLayout } from '@/server/core/world';
+import { savePark } from '@/server/core/game';
+import { RECIPES, PREPPED_SPEED, goodFor, UPGRADE_STEPS, buildersFor, rushCost, STATION_SPEED, STATION_TIP } from '@/management/crops';
 import { CATALOG, stationLevel } from '@/management/types';
 import { FakeStore } from './fake-store';
 
@@ -194,5 +196,43 @@ describe('the block', () => {
     // a stale revision refuses the whole change and the fridge is not left a crop short
     advance(86400); const mine = await pkRev(alice); expect(await leaveInFridge(deps, alice, mine - 1, 'tomato')).toMatchObject({ ok: false, status: 409 });
     expect(good(await getWorld(deps, alice)).block.fridge.left).toBe(false); expect((good(await getWorld(deps, alice)).block.fridge.items.tomato ?? 0)).toBe(0);
+  });
+});
+
+describe('the workshop', () => {
+  const stockUp = async (n: number): Promise<void> => { for (let i = 0; i < n; i++) { const r = good(await plant(deps, alice, await rev(), 0, 'tomato')); advance(CROPS.tomato.seconds + 1); good(await harvest(deps, alice, r.rev, 0)); const b = good(await plant(deps, alice, await rev(), 0, 'basil')); advance(CROPS.basil.seconds + 1); good(await harvest(deps, alice, b.rev, 0)); } };
+  it('opens at a level, needs the produce, takes it now and gives the goods on real time, once', async () => {
+    await stockUp(1); expect(await startCraft(deps, alice, await rev(), 'stock')).toMatchObject({ ok: false, error: expect.stringMatching(/opens at level 2/) });
+    await awardXp(deps, alice.id, 40);
+    const before = good(await getWorld(deps, alice)), w = good(await startCraft(deps, alice, await rev(), 'stock'));
+    expect(w.pantry.tomato).toBe((before.pantry.tomato ?? 0) - 2); expect(w.pantry.basil).toBe((before.pantry.basil ?? 0) - 1); expect(w.workshop.find(x => x.good === 'stock')!.readyAt).not.toBeNull();
+    expect(await startCraft(deps, alice, w.rev, 'stock')).toMatchObject({ ok: false, error: expect.stringMatching(/already cooking/) });
+    expect(await collectCraft(deps, alice, w.rev, 'stock')).toMatchObject({ ok: false, error: 'Not ready yet.' });
+    advance(RECIPES.stock.seconds + 1); const done = good(await collectCraft(deps, alice, w.rev, 'stock'));
+    expect((done.pantry as Record<string, number>).stock).toBe(RECIPES.stock.yield); expect(done.xp).toBeGreaterThan(w.xp); expect(done.workshop.find(x => x.good === 'stock')!.readyAt).toBeNull();
+    expect(await collectCraft(deps, alice, done.rev, 'stock')).toMatchObject({ ok: false });
+  });
+  it('a dish that finds the good it uses takes one, cooks faster for the team and tips more', () => {
+    const run = (pantry: Record<string, number>) => { const e = new RestaurantEngine(undefined, () => 0); e.autoRoll = false; e.state = createRestaurant(); e.state.pantry = pantry; e.state.menu.burger.enabled = false; e.state.menu.soup.enabled = true; e.state.furniture.push({ id: 60, kind: 'pot', x: 8, z: 4, rotation: 0 }); expect(e.open(createDailyHeadline('2026-12-09'))).toBeNull(); for (let i = 0; i < 1500; i++) e.tick(); return e; };
+    expect(goodFor({ stock: 1 } as never, 'soup')).toBe('stock'); expect(goodFor({ stock: 1 } as never, 'salad')).toBeNull(); expect(PREPPED_SPEED).toBeGreaterThan(0);
+    const plain = run({}), prepped = run({ stock: 3 });
+    expect(prepped.state.pantry.stock ?? 0).toBeLessThan(3); expect(prepped.state.totals.tips).toBeGreaterThanOrEqual(plain.state.totals.tips);
+  });
+});
+
+describe('saved layouts', () => {
+  const where = async (id: number): Promise<{ x: number; z: number } | undefined> => { const p = await loadPark(deps, alice) as unknown as { state: { furniture: { id: number; x: number; z: number }[] } }; return p.state.furniture.find(f => f.id === id); };
+  it('remembers where every piece stands and puts the room back, for free', async () => {
+    const start = await where(3), saved = good(await saveLayout(deps, alice, await rev(), 0)); expect(saved.layouts[0]).toMatchObject({ fits: true }); expect(saved.layouts[1]).toBeNull();
+    good(await savePark(deps, alice, await rev(), [{ tick: 0, kind: 'place', item: { id: 3, kind: 'table', x: 1, z: 6, rotation: 0 } }]));
+    expect((await where(3))!.z).toBe(6); const cash = good(await getWorld(deps, alice)).cash;
+    const back = good(await useLayout(deps, alice, await rev(), 0)); expect(back.cash).toBe(cash); expect(await where(3)).toMatchObject({ x: start!.x, z: start!.z });
+  });
+  it('is out of date once something is bought or sold, and an empty slot cannot be used', async () => {
+    expect(await useLayout(deps, alice, await rev(), 1)).toMatchObject({ ok: false, error: 'That slot is empty.' });
+    const saved = good(await saveLayout(deps, alice, await rev(), 2));
+    good(await savePark(deps, alice, saved.rev, [{ tick: 0, kind: 'sell', id: 6 }]));
+    const w = good(await getWorld(deps, alice)); expect(w.layouts[2]).toMatchObject({ fits: false });
+    expect(await useLayout(deps, alice, await rev(), 2)).toMatchObject({ ok: false, error: expect.stringMatching(/Save it again/) });
   });
 });

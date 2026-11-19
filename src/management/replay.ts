@@ -29,6 +29,7 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'rename': engine.rename(a.name); return null;
     case 'music': engine.setMusic(a.on); return null;
     case 'shift': return engine.setShift(a.shift);
+    case 'assign': return engine.assign(a.id, a.station);
     case 'research': return engine.setResearch(a.budget);
     case 'outfit': return engine.setOutfit(a.part, a.color);
     case 'claimTicket': return engine.claimTicket(a.guestId, a.by ?? 0);

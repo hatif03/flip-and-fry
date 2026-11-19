@@ -69,3 +69,21 @@ export const UPGRADE_STEPS: Record<2 | 3, UpgradeStep> = { 2: { price: .5, secon
 export const buildersFor = (level: number): number => level >= 4 ? 2 : 1;
 /** Finishing a job at once costs two dollars a minute left, at least ten, and can be done once a day. */
 export const rushCost = (msLeft: number): number => Math.max(10, Math.ceil(msLeft / 60000) * 2);
+
+// ---- the workshop -----------------------------------------------------------------------------------------------------------------------
+/**
+ * Prepared goods made from the garden's produce, on real timers: stock, dough, pickles. A dish that finds the good it uses in the pantry takes
+ * one, cooks 30% faster in the team's hands and tips 10% more. Like the produce, they sit in the pantry, which an empty pantry (every bot)
+ * never has.
+ */
+export const GOODS = ['stock', 'dough', 'pickles'] as const;
+export type GoodId = typeof GOODS[number];
+export type Recipe = { name: string; seconds: number; level: number; inputs: { crop: CropId; n: number }[]; yield: number; xp: number; dishes: readonly Dish[] };
+export const RECIPES: Record<GoodId, Recipe> = {
+  stock: { name: 'Stock', seconds: 2 * 3600, level: 2, inputs: [{ crop: 'tomato', n: 2 }, { crop: 'basil', n: 1 }], yield: 2, xp: 12, dishes: ['soup', 'ramen', 'dumplings'] },
+  dough: { name: 'Dough', seconds: 3600, level: 3, inputs: [{ crop: 'lettuce', n: 1 }, { crop: 'basil', n: 1 }], yield: 2, xp: 10, dishes: ['flatbread', 'bruschetta', 'burger', 'fries'] },
+  pickles: { name: 'Pickles', seconds: 8 * 3600, level: 4, inputs: [{ crop: 'lettuce', n: 2 }, { crop: 'chili', n: 1 }], yield: 3, xp: 18, dishes: ['skewers', 'steak', 'salad', 'stirfry', 'friedrice'] },
+};
+export const PREPPED_SPEED = .3, PREPPED_TIP = 1.1;
+/** The good in the pantry that this dish can use, if any. */
+export const goodFor = (pantry: Pantry & Partial<Record<GoodId, number>>, dish: Dish): GoodId | null => GOODS.find(g => RECIPES[g].dishes.includes(dish) && ((pantry as Record<string, number>)[g] ?? 0) >= 1) ?? null;

@@ -26,6 +26,7 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...planning, kind: z.literal('rename'), name: restaurantName }),
   z.object({ ...planning, kind: z.literal('music'), on: z.boolean() }),
   z.object({ ...planning, kind: z.literal('shift'), shift: z.enum(SHIFTS) }),
+  z.object({ ...planning, kind: z.literal('assign'), id: z.number().int(), station: z.enum(['prep', 'grill', 'pot', 'wok', 'oven']).nullable() }),
   z.object({ ...planning, kind: z.literal('research'), budget: z.union([z.literal(0), z.literal(20), z.literal(40)]) }),
   z.object({ ...planning, kind: z.literal('outfit'), part: z.enum(['hat', 'apron']), color: z.enum(OUTFIT_IDS) }),
   // While the doors are open the owner can step in at the pass. Quality is never sent: the engine works it out from the ticks.

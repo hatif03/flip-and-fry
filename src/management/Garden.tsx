@@ -3,7 +3,7 @@ import { Droplets, Hammer, Hand, Sprout } from 'lucide-react';
 import { toast } from 'sonner';
 import { cue } from '@/audio/cues';
 import { cn } from '@/lib/utils';
-import { CROPS, CROP_IDS, LEVEL_XP, WATER_CUT, type CropId } from './crops';
+import { CROPS, CROP_IDS, LEVEL_XP, PREPPED_SPEED, WATER_CUT, type CropId } from './crops';
 import { restaurant } from './engine';
 import { money } from './format';
 import type { PlotView, WorldView } from '../shared/api';
@@ -28,7 +28,7 @@ export function Garden() {
   useEffect(() => { let live = true; void world?.load().then(r => { if (!live) return; if ('error' in r) setError(r.error); else apply(r); }); return () => { live = false; }; }, [world, apply]);
   useEffect(() => { const id = setInterval(() => setTick(n => n + 1), 1000); return () => clearInterval(id); }, []);
   if (!world) return <p className="text-sm text-ink/65">The garden grows on Reddit, where it keeps time while you are away.</p>;
-  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
+  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take' | 'craft' | 'collect' | 'layoutsave' | 'layoutuse', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
     setBusy(true); const r = await world.act(path, body); setBusy(false);
     if ('error' in r) { toast.error(r.error); return; }
     apply(r); if (done) toast.success(done); cue(path === 'harvest' ? 'pop' : path === 'upgrade' || path === 'rush' ? 'hammer' : path === 'deliver' ? 'coin' : 'plop');
@@ -52,6 +52,17 @@ export function Garden() {
       <h3 className="mb-1 text-lg">Pantry</h3>
       {have.length ? <ul className="flex flex-wrap gap-1.5">{have.map(c => <li key={c} className="flex items-center gap-1.5 rounded-full bg-teal/10 px-2.5 py-1 text-xs font-extrabold"><Dot crop={c} />{CROPS[c].name} <span className="tabular-nums">×{view.pantry[c]}</span></li>)}</ul>
         : <p className="text-xs text-ink/60">Empty. Dishes made from your own produce cost nothing in ingredients and tip 15% more.</p>}
+    </section>
+    <section aria-label="The workshop">
+      <h3 className="mb-1 text-lg">Workshop</h3>
+      <p className="mb-2 text-[11px] text-ink/60">Turn produce into stock, dough and pickles. A dish that uses one cooks {Math.round(PREPPED_SPEED * 100)}% faster in your team's hands and tips 10% more.</p>
+      <ul className="space-y-2">{view.workshop.map(w => { const left = w.readyAt === null ? null : w.readyAt - now, have = view.pantry as Record<string, number | undefined>;
+        return <li key={w.good} className={cn('rounded-2xl border p-3', left !== null && left <= 0 ? 'border-gold bg-gold/15' : 'border-ink/10 bg-white/40', !w.unlocked && 'opacity-60')}>
+          <p className="flex items-baseline justify-between gap-2 text-sm font-extrabold"><span>{w.name} <span className="font-normal text-ink/55">×{w.yield}{(have[w.good] ?? 0) > 0 ? ` · you have ${have[w.good]}` : ''}</span></span><span className="tabular-nums text-ink/65">{!w.unlocked ? `Level ${w.level}` : left === null ? countdown(w.seconds * 1000) : left <= 0 ? 'ready' : countdown(left)}</span></p>
+          <p className="mt-1 flex flex-wrap gap-1.5">{w.inputs.map(i => <span key={i.crop} className="flex items-center gap-1 rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-bold"><Dot crop={i.crop} />{i.n} {CROPS[i.crop].name.toLowerCase()} <span className={cn('tabular-nums', (view.pantry[i.crop] ?? 0) >= i.n ? 'text-teal' : 'text-tomato')}>({view.pantry[i.crop] ?? 0})</span></span>)}</p>
+          {left !== null && left <= 0 ? <button type="button" disabled={busy || !planning} onClick={() => void act('collect', { crop: w.good }, `${w.name} collected.`)} className="mt-2 min-h-[44px] w-full rounded-xl bg-teal px-3 text-sm font-extrabold text-paper motion-safe:animate-pulse disabled:opacity-40">Collect ×{w.yield}</button>
+            : <button type="button" disabled={busy || !planning || !w.canStart} onClick={() => void act('craft', { crop: w.good }, `${w.name} is on.`)} className="mt-2 min-h-[44px] w-full rounded-xl bg-ink/8 px-3 text-sm font-extrabold disabled:opacity-40">{left !== null ? 'Cooking' : w.unlocked ? (w.canStart ? 'Start a batch' : 'Need more produce') : `Opens at level ${w.level}`}</button>}
+        </li>; })}</ul>
     </section>
     <section aria-label="The builder">
       <h3 className="mb-1 text-lg">Builder</h3>

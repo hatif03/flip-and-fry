@@ -1,5 +1,6 @@
-import { CROPS, CROP_IDS, MAX_STATION_LEVEL, UPGRADABLE, UPGRADE_STEPS, WATER_CUT, buildersFor, rushCost, WILT_AFTER, levelFor, nextLevelAt, ordersFor, plotsFor, wiltedYield, type CropId, type Order, type Pantry } from '../../management/crops';
-import { CATALOG, stationLevel, type RestaurantState } from '../../management/types';
+import { CROPS, CROP_IDS, GOODS, RECIPES, MAX_STATION_LEVEL, UPGRADABLE, UPGRADE_STEPS, WATER_CUT, buildersFor, rushCost, WILT_AFTER, levelFor, nextLevelAt, ordersFor, plotsFor, wiltedYield, type CropId, type Order, type Pantry } from '../../management/crops';
+import { CATALOG, stationLevel, width, type RestaurantState } from '../../management/types';
+import { layoutError } from '../../management/layout';
 import type { PlotView, WorldResponse, WorldView, XpGain } from '../../shared/api';
 import { casUpdate, withinRate } from './store';
 import { PARTY_TIERS, claimTier, fridgeLeave, fridgeTake, fridgeUntake, fridgeUnleave, fridgeView, partyView, unclaimTier } from './block';
@@ -14,6 +15,12 @@ import { shiftDate } from '../../management/daily-headline';
  */
 const fail = (status: Fail['status'], error: string): Fail => ({ ok: false, status, error });
 async function guard(deps: Deps, uid: string): Promise<Fail | null> { return (await withinRate(deps.store, `rate:world:${uid}`, 90, 60)) ? null : fail(429, 'Slow down a little and try again.'); }
+
+/** A saved layout fits when it names exactly the pieces in the room now. */
+function layoutFits(layout: { items: { id: number }[] }, park: RestaurantState): boolean {
+  const ids = new Set(park.furniture.map(f => f.id));
+  return layout.items.length === ids.size && layout.items.every(i => ids.has(i.id));
+}
 
 /** The garden as the screen shows it: grown to the number of plots the level allows, with everything derived from the server's `now`. */
 function view(world: World, park: RestaurantState, now: number, block: WorldView['block']): WorldView {
@@ -31,7 +38,9 @@ function view(world: World, park: RestaurantState, now: number, block: WorldView
     return { id: f.id, kind: f.kind, name: CATALOG[f.kind].name, level: lvl, next: step ? { toLevel, cost: Math.floor(CATALOG[f.kind].price * step.price), seconds: step.seconds, levelNeeded: step.level } : null };
   });
   const jobs = world.jobs.map(j => ({ furnitureId: j.furnitureId, name: CATALOG[park.furniture.find(f => f.id === j.furnitureId)?.kind ?? 'prep'].name, toLevel: j.toLevel, readyAt: j.readyAt, rushCost: rushCost(Math.max(0, j.readyAt - now)) }));
-  return { type: 'world', now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations, block };
+  const workshop = GOODS.map(good => { const r = RECIPES[good], job = world.crafts.find(c => c.good === good);
+    return { good, name: r.name, level: r.level, seconds: r.seconds, yield: r.yield, inputs: r.inputs, readyAt: job ? job.readyAt : null, unlocked: level >= r.level, canStart: level >= r.level && !job && r.inputs.every(i => (park.pantry[i.crop] ?? 0) >= i.n) }; });
+  return { type: 'world', now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations, block, workshop, layouts: world.layouts.map(l => l ? { pieces: l.items.length, fits: layoutFits(l, park) } : null) };
 }
 
 async function blockOf(deps: Deps, uid: string): Promise<WorldView['block']> {
@@ -178,4 +187,41 @@ export const takeFromFridge = (deps: Deps, user: Player, rev: number, crop: Crop
   if (!CROP_IDS.includes(crop)) return 'That is not a crop we know.';
   return { world, pre: async () => { const r = await fridgeTake(deps.store, date, user.id, crop); return r === 'ok' ? null : r === 'already' ? 'You already took something today.' : 'There is none of that in the fridge.'; },
     undo: () => fridgeUntake(deps.store, date, user.id, crop), park: s => { s.pantry[crop] = (s.pantry[crop] ?? 0) + 1; return null; } };
+});
+
+/** Start a batch in the workshop: the produce goes in now, the goods come out on real time. One batch per good at a time. */
+export const startCraft = (deps: Deps, user: Player, rev: number, good: string) => change(deps, user, rev, (world, park, now) => {
+  const recipe = (RECIPES as Record<string, (typeof RECIPES)[keyof typeof RECIPES]>)[good]; if (!recipe) return 'That is not on the workshop\'s list.';
+  if (levelFor(world.xp) < recipe.level) return `${recipe.name} opens at level ${recipe.level}.`;
+  if (world.crafts.some(c => c.good === good)) return 'That batch is already cooking.';
+  if (!recipe.inputs.every(i => (park.pantry[i.crop] ?? 0) >= i.n)) return 'Not enough produce in the pantry.';
+  return { world: { ...world, crafts: [...world.crafts, { good, readyAt: now + recipe.seconds * 1000 }] }, park: s => {
+    for (const i of recipe.inputs) { if ((s.pantry[i.crop] ?? 0) < i.n) return 'Not enough produce in the pantry.'; s.pantry[i.crop] = (s.pantry[i.crop] ?? 0) - i.n; if (!s.pantry[i.crop]) delete s.pantry[i.crop]; }
+    return null;
+  } };
+});
+
+/** Take a finished batch into the pantry. */
+export const collectCraft = (deps: Deps, user: Player, rev: number, good: string) => change(deps, user, rev, (world, _park, now) => {
+  const recipe = (RECIPES as Record<string, (typeof RECIPES)[keyof typeof RECIPES]>)[good], job = world.crafts.find(c => c.good === good);
+  if (!recipe || !job) return 'There is nothing cooking there.';
+  if (now < job.readyAt) return 'Not ready yet.';
+  return { world: { ...world, xp: world.xp + recipe.xp, crafts: world.crafts.filter(c => c !== job) }, park: s => { s.pantry[good] = (s.pantry[good] ?? 0) + recipe.yield; return null; } };
+});
+
+/** Remember where every piece stands, in one of three slots. */
+export const saveLayout = (deps: Deps, user: Player, rev: number, slot: number) => change(deps, user, rev, (world, park) => {
+  if (!(slot >= 0 && slot < 3)) return 'There is no such slot.';
+  const layouts = world.layouts.map((l, i) => i === slot ? { items: park.furniture.map(f => ({ id: f.id, x: f.x, z: f.z, rotation: f.rotation })) } : l);
+  return { world: { ...world, layouts } };
+});
+
+/** Put every piece back where a slot remembers. Free, only between services, and only if the room still holds the same pieces. */
+export const useLayout = (deps: Deps, user: Player, rev: number, slot: number) => change(deps, user, rev, (world, park) => {
+  const layout = world.layouts[slot]; if (!layout) return 'That slot is empty.';
+  if (!layoutFits(layout, park)) return 'You have bought or sold something since you saved this one. Save it again.';
+  return { world, park: s => {
+    for (const item of layout.items) { const f = s.furniture.find(x => x.id === item.id)!; f.x = item.x; f.z = item.z; f.rotation = item.rotation; }
+    const error = layoutError(s.furniture, width(s)); return error ? `That arrangement does not work here: ${error}` : null;
+  } };
 });

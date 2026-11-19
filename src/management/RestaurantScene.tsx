@@ -1,10 +1,11 @@
-import { Component, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, memo, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { Batch, Box, Cylinder, type InstanceSpec } from '@/scene/Primitives';
 import { CATALOG, CELL, HEIGHT, guestPatienceSeconds, width, type Furniture, type Point, type RestaurantState } from './types';
 import { restaurant } from './engine';
+import { CROPS } from './crops';
 import { placementError, localPoint, accessPoints } from './layout';
 import { Customer, Employee } from './Agents';
 import { RestaurantLabels, RestaurantLabelPositions } from './RestaurantLabels';
@@ -90,6 +91,29 @@ const Terrace = memo(function Terrace({ columns, name, stars }: { columns: numbe
     <group position={[5.5, 0, -.46]}><Box position={[0, 1.7, 0]} size={[3.7, .16, .28]} color="#224F4A" />{Array.from({ length: 7 }, (_, i) => <Cylinder key={i} position={[-1.4 + i * .45, 1.95, 0]} radius={.12} height={.38} color={i % 2 ? '#FFF2D7' : '#F2B743'} />)}</group>
   </>;
 });
+/**
+ * The rooftop garden on the left parapet: a planter box per plot, with what is growing in it. Only on Reddit, from the garden the server last
+ * reported; growth is drawn from the server's clock offset, so a box fills in as the time passes. Presentation only.
+ */
+const RoofGarden = memo(function RoofGarden() {
+  useSyncExternalStore(restaurant.subscribe, restaurant.getSnapshot);
+  const [, setTick] = useState(0);
+  useEffect(() => { const id = setInterval(() => setTick(n => n + 1), 20000); return () => clearInterval(id); }, []);
+  const peek = restaurant.remote?.world?.peek?.(); if (!peek) return null;
+  const now = Date.now() + peek.offset;
+  return <>{peek.view.plots.map((p, i) => {
+    const z = 2 + i * 3, grown = p.crop ? Math.min(1, Math.max(0, (now - p.plantedAt) / Math.max(1, p.readyAt - p.plantedAt))) : 0, ready = Boolean(p.crop) && now >= p.readyAt;
+    const color = p.crop ? CROPS[p.crop].color : '#fff', height = ready ? .5 : .12 + grown * .3, leaf = p.wilted ? '#8a7a55' : '#5f9a4a';
+    return <group key={i} position={[-.9, .9, z]}>
+      <Box position={[0, .12, 0]} size={[.7, .24, 2]} color="#8a5a3a" /><Box position={[0, .25, 0]} size={[.56, .06, 1.86]} color="#4b3427" />
+      {p.crop && [-.6, 0, .6].map((dz, k) => <group key={k} position={[0, .28, dz]}>
+        <Cylinder position={[0, height / 2, 0]} radius={.05} height={height} color={leaf} />
+        <Box position={[0, height, 0]} size={[.28, .08, .28]} color={leaf} />
+        {ready && !p.wilted && <><mesh position={[.12, height - .02, .08]}><sphereGeometry args={[.1, 8, 6]} /><meshStandardMaterial color={color} /></mesh><mesh position={[-.1, height - .04, -.06]}><sphereGeometry args={[.09, 8, 6]} /><meshStandardMaterial color={color} /></mesh></>}
+      </group>)}
+    </group>;
+  })}</>;
+});
 function Ghost({ item, valid }: { item: Furniture; valid: boolean }) {
   const n = CATALOG[item.kind].size;
   return <group name="placement-preview">
@@ -107,7 +131,7 @@ export default function RestaurantScene(props: SceneProps) {
   return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={pixel.enabled ? 1 : [1, 1.5]} style={pixel.enabled ? { imageRendering: 'pixelated' } : undefined} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
     {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} /><FrameWatch />
-    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} />
+    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
     {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}

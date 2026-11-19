@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Armchair, ArrowRight, ArrowUpRight, Banknote, Check, Grid2X2, Leaf, LockKeyhole, Move, ShoppingBag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
+import { useLayouts } from './useLayouts';
 import { buyPrice, RESEARCH, RESEARCH_GATE, researched, CATALOG, DISHES, DISH_IDS, capacity, comfort, type FurnitureKind, type RestaurantState } from './types';
 import { FurnitureArt, Notice, SmallButton, type Action } from './Panels';
 import { money } from './format';
@@ -12,6 +13,20 @@ const catalogOrder: FurnitureKind[] = ['table', 'plant', 'lamp', 'divider', 'ben
 /** The dishes a station unlocks, named from the dish table so a new dish never needs a new line here. */
 const kitchenDishes = (kind: FurnitureKind): string => DISH_IDS.filter(d => DISHES[d].station === kind).map(d => DISHES[d].name.toLowerCase()).join(', ');
 const matchesCategory = (kind: FurnitureKind, category: Category): boolean => category === 'All' || CATALOG[kind].category === (category === 'Decor' ? 'Atmosphere' : category);
+
+/** Three saved arrangements of the room: save the one you have, or put the room back to one you saved. A rush layout, a cosy one, an inspection one. */
+function LayoutSlots() {
+  const l = useLayouts(); if (!l) return null;
+  return <section aria-label="Saved layouts" className="mt-5 rounded-2xl border border-ink/10 bg-white/40 p-3">
+    <h3 className="text-lg">Layouts</h3>
+    <p className="mb-2 text-[11px] text-ink/60">Save how the room stands, then switch for free. Rearrange for a rush night, a quiet one or an inspection.</p>
+    <ul className="space-y-1.5">{l.slots.map((slot, i) => <li key={i} className="flex items-center gap-2">
+      <span className="min-w-0 flex-1 text-sm font-extrabold">Slot {i + 1} <span className="font-normal text-ink/55">{slot ? `${slot.pieces} pieces${slot.fits ? '' : ' · out of date'}` : 'empty'}</span></span>
+      <button type="button" disabled={l.busy} onClick={() => void l.save(i)} aria-label={`Save the room in slot ${i + 1}`} className="min-h-[44px] rounded-xl bg-ink/8 px-3 text-xs font-extrabold disabled:opacity-40">Save</button>
+      <button type="button" disabled={l.busy || !slot || !slot.fits} onClick={() => void l.use(i)} aria-label={`Use the layout in slot ${i + 1}`} className="min-h-[44px] rounded-xl bg-teal px-3 text-xs font-extrabold text-paper disabled:opacity-40">Use</button>
+    </li>)}</ul>
+  </section>;
+}
 
 /** Reinvest real register cash in the existing, route-validated furniture catalog. */
 export function InteriorsPanel({ state, choose, inspect, action }: {
@@ -52,6 +67,7 @@ export function InteriorsPanel({ state, choose, inspect, action }: {
       <p className="mb-3 text-xs leading-relaxed text-ink/65">Select a piece to move or rotate it for free, or sell it for 70% of its price.</p>
       {!owned.length ? <Notice>No pieces in this category yet. Find something you love in Shop.</Notice> : <div className="space-y-2">{owned.map(item => <button type="button" key={item.id} aria-label={`Edit ${CATALOG[item.kind].name} at column ${item.x + 1}, row ${item.z + 1}`} disabled={!editable} onClick={() => inspect(item.id)} className="flex min-h-20 w-full items-center gap-3 rounded-2xl border border-ink/10 bg-white/40 p-3 text-left transition hover:border-teal/40 disabled:opacity-60 motion-reduce:transition-none"><div className="w-12 shrink-0"><FurnitureArt kind={item.kind} /></div><div className="min-w-0 flex-1"><h3 className="text-base leading-tight">{CATALOG[item.kind].name}</h3><p className="mt-1 text-[11px] text-ink/60">Col {item.x + 1} · Row {item.z + 1}</p><p className="mt-1 text-[11px] font-bold text-teal">Resale {money(Math.floor(CATALOG[item.kind].price * .7))}</p></div><Move size={16} className="shrink-0 text-teal" aria-hidden="true" /></button>)}</div>}
     </>}
+    {editable && <LayoutSlots />}
     <div className="mt-5 rounded-2xl border border-dashed border-teal/30 bg-teal/5 p-4"><div className="mb-2 flex items-center justify-between"><h3 className="text-lg">The east terrace</h3>{state.expanded ? <Check size={19} /> : <ArrowUpRight size={20} />}</div><p className="text-xs leading-relaxed text-ink/65">{state.expanded ? 'Forty extra tiles. Your next great idea belongs here.' : 'Room for more tables and little touches. Unlock after 3 service days.'}</p><SmallButton className="mt-3 w-full" disabled={!editable || state.expanded || state.history.length < 3 || state.cash < 900} onClick={() => action(restaurant.expand())}>{state.expanded ? 'Terrace unlocked' : <>{state.history.length < 3 && <LockKeyhole size={14} />}Expand · $900</>}</SmallButton></div>
   </section>;
 }

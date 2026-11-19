@@ -8,7 +8,7 @@ import { Session, type Http } from '@/client/session';
 import { actionLogSchema } from '@/management/actions';
 import { CROPS } from '@/management/crops';
 import { getToday, savePark, type Deps, type Player } from '@/server/core/game';
-import { deliver, getWorld, harvest, plant, water } from '@/server/core/world';
+import { deliver, getWorld, harvest, plant, saveLayout, useLayout, water } from '@/server/core/world';
 import { FakeStore } from './fake-store';
 import '@/index.css';
 
@@ -28,6 +28,8 @@ function network(): Http {
     if (path === '/api/world/plant') return out(await plant(deps, alice, body!.rev, body!.plot!, body!.crop as never));
     if (path === '/api/world/water') return out(await water(deps, alice, body!.rev, body!.plot!));
     if (path === '/api/world/harvest') return out(await harvest(deps, alice, body!.rev, body!.plot!));
+    if (path === '/api/world/layoutsave') return out(await saveLayout(deps, alice, body!.rev, body!.index!));
+    if (path === '/api/world/layoutuse') return out(await useLayout(deps, alice, body!.rev, body!.index!));
     if (path === '/api/world/deliver') return out(await deliver(deps, alice, body!.rev, body!.index!));
     if (path === '/api/save') { const log = actionLogSchema.safeParse(body?.actions); return log.success ? out(await savePark(deps, alice, body!.rev, log.data)) : { status: 400, body: { type: 'error', error: 'Invalid request.' } }; }
     return { status: 404, body: null };
@@ -86,6 +88,15 @@ describe('the garden tab', () => {
     const screen = await render(<ManagementGame />); await screen.getByRole('button', { name: 'Garden', exact: true }).click();
     const block = screen.getByRole('region', { name: 'The block' }); await expect.element(block).toBeVisible();
     await expect.element(block).toHaveTextContent('Block party'); await expect.element(block).toHaveTextContent('Shared fridge'); await expect.element(block).toHaveTextContent('The fridge is empty');
+  });
+
+  it('saves the room in a slot from the Build panel and shows it', async () => {
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const screen = await render(<><ManagementGame /><Toaster /></>); await screen.getByRole('button', { name: 'Build', exact: true }).click();
+    const slots = screen.getByRole('region', { name: 'Saved layouts' }); await expect.element(slots).toBeVisible(); await expect.element(slots).toHaveTextContent('Slot 1 empty');
+    await expect.element(slots.getByRole('button', { name: 'Use the layout in slot 1' })).toBeDisabled();
+    await slots.getByRole('button', { name: 'Save the room in slot 1' }).click(); await expect.element(slots).toHaveTextContent('8 pieces');
+    await expect.element(slots.getByRole('button', { name: 'Use the layout in slot 1' })).toBeEnabled();
   });
 
   it('every button is at least 44 px tall', async () => {

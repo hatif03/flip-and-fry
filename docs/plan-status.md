@@ -42,7 +42,7 @@ See [`plan-v3.md`](plan-v3.md). Built on 19 November:
 |---|---|
 | 1a. Lunch shift (the short first service) | Built. `shift` in the state, a 60 s lunch with its own result, board and keys, a lunch/dinner picker, the first service is always lunch |
 | 1b. The night you play | Built: the door queue, seat, order, serve, clear, the hustle chain, the station move, one decision at a time, final notice and foreclosure with storage and buy-back. One recalibration (the team alone clears the goal on about half the dates, hands on the floor on all of them) |
-| 2. The world between nights | Built: garden on the server clock, pantry spent by dishes, order board, XP and levels, builder and station upgrades with overtime. Not built: the workshop, saved layouts, the staff roster |
+| 2. The world between nights | Built: garden on the server clock, pantry spent by dishes, order board, XP and levels, builder and station upgrades with overtime. Also built afterwards: the workshop (stock, dough, pickles), three saved layouts, chef specialisation, and the garden drawn on the roof |
 | 3. The block | Built: block party with three gift tiers, shared fridge. Also built: the tasks strip and synthesised sound cues |
 | Assets | Everything new is code-built or synthesised; no new model, image or sound file was needed so far (the budgets are unchanged) |
 | Still open | The two-account hosted test, a real phone pass over every new screen, the demo video, the Devpost form, the survey |
