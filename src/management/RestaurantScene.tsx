@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { Batch, Box, Cylinder, type InstanceSpec } from '@/scene/Primitives';
 import { CATALOG, CELL, HEIGHT, guestPatienceSeconds, width, type Furniture, type Point, type RestaurantState } from './types';
 import { restaurant } from './engine';
-import { CROPS } from './crops';
+import { CropPlant } from './CropMesh';
+import { GardenYard } from './GardenYard';
+import { YARD_BOUNDS, YARD_CENTER } from './garden-yard';
 import { placementError, localPoint, accessPoints } from './layout';
 import { Customer, Employee } from './Agents';
 import { RestaurantLabels, RestaurantLabelPositions } from './RestaurantLabels';
@@ -22,7 +24,7 @@ import type { WeatherKind, WeatherMode } from './weather';
 import { PixelPass } from '@/scene/pixel/PixelPass';
 import { pixelSettings } from '@/scene/pixel/pixel-settings';
 
-interface SceneProps { state: RestaurantState; building: boolean; draft: Furniture | null; selected: number | null; zoom: number; angle: number; cityView?: boolean; cityDistrict?: CityDistrict; trafficAudio?: boolean; weatherMode: WeatherMode; cover?: Cover; onWeatherChange: (kind: WeatherKind) => void; onTile: (point: Point) => void; onSelect: (id: number) => void; }
+interface SceneProps { state: RestaurantState; building: boolean; draft: Furniture | null; selected: number | null; zoom: number; angle: number; cityView?: boolean; cityDistrict?: CityDistrict; trafficAudio?: boolean; weatherMode: WeatherMode; cover?: Cover; garden?: boolean; onBed?: (index: number) => void; onWeatherChange: (kind: WeatherKind) => void; onTile: (point: Point) => void; onSelect: (id: number) => void; }
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -33,29 +35,29 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 const NO_COVER: Cover = { bottom: 0, right: 0 };
 export interface Cover { bottom: number; right: number; left?: number }
 interface Framing { zoom: number; ox: number; oy: number }
-function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, cover }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean; cover: Cover }) {
+function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, cover, garden }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean; cover: Cover; garden: boolean }) {
   const { camera, size } = useThree();
   const goal = useRef<Framing | null>(null), now = useRef<Framing | null>(null), key = useRef('');
   const apply = (f: Framing) => { const cam = camera as THREE.OrthographicCamera; cam.zoom = f.zoom; cam.setViewOffset(size.width, size.height, f.ox, f.oy, size.width, size.height); cam.updateProjectionMatrix(); };
   useEffect(() => {
-    const wide = cityView && !building;
+    const wide = cityView && !building && !garden;
     const neighborhood = cityMapBounds(columns, cityDistrict);
-    const cam = camera as THREE.OrthographicCamera, center = new THREE.Vector3(wide ? (neighborhood.left + neighborhood.right) / 2 : (columns - 1) * CELL / 2, wide ? (neighborhood.height - 1) / 2 : 1.6, wide ? (neighborhood.back + neighborhood.front) / 2 : 6.3);
+    const cam = camera as THREE.OrthographicCamera, center = garden ? new THREE.Vector3(...YARD_CENTER) : new THREE.Vector3(wide ? (neighborhood.left + neighborhood.right) / 2 : (columns - 1) * CELL / 2, wide ? (neighborhood.height - 1) / 2 : 1.6, wide ? (neighborhood.back + neighborhood.front) / 2 : 6.3);
     const yaw = Math.PI / 6 + angle * Math.PI / 2, distance = wide ? 85 : 24;
     camera.position.set(center.x + Math.sin(yaw) * distance, center.y + distance * 22 / 24, center.z + Math.cos(yaw) * distance); camera.lookAt(center); camera.updateMatrixWorld(true);
     camera.userData.viewDistance = camera.position.distanceTo(center);
     const bounds = new THREE.Box3();
-    for (const x of wide ? [neighborhood.left, neighborhood.right] : [-1.2, columns * CELL - .2]) for (const y of [-1, wide ? neighborhood.height : 4.3]) for (const z of wide ? [neighborhood.back, neighborhood.front] : [-1.3, 14.4]) bounds.expandByPoint(new THREE.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
+    for (const x of garden ? [YARD_BOUNDS.left, YARD_BOUNDS.right] : wide ? [neighborhood.left, neighborhood.right] : [-1.2, columns * CELL - .2]) for (const y of [-1, garden ? YARD_BOUNDS.height : wide ? neighborhood.height : 4.3]) for (const z of garden ? [YARD_BOUNDS.back, YARD_BOUNDS.front] : wide ? [neighborhood.back, neighborhood.front] : [-1.3, 14.4]) bounds.expandByPoint(new THREE.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
     const extent = bounds.getSize(new THREE.Vector3());
     // Frame the room in the part of the canvas no panel covers, then shift it to the middle of that part. The canvas keeps its size.
     const left = cover.left ?? 0, visibleW = Math.max(120, size.width - cover.right - left), visibleH = Math.max(120, size.height - cover.bottom);
-    goal.current = { zoom: Math.min(visibleW / (extent.x + 1.3), visibleH / (extent.y + 1.3)) * zoom * (wide || building ? 1 : .86), ox: (cover.right - left) / 2, oy: cover.bottom / 2 };
+    goal.current = { zoom: Math.min(visibleW / (extent.x + 1.3), visibleH / (extent.y + 1.3)) * zoom * (wide || building || garden ? 1 : .86), ox: (cover.right - left) / 2, oy: cover.bottom / 2 };
     // A new camera position (rotate, neighborhood view) cuts; a panel opening, zooming or resizing glides.
-    const next = `${wide}:${angle}:${cityDistrict}:${columns}`, still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const next = `${wide}:${angle}:${cityDistrict}:${columns}:${garden}`, still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!now.current || key.current !== next || still) { key.current = next; now.current = { ...goal.current }; apply(now.current); }
     camera.userData.cityView = wide; camera.userData.district = wide ? cityDistrict : 'restaurant';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building, cover.bottom, cover.right, cover.left]);
+  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building, garden, cover.bottom, cover.right, cover.left]);
   useFrame((_, dt) => {
     const c = now.current, g = goal.current; if (!c || !g) return;
     if (Math.abs(g.zoom - c.zoom) < .01 && Math.abs(g.ox - c.ox) < .5 && Math.abs(g.oy - c.oy) < .5) { if (c.zoom !== g.zoom || c.ox !== g.ox || c.oy !== g.oy) { Object.assign(c, g); apply(c); } return; }
@@ -103,14 +105,9 @@ const RoofGarden = memo(function RoofGarden() {
   const now = Date.now() + peek.offset;
   return <>{peek.view.plots.map((p, i) => {
     const z = 2 + i * 3, grown = p.crop ? Math.min(1, Math.max(0, (now - p.plantedAt) / Math.max(1, p.readyAt - p.plantedAt))) : 0, ready = Boolean(p.crop) && now >= p.readyAt;
-    const color = p.crop ? CROPS[p.crop].color : '#fff', height = ready ? .5 : .12 + grown * .3, leaf = p.wilted ? '#8a7a55' : '#5f9a4a';
     return <group key={i} position={[-.9, .9, z]}>
       <Box position={[0, .12, 0]} size={[.7, .24, 2]} color="#8a5a3a" /><Box position={[0, .25, 0]} size={[.56, .06, 1.86]} color="#4b3427" />
-      {p.crop && [-.6, 0, .6].map((dz, k) => <group key={k} position={[0, .28, dz]}>
-        <Cylinder position={[0, height / 2, 0]} radius={.05} height={height} color={leaf} />
-        <Box position={[0, height, 0]} size={[.28, .08, .28]} color={leaf} />
-        {ready && !p.wilted && <><mesh position={[.12, height - .02, .08]}><sphereGeometry args={[.1, 8, 6]} /><meshStandardMaterial color={color} /></mesh><mesh position={[-.1, height - .04, -.06]}><sphereGeometry args={[.09, 8, 6]} /><meshStandardMaterial color={color} /></mesh></>}
-      </group>)}
+      {p.crop && [-.6, 0, .6].map((dz, k) => <group key={k} position={[0, .28, dz]}><CropPlant crop={p.crop!} grown={grown} ready={ready} wilted={p.wilted} /></group>)}
     </group>;
   })}</>;
 });
@@ -125,13 +122,13 @@ function Ghost({ item, valid }: { item: Furniture; valid: boolean }) {
   </group>;
 }
 export default function RestaurantScene(props: SceneProps) {
-  const { state, draft, building, selected, onTile, onSelect, zoom, angle, cityView = false, cityDistrict = 'city', trafficAudio = true, weatherMode, cover = NO_COVER, onWeatherChange } = props;
+  const { state, draft, building, selected, onTile, onSelect, zoom, angle, cityView = false, cityDistrict = 'city', trafficAudio = true, weatherMode, cover = NO_COVER, garden = false, onBed = () => undefined, onWeatherChange } = props;
   const [lost, setLost] = useState<boolean>(false), columns = width(state), patienceSeconds = guestPatienceSeconds(state);
   const labels = useRef<Map<string, HTMLDivElement>>(new Map()), pixel = useMemo(() => pixelSettings(), []);
   return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={pixel.enabled ? 1 : [1, 1.5]} style={pixel.enabled ? { imageRendering: 'pixelated' } : undefined} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
     {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} /><FrameWatch />
-    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />
+    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} garden={garden} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />{restaurant.remote?.world && <GardenYard onBed={onBed} />}
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
     {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}

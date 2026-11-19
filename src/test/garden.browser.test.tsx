@@ -12,7 +12,7 @@ import { deliver, getWorld, harvest, plant, saveLayout, useLayout, water } from 
 import { FakeStore } from './fake-store';
 import '@/index.css';
 
-vi.mock('@/management/RestaurantScene', () => ({ default: () => <div data-testid="mock-scene" /> }));
+vi.mock('@/management/RestaurantScene', () => ({ default: ({ garden, onBed }: { garden?: boolean; onBed?: (i: number) => void }) => <div data-testid="mock-scene" data-garden={String(Boolean(garden))}>{[0, 1].map(i => <button key={i} data-testid={`bed-${i}`} style={{ width: 20, height: 20 }} onClick={() => onBed?.(i)}>bed</button>)}</div> }));
 
 const alice: Player = { id: 't2_alice', name: 'alice' };
 let store: FakeStore;
@@ -97,6 +97,25 @@ describe('the garden tab', () => {
     await expect.element(slots.getByRole('button', { name: 'Use the layout in slot 1' })).toBeDisabled();
     await slots.getByRole('button', { name: 'Save the room in slot 1' }).click(); await expect.element(slots).toHaveTextContent('8 pieces');
     await expect.element(slots.getByRole('button', { name: 'Use the layout in slot 1' })).toBeEnabled();
+  });
+
+  it('the farm view: the Garden tab and the camera button take the camera to the farm, and tapping a bed waters, harvests or opens the seeds', async () => {
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const screen = await render(<><ManagementGame /><Toaster /></>), scene = () => screen.getByTestId('mock-scene').element().getAttribute('data-garden');
+    expect(scene()).toBe('false');
+    await screen.getByRole('button', { name: 'Garden', exact: true }).click(); expect(scene()).toBe('true');
+    await screen.getByRole('button', { name: 'Close panel' }).click(); expect(scene()).toBe('false');
+    await page.viewport(1280, 800); await screen.getByRole('button', { name: 'Farm view' }).click(); expect(scene()).toBe('true');
+    // an empty bed opens the seed choice
+    await screen.getByTestId('bed-0').click(); await expect.element(screen.getByRole('region', { name: 'The garden' })).toBeVisible();
+    await screen.getByRole('button', { name: /^Plant tomatoes/ }).first().click(); await screen.getByRole('button', { name: 'Close panel' }).click();
+    // a growing bed is watered once, then says how long is left
+    await screen.getByTestId('bed-0').click(); await expect.element(screen.getByText('Tomatoes watered.')).toBeVisible();
+    await screen.getByTestId('bed-0').click(); await expect.element(screen.getByText(/Tomatoes: ready in/)).toBeVisible();
+    // and a ready bed is harvested
+    store.now += CROPS.tomato.seconds * 1000; await restaurant.remote!.world!.load(); // the real clock moves on by itself; the test's faked one needs a refresh
+    await screen.getByTestId('bed-0').click();
+    await vi.waitFor(() => expect(restaurant.state.pantry.tomato).toBe(CROPS.tomato.yield));
   });
 
   it('every button is at least 44 px tall', async () => {

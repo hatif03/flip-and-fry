@@ -59,6 +59,13 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/retention-report"
+      },
+      {
+        "label": "Playtest: skip 6 hours of my garden timers",
+        "description": "Moves your own crops, builder and workshop timers forward six hours so a tester can see them ready (moderators only)",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/skip-timers"
       }
     ]
   },

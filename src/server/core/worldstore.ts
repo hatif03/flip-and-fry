@@ -24,5 +24,17 @@ export async function loadWorld(store: Store, uid: string): Promise<World> {
 export async function saveWorld(store: Store, uid: string, world: World, now: number): Promise<void> {
   await store.set(worldKey(uid), JSON.stringify(world), { expiration: new Date(now + WORLD_TTL * 1000) });
 }
+/**
+ * A playtest aid: move every timer in the world back by `seconds`, as if that much time had passed. It changes nothing but the garden, the
+ * builder and the workshop, and only for the one player who asks (a moderator, from the subreddit menu), so a tester can see ready crops
+ * and finished jobs on a real device without waiting for them.
+ */
+export async function fastForward(store: Store, uid: string, seconds: number, now: number): Promise<number> {
+  const world = await loadWorld(store, uid), ms = seconds * 1000; let moved = 0;
+  world.plots = world.plots.map(p => { if (p) moved++; return p ? { ...p, plantedAt: p.plantedAt - ms, readyAt: p.readyAt - ms } : p; });
+  world.jobs = world.jobs.map(j => { moved++; return { ...j, readyAt: j.readyAt - ms }; });
+  world.crafts = world.crafts.map(c => { moved++; return { ...c, readyAt: c.readyAt - ms }; });
+  await saveWorld(store, uid, world, now); return moved;
+}
 /** Jobs whose time has come. */
 export const dueJobs = (world: World, now: number): Job[] => world.jobs.filter(j => j.readyAt <= now);

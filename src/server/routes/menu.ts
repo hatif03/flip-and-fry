@@ -5,6 +5,7 @@ import { rollDay } from '../core/daily-post';
 import { utcDate } from '../core/game';
 import { retentionLine, retentionReport } from '../core/retention';
 import { postApi } from '../reddit';
+import { fastForward } from '../core/worldstore';
 
 /** Pin today's post in the community highlights. */
 export async function highlightToday(now: number): Promise<{ ok: true; postId: string } | { ok: false; error: string }> {
@@ -24,6 +25,13 @@ menu.post('/highlight-today', async c => {
 menu.post('/retention-report', async c => {
   try { return c.json<UiResponse>({ showToast: retentionLine(await retentionReport({ store: redis, now: Date.now })) }); }
   catch (error) { console.error(`Error building the retention report: ${error}`); return c.json<UiResponse>({ showToast: 'Could not build the report.' }, 400); }
+});
+
+/** A playtest aid for the moderator who is testing: skip six hours of their own garden, builder and workshop timers. Nobody else's world is touched. */
+menu.post('/skip-timers', async c => {
+  const uid = context.userId; if (!uid) return c.json<UiResponse>({ showToast: 'Log in to Reddit first.' }, 400);
+  const moved = await fastForward(redis as never, uid, 6 * 3600, Date.now());
+  return c.json<UiResponse>({ showToast: moved ? `Skipped six hours on ${moved} timer${moved === 1 ? '' : 's'}. Reopen the post.` : 'You have nothing growing or building yet.' });
 });
 
 /** Same function the scheduler and the first player request of the day call; creating twice is impossible. */

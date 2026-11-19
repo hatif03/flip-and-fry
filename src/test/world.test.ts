@@ -7,7 +7,7 @@ import { getToday, loadPark, openService, type Deps, type Player } from '@/serve
 import { awardXp, claimParty, collectCraft, startCraft, deliver, getWorld, harvest, leaveInFridge, plant, rush, takeFromFridge, upgrade, water } from '@/server/core/world';
 import { PARTY_TIERS, addPartyStars, weekOf } from '@/server/core/block';
 import { lockService } from '@/server/core/game';
-import { worldKey, loadWorld } from '@/server/core/worldstore';
+import { worldKey, loadWorld, fastForward } from '@/server/core/worldstore';
 import { saveLayout, useLayout } from '@/server/core/world';
 import { savePark } from '@/server/core/game';
 import { RECIPES, PREPPED_SPEED, goodFor, UPGRADE_STEPS, buildersFor, rushCost, STATION_SPEED, STATION_TIP } from '@/management/crops';
@@ -234,5 +234,17 @@ describe('saved layouts', () => {
     good(await savePark(deps, alice, saved.rev, [{ tick: 0, kind: 'sell', id: 6 }]));
     const w = good(await getWorld(deps, alice)); expect(w.layouts[2]).toMatchObject({ fits: false });
     expect(await useLayout(deps, alice, await rev(), 2)).toMatchObject({ ok: false, error: expect.stringMatching(/Save it again/) });
+  });
+});
+
+describe('the playtest aid', () => {
+  it('moves only the own timers of whoever asks, and a crop then harvests', async () => {
+    const bob: Player = { id: 't2_bob', name: 'bob' };
+    const w = good(await plant(deps, alice, await rev(), 0, 'tomato')); await loadPark(deps, bob); const b = good(await plant(deps, bob, ((await loadPark(deps, bob)) as unknown as { rev: number }).rev, 0, 'tomato'));
+    expect(await harvest(deps, alice, w.rev, 0)).toMatchObject({ ok: false });
+    expect(await fastForward(store, alice.id, 6 * 3600, store.now)).toBe(1);
+    expect(good(await harvest(deps, alice, w.rev, 0)).pantry.tomato).toBe(CROPS.tomato.yield);
+    expect(await harvest(deps, bob, b.rev, 0)).toMatchObject({ ok: false, error: 'Not ready yet.' });
+    expect(await fastForward(store, 't2_nobody', 3600, store.now)).toBe(0);
   });
 });
