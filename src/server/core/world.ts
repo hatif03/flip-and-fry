@@ -5,8 +5,7 @@ import type { PlotView, WorldResponse, WorldView, XpGain } from '../../shared/ap
 import { casUpdate, withinRate } from './store';
 import { PARTY_TIERS, claimTier, fridgeLeave, fridgeTake, fridgeUntake, fridgeUnleave, fridgeView, partyView, unclaimTier } from './block';
 import { loadWorld, saveWorld, worldKey, type World } from './worldstore';
-import { loadPark, settleUpgrades, TTL, utcDate, keys, type Deps, type Fail, type Park, type Player } from './game';
-import { shiftDate } from '../../management/daily-headline';
+import { hasLiveOpen, loadPark, settleUpgrades, TTL, utcDate, keys, type Deps, type Fail, type Park, type Player } from './game';
 
 /**
  * The world between nights: the rooftop garden, the order board and experience. It runs on the SERVER clock (every time here is a timestamp
@@ -65,9 +64,8 @@ async function change(deps: Deps, user: Player, rev: number, make: (world: World
   const first = await loadPark(deps, user); if ('status' in first) return first;
   const loaded = await settleUpgrades(deps, user, first);
   if (loaded.state.phase !== 'planning') return fail(409, 'The garden is closed while the doors are open.');
-  // A service that was opened and not yet closed holds the restaurant's revision: the garden waits until it is.
-  const today = utcDate(deps.now());
-  for (const date of [today, shiftDate(today, -1)]) for (const shift of ['dinner', 'lunch'] as const) if (await deps.store.hGet(keys.opens(date, shift), user.id)) return fail(409, 'Finish tonight\'s service first: the garden waits until the doors are shut.');
+  // A service that is open right now holds the restaurant's revision: the garden waits until it is shut. One abandoned long ago does not.
+  if (await hasLiveOpen(deps, user.id)) return fail(409, "Finish tonight's service first: the garden waits until the doors are shut.");
   const world = await loadWorld(deps.store, user.id), now = deps.now(), made = make(world, loaded.state, now);
   if (typeof made === 'string') return fail(400, made);
   const early = made.pre ? await made.pre() : null; if (early) return fail(400, early);

@@ -80,6 +80,14 @@ describe('the garden runs on the server clock', () => {
   });
 });
 
+describe('an abandoned service', () => {
+  it('stops holding the garden after a while, so a reload mid-service never locks it out for days', async () => {
+    const t = good(await getToday(deps, alice)); good(await openService(deps, alice, t.rev, []));
+    expect(await plant(deps, alice, t.rev + 1, 0, 'tomato')).toMatchObject({ ok: false, status: 409 });
+    advance(20 * 60); const w = good(await plant(deps, alice, t.rev + 1, 0, 'tomato')); expect(w.plots[0].crop).toBe('tomato');
+  });
+});
+
 describe('the order board', () => {
   it('pays cash and experience for produce from the pantry, once per order per day', async () => {
     const order = ordersFor('2026-12-09', 1)[0];
@@ -146,9 +154,9 @@ describe('the builder', () => {
     expect(await rush(deps, alice, done.rev, grill)).toMatchObject({ ok: false, error: expect.stringMatching(/no job|already paid/) });
   });
   it('a job that finishes while a service is open waits, so the close cannot overwrite it', async () => {
-    await awardXp(deps, alice.id, 40); good(await upgrade(deps, alice, await rev(), grill));
+    await awardXp(deps, alice.id, 40); good(await upgrade(deps, alice, await rev(), grill)); advance(UPGRADE_STEPS[2].seconds - 60);
     const t = good(await getToday(deps, alice)); good(await openService(deps, alice, t.rev, []));
-    advance(UPGRADE_STEPS[2].seconds + 60); good(await getToday(deps, alice)); // settling is refused while the doors are open
+    advance(120); good(await getToday(deps, alice)); // the job is due now, but settling is refused while the doors are open
     expect((await loadWorld(store, alice.id)).jobs).toHaveLength(1);
   });
 });

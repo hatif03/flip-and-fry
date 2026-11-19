@@ -4,6 +4,14 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Fix: a service left open no longer locks the garden for days
+
+**What the author saw:** planting always answered "Finish tonight's service first". The garden refused to change while any service was open, and looked at yesterday's key as well. A service that was opened and never closed (leaving the post or reloading mid-service) cannot be seen or closed by the game, so it blocked the garden until the entry expired.
+
+**Fix:** only a service opened in the last 12 minutes counts (`hasLiveOpen` in `game.ts`, used by the garden's guard and by the builder's settling). A real service lasts under five minutes. The lock still works for a service that really is running; an abandoned one simply stops holding the restaurant. Tests: a fresh open still blocks, one 20 minutes old does not, and a builder job due during a live service still waits. Found from the author's phone test; the automated tests had not covered a stale open entry.
+
+Devvit or third party: none. Code: `src/server/core/game.ts`, `src/server/core/world.ts`, `src/test/world.test.ts`. Also written: [`remaining-work.md`](remaining-work.md).
+
 ## 2026-11-19 — The farm: a real garden view, and a playtest aid for the timers
 
 **Why:** the author asked for a garden "like FarmVille" so the screen is not always the restaurant, and for a way to see the real timers on a real device without waiting hours.

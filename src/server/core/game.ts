@@ -77,6 +77,18 @@ export async function loadPark(deps: Deps, user: Player): Promise<Park | Fail> {
   return park ?? fail(500, 'Your saved restaurant could not be created.');
 }
 
+/** A service that has been open longer than this is abandoned (a reload, a closed app): it no longer holds the restaurant. A real one lasts under five minutes. */
+export const OPEN_LIVE_MS = 12 * 60 * 1000;
+/** Whether the player has a service open right now: opened recently and not yet closed. Stale entries from earlier abandoned services do not count. */
+export async function hasLiveOpen(deps: Deps, uid: string): Promise<boolean> {
+  const today = utcDate(deps.now());
+  for (const date of [today, shiftDate(today, -1)]) for (const shift of ['dinner', 'lunch'] as const) {
+    const raw = await deps.store.hGet(keys.opens(date, shift), uid); if (!raw) continue;
+    try { if (deps.now() - (JSON.parse(raw) as StoredOpen).openedAt < OPEN_LIVE_MS) return true; } catch { /* an unreadable entry is not live */ }
+  }
+  return false;
+}
+
 /**
  * A builder's finished job becomes a level on the piece in the saved restaurant. It is written without a new revision (nothing the player has
  * open becomes stale by it), and never while a service is open, because that service's close would overwrite it: the job then waits.
@@ -84,8 +96,7 @@ export async function loadPark(deps: Deps, user: Player): Promise<Park | Fail> {
 export async function settleUpgrades(deps: Deps, user: Player, park: Park): Promise<Park> {
   const world = await loadWorld(deps.store, user.id), now = deps.now(), due = dueJobs(world, now);
   if (!due.length) return park;
-  const today = utcDate(now);
-  for (const date of [today, shiftDate(today, -1)]) for (const shift of ['dinner', 'lunch'] as const) if (await deps.store.hGet(keys.opens(date, shift), user.id)) return park;
+  if (await hasLiveOpen(deps, user.id)) return park;
   const result = await casUpdate<Park>(deps.store, keys.park(user.id), current => {
     const p = current ?? park, state = structuredClone(p.state);
     for (const job of due) if (state.furniture.some(f => f.id === job.furnitureId)) state.levels[String(job.furnitureId)] = job.toLevel;
