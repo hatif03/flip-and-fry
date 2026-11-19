@@ -1,10 +1,10 @@
-import { createDailyHeadline, dayOfYear, daysInYear, mixSeed, shiftDate } from '../../management/daily-headline';
+import { createDailyHeadline, dayOfYear, daysInYear, mixSeed, shiftDate, weekday } from '../../management/daily-headline';
 import { applyPlanning, actionLogSchema, isServiceAction, MAX_SERVICE_ACTIONS, openError, runService, type Action } from '../../management/replay';
 import { nightSummary } from '../../management/awards';
 import { houseStyle } from '../../management/social';
 import { evaluateStars, packScore } from '../../management/stars';
 import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
-import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse } from '../../shared/api';
+import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse, WeekView } from '../../shared/api';
 import { pendingBonus, spendBonus } from './arcade';
 import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
@@ -173,7 +173,7 @@ export async function lockService(deps: Deps, user: Player, date: string, action
     if (stars.stars >= 1) await markPlayed(deps.store, user.id, date);
   }
   await touchProfile(deps, user);
-  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), rev: parkResult.value.rev, park: replay.state } };
+  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), week: await weekStars(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
 }
 
 // ---- streak -----------------------------------------------------------------------------------------------------
@@ -194,6 +194,15 @@ async function yearBits(store: Store, uid: string, year: number): Promise<boolea
     values.forEach((value, i) => { for (let b = 0; b < 32; b++) out[(w + i) * 32 + b] = ((value >>> (31 - b)) & 1) === 1; });
   }
   return out;
+}
+
+export const WEEK_TIERS = [{ name: 'Bronze', at: 1 }, { name: 'Silver', at: 6 }, { name: 'Gold', at: 12 }] as const;
+/** Stars earned in the official results of this UTC week (Monday to Sunday), read from the day's stored runs. Nothing extra is stored. */
+export async function weekStars(store: Store, uid: string, date: string): Promise<WeekView> {
+  const back = (weekday(date) + 6) % 7; let stars = 0;
+  for (let i = 0; i <= back; i++) { const raw = await store.hGet(keys.runs(shiftDate(date, -i)), uid); if (raw) stars += (JSON.parse(raw) as StoredRun).stars.stars; }
+  const earned = WEEK_TIERS.filter(t => stars >= t.at), next = WEEK_TIERS.find(t => stars < t.at) ?? null;
+  return { stars, tier: earned.length ? earned[earned.length - 1].name : null, next: next ? { name: next.name, at: next.at } : null };
 }
 
 export const FREEZE_EVERY = 7, FREEZE_MAX = 2, STREAK_WINDOW = 800;
@@ -228,12 +237,13 @@ export async function getToday(deps: Deps, user: Player): Promise<{ ok: true; va
   const [rawRun, rawOpen, community, streak] = await Promise.all([
     deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
   ]);
+  const week = await weekStars(deps.store, user.id, date);
   const opened = rawOpen ? (JSON.parse(rawOpen) as StoredOpen) : null;
   await touchProfile(deps, user);
   return { ok: true, value: {
     type: 'today', date, headline, rev: loaded.rev, park: loaded.state,
     open: opened ? { snapshot: opened.snapshot, date } : null,
-    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes,
+    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes, week,
     community: { opens: Number(community.opens ?? 0), locks: Number(community.locks ?? 0) },
   } };
 }

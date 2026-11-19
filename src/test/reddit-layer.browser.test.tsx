@@ -141,6 +141,12 @@ it('keeps the tabs in the plain browser game while the doors are open', async ()
   await expect.element(screen.getByText('Saved on this device')).toBeVisible();
 });
 
+it('shows the week stars and the next tier on the card', async () => {
+  restaurant.remote = remote({ ...lock(2), week: { stars: 4, tier: 'Bronze', next: { name: 'Silver', at: 6 } } });
+  const screen = await render(<ManagementGame />);
+  await expect.element(screen.getByLabelText('This week')).toHaveTextContent('4 ★ · Bronze · 2 more for Silver');
+});
+
 it('shows the board on the card, with your place, and says nothing when the board is empty or fails', async () => {
   const view = { type: 'board' as const, date: '2026-12-09', total: 5, entries: [{ rank: 1, name: 'a neighbor', stars: 3, rating: 4.8, profit: 410, you: false }, { rank: 2, name: 'ann', stars: 2, rating: 4.2, profit: 198, you: true }], you: { rank: 2, stars: 2, profit: 198 } };
   restaurant.remote = { ...remote(lock(2)), board: async () => view };

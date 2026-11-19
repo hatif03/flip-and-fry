@@ -33,8 +33,8 @@ export function Pass() {
 function ChallengePips() {
   const list = restaurant.state.dailyChallenges;
   if (!list.length) return null;
-  return <ul aria-label="Daily challenges" className="flex flex-wrap gap-1.5 px-1">
-    {list.map(c => <li key={c.kind} title={challengeObjective(c)} className={cn('flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-extrabold', c.rewarded ? 'bg-teal text-paper' : 'bg-ink/8 text-ink/75')}>
+  return <ul aria-label="Daily challenges" className="flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-0.5">
+    {list.map(c => <li key={c.kind} title={challengeObjective(c)} className={cn('flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-extrabold', c.rewarded ? 'bg-teal text-paper' : 'bg-ink/8 text-ink/75')}>
       <span aria-hidden>{c.rewarded ? '★' : '☆'}</span><span className="max-w-[9rem] truncate">{challengeTitles[c.kind]}</span><span className="tabular-nums">{c.progress}/{c.target}</span>
     </li>)}
   </ul>;

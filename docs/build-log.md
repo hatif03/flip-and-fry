@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-20 — Weekly rank; the challenge pips stay on one line
+
+**Why:** plan v2 phase C listed a weekly arc as the reason to come back on day 3, 5 and 7. It was the first cut if time ran short; it was small enough to build.
+
+**What:** `weekStars` in `server/core/game.ts` adds the stars of the player's official results from Monday to the current day (UTC), read from the `runs:<date>` hashes the lock already writes (nothing new is stored, so it cannot be forged). Tiers: Bronze at 1 star, Silver at 6, Gold at 12 (the most a week can give is 21). `today` and `lock` responses carry `week`; the card says "This week: 4 ★ · Bronze · 2 more for Silver". The three challenge pips in the pass are one row that scrolls sideways instead of wrapping to two lines on a phone.
+
+**Tests:** `week-rank.test.ts` (Monday reset, Sunday belongs to the week before, tiers, one player's data only) and a browser test for the card line.
+
+**Refused:** a weekly board across players (more names, more data, little extra value over today's board).
+
+**Devvit pieces:** Redis reads only; no new permission. **Code or plan:** `docs/plan-v2.md` phase C.
+
 ## 2026-11-20 — Plan v2, phases D, E, F: tellings, one card, retention report; screenshots in the docs
 
 **D (daily content):** each weekday's headline has three tellings (title and blurb) chosen by the week, so there are 21 distinct titles; the offset makes the judging week open on the original tellings (9 Dec is *Rain on the roof*). The numbers behind a headline are unchanged, so the bot calibration, the goals and the golden hashes are untouched. **Refused for now:** new mechanical variants and a new-player bot gate (the first-night calibration would need rewriting; see `plan-status.md`).

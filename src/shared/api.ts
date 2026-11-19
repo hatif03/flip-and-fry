@@ -6,6 +6,8 @@ import type { Stars } from '../management/stars';
 import type { Report, RestaurantState } from '../management/types';
 
 /** Request and response shapes shared by the client and the server. Import only types and pure modules from here. */
+/** This week's stars (Monday to Sunday) and the tier they reach. */
+export type WeekView = { stars: number; tier: string | null; next: { name: string; at: number } | null };
 export type InitResponse = { type: 'init'; postId: string; date: string; username: string };
 
 export type StoredRun = { report: Report; stars: Stars; hash: string; headline: DailyHeadline['id']; submittedAt: number; username: string; night: NightSummary; name: string; style: string; commentId?: string };
@@ -24,6 +26,7 @@ export type TodayResponse = {
   streak: number;
   /** Missed days the streak can absorb: one is earned per seven played days in a row, up to two. */
   freezes?: number;
+  week?: WeekView;
   community: { opens: number; locks: number };
   /** The name a moderator gave the neighborhood in the subreddit settings, already checked. */
   neighborhood?: string | null;
@@ -51,6 +54,7 @@ export type LockResponse = {
   replaced: boolean;
   streak: number;
   freezes?: number;
+  week?: WeekView;
   rev: number;
   park: RestaurantState;
 };
