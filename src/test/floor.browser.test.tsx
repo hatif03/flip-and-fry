@@ -28,7 +28,7 @@ describe('the floor in the pass', () => {
   it('shows a party at the door with a seat button per free table, and seating it takes it off the door', async () => {
     open(() => restaurant.state.guests.some(g => g.stage === 'queued'));
     const screen = await render(<ManagementGame />), guest = restaurant.state.guests.find(g => g.stage === 'queued')!;
-    await expect.element(screen.getByLabelText('The floor')).toBeVisible(); await expect.element(screen.getByLabelText('The floor')).toHaveTextContent('at the door');
+    await expect.element(screen.getByLabelText('Your move')).toBeVisible(); await expect.element(screen.getByLabelText('Your move')).toHaveTextContent('at the door');
     const seat = screen.getByRole('button', { name: /^Seat .* at table 1/ }); expect((await seat.element()).getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     await seat.click(); expect(guest.stage).toBe('arriving'); expect(guest.tableId).toBeGreaterThan(0); expect(restaurant.hustleLive()).toBe(1);
   });

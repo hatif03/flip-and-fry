@@ -25,15 +25,20 @@ const tell = (error: string | null) => { if (error) toast.error(error); };
 export function Pass() {
   const s = restaurant.state;
   if (!restaurant.remote || s.phase !== 'service') return null;
-  const cooking = restaurant.myDish();
-  const waiting = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting);
-  const takeable = s.guests.filter(g => restaurant.canTakeOver(g)).sort((a, b) => b.waiting - a.waiting);
-  const floor = floorJobs(), line = [...waiting, ...takeable].slice(0, floor.length ? 2 : 3);
-  return <section aria-label="The pass" className="mx-auto mb-2 max-w-[1100px] space-y-2 rounded-2xl border border-paper/80 bg-paper/95 p-2 shadow-[0_4px_0_#73513d30]">
+  const cooking = restaurant.myDish(), patience = guestPatienceSeconds(s), left = (g: Guest): number => Math.max(0, 1 - g.waiting / patience);
+  // One short list, most urgent first: floor jobs and tickets together. While your hands are full only the floor is listed.
+  const rows: { key: string; left: number; node: React.ReactNode }[] = floorJobs().map(j => ({ key: j.key, left: j.left, node: <FloorRow job={j} /> }));
+  if (!cooking) for (const g of s.guests) if (g.stage === 'waiting' || restaurant.canTakeOver(g)) rows.push({ key: `t${g.id}`, left: left(g), node: <TicketRow guest={g} /> });
+  rows.sort((x, y) => x.left - y.left);
+  const shown = rows.slice(0, cooking ? 2 : 3);
+  return <section aria-label="The pass" data-cover="pass" className="mx-auto mb-2 max-w-[1100px] space-y-1.5 rounded-2xl border border-paper/80 bg-paper/95 p-1.5 shadow-[0_4px_0_#73513d30]">
     <ChallengePips />
     <IncidentCard />
-    <Floor jobs={floor} />
-    {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : floor.length ? null : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= shiftLength(s) ? 'Last orders are out. Your team finishes the service.' : 'The next order lands here. You run the pass: tap Cook, prep, plate it in the green.'}</p>}
+    {cooking && <CookCard guest={cooking} />}
+    {shown.length > 0 ? <div aria-label="Your move">
+      <ul className="space-y-1">{shown.map(r => <li key={r.key} className="list-none">{r.node}</li>)}</ul>
+      {rows.length > shown.length && <p className="px-2 pt-0.5 text-[10px] font-bold text-ink/55">{rows.length - shown.length} more waiting</p>}
+    </div> : cooking ? null : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= shiftLength(s) ? 'Last orders are out. Your team finishes the service.' : 'Your move: seat, take orders, cook, serve. The next job lands here.'}</p>}
   </section>;
 }
 
@@ -70,25 +75,26 @@ function IncidentCard() {
   </div>;
 }
 
-function Floor({ jobs }: { jobs: Job[] }) {
-  if (!jobs.length) return null;
-  const s = restaurant.state, shown = jobs.slice(0, 3), patience = guestPatienceSeconds(s);
+const rowClass = (urgent: boolean): string => cn('flex items-center gap-2 rounded-xl border px-2 py-1', urgent ? 'border-tomato/60 bg-tomato/10' : 'border-ink/10 bg-white/40');
+function PatienceBar({ value }: { value: number }) {
+  const urgent = value < .3;
+  return <div role="progressbar" aria-label="Guest patience" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)} className="mt-0.5 h-1 overflow-hidden rounded-full bg-ink/10"><div className={cn('h-full rounded-full', urgent ? 'bg-tomato' : 'bg-teal')} style={{ width: `${value * 100}%` }} /></div>;
+}
+const bigButton = 'flex min-h-[44px] items-center justify-center rounded-xl bg-teal px-3 text-sm font-extrabold text-paper';
+
+/** One floor job on one line: what it is and how long until the team does it, then the button. */
+function FloorRow({ job: j }: { job: Job }) {
+  const s = restaurant.state, g = j.guest, value = g ? Math.max(0, 1 - g.waiting / guestPatienceSeconds(s)) : .7;
   const tables = s.furniture.filter(f => f.kind === 'table').map((table, i) => ({ table, n: i + 1, seat: [0, 1].find(k => restaurant.seatFree(table, k)), cozy: isCozy(s.furniture, table) })).filter(t => t.seat !== undefined).sort((a, b) => Number(b.cozy) - Number(a.cozy));
-  return <div aria-label="The floor">
-    <p className="px-2 pb-1 text-[11px] font-extrabold uppercase tracking-wider text-teal">On the floor · quick hands tip more</p>
-    <ul className="space-y-1.5">{shown.map(j => {
-      const g = j.guest, urgent = j.left < .3;
-      return <li key={j.key} className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-2 py-1.5', urgent ? 'border-tomato/60 bg-tomato/10' : 'border-ink/10 bg-white/40')}>
-        <div className="min-w-[7.5rem] flex-1">
-          <p className="text-sm font-extrabold leading-tight">{j.kind === 'seat' ? `${who(g!)} at the door` : j.kind === 'order' ? `Table ${tableNumber(g!.tableId)} is ready to order` : j.kind === 'serve' ? `${DISHES[g!.dish].name} is ready` : `Table ${tableNumber(j.tableId!)} needs clearing`}{g?.special && <span className="ml-1 text-gold" title="Star guest">★</span>}</p>
-          <p className="text-[10px] font-bold text-ink/55">{j.kind === 'seat' ? `The host seats them in ${Math.max(0, Math.ceil(HOST_DELAY - g!.waiting))}s` : j.kind === 'order' ? `A server takes it in ${Math.max(0, Math.ceil(ORDER_DELAY - g!.timer))}s` : j.kind === 'serve' ? 'A server will carry it' : 'A server will wipe it'}</p>
-          {g && <div role="progressbar" aria-label="Guest patience" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.max(0, 1 - g.waiting / patience) * 100)} className="mt-0.5 h-1 overflow-hidden rounded-full bg-ink/10"><div className={cn('h-full rounded-full', urgent ? 'bg-tomato' : 'bg-teal')} style={{ width: `${Math.max(0, 1 - g.waiting / patience) * 100}%` }} /></div>}
-        </div>
-        {j.kind === 'seat' ? <div className="flex max-w-full gap-1 overflow-x-auto">{tables.length ? tables.slice(0, 4).map(t => <button key={t.table.id} type="button" aria-label={`Seat ${who(g!)} at table ${t.n}${t.cozy ? ', a cosy table' : ''}`} className="flex min-h-[44px] min-w-[3.25rem] items-center justify-center rounded-xl bg-teal px-2.5 text-sm font-extrabold text-paper" onClick={() => tell(restaurant.seat(g!.id, t.table.id, t.seat!))}>{t.cozy ? '✦ ' : ''}T{t.n}</button>) : <span className="text-[11px] font-bold text-ink/55">No free table yet</span>}</div>
-          : <button type="button" className="flex min-h-[44px] min-w-[4.5rem] items-center justify-center rounded-xl bg-teal px-3 text-sm font-extrabold text-paper" onClick={() => tell(j.kind === 'order' ? restaurant.order(g!.id) : j.kind === 'serve' ? restaurant.serve(g!.id) : restaurant.clear(j.tableId!, j.seat!))}>{j.kind === 'order' ? 'Take order' : j.kind === 'serve' ? 'Serve' : 'Clear'}</button>}
-      </li>;
-    })}</ul>
-    {jobs.length > shown.length && <p className="px-2 pt-1 text-[10px] font-bold text-ink/55">{jobs.length - shown.length} more waiting</p>}
+  const title = j.kind === 'seat' ? `${who(g!)} at the door` : j.kind === 'order' ? `Table ${tableNumber(g!.tableId)}: order` : j.kind === 'serve' ? `${DISHES[g!.dish].name} is ready` : `Table ${tableNumber(j.tableId!)} is dirty`;
+  const secs = j.kind === 'seat' ? Math.ceil(HOST_DELAY - g!.waiting) : j.kind === 'order' ? Math.ceil(ORDER_DELAY - g!.timer) : null;
+  return <div className={rowClass(value < .3)}>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-extrabold leading-tight">{title}{g?.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{secs !== null && <span className="ml-1.5 text-[10px] font-bold text-ink/50">team in {Math.max(0, secs)}s</span>}</p>
+      <PatienceBar value={value} />
+    </div>
+    {j.kind === 'seat' ? <div className="flex shrink-0 gap-1">{tables.length ? tables.slice(0, 3).map(t => <button key={t.table.id} type="button" aria-label={`Seat ${who(g!)} at table ${t.n}${t.cozy ? ', a cosy table' : ''}`} className={cn(bigButton, 'min-w-11 px-2')} onClick={() => tell(restaurant.seat(g!.id, t.table.id, t.seat!))}>{t.cozy ? '✦' : ''}T{t.n}</button>) : <span className="text-[11px] font-bold text-ink/55">No free table</span>}</div>
+      : <button type="button" className={cn(bigButton, 'min-w-[4.25rem] shrink-0')} onClick={() => tell(j.kind === 'order' ? restaurant.order(g!.id) : j.kind === 'serve' ? restaurant.serve(g!.id) : restaurant.clear(j.tableId!, j.seat!))}>{j.kind === 'order' ? 'Take order' : j.kind === 'serve' ? 'Serve' : 'Clear'}</button>}
   </div>;
 }
 
@@ -103,24 +109,19 @@ function ChallengePips() {
   </ul>;
 }
 
-function Tickets({ guests }: { guests: Guest[] }) {
-  const s = restaurant.state, patience = guestPatienceSeconds(s), comps = COMPS_PER_NIGHT - s.comps, anyWaiting = guests.some(g => g.stage === 'waiting');
-  return <div>
-    <p className="px-2 pb-1 text-[11px] font-extrabold uppercase tracking-wider text-teal">{anyWaiting ? 'Order up · tap Cook' : 'Your team just started these · take over?'}</p>
-    <ul className="space-y-1.5">{guests.map(g => {
-      const left = Math.max(0, 1 - g.waiting / patience), urgent = left < .3, teamHasIt = g.stage === 'cooking';
-      return <li key={g.id} className={cn('flex flex-wrap items-center gap-2 rounded-xl border px-2 py-1.5', urgent ? 'border-tomato/60 bg-tomato/10' : 'border-ink/10 bg-white/40')}>
-        <div className="min-w-[8.5rem] flex-1">
-          <p className="text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1 text-[10px] font-extrabold uppercase text-ink/55">chef is on it</span>}</p>
-          <div role="progressbar" aria-label="Guest patience" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(left * 100)} className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink/10"><div className={cn('h-full rounded-full', urgent ? 'bg-tomato' : 'bg-teal')} style={{ width: `${left * 100}%` }} /></div>
-        </div>
-        <button className={cn('flex min-h-[44px] min-w-[4.5rem] items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} />{teamHasIt ? 'Take over' : 'Cook'}</button>
-        {!teamHasIt && <>
-          <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}><Zap size={15} />Rush</button>
-          <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><Gift size={15} />Comp {comps}</button>
-        </>}
-      </li>;
-    })}</ul>
+/** A ticket on one line: the dish and its patience, then Cook (or Take over from a chef who has only just started), Rush and Comp. */
+function TicketRow({ guest: g }: { guest: Guest }) {
+  const s = restaurant.state, comps = COMPS_PER_NIGHT - s.comps, value = Math.max(0, 1 - g.waiting / guestPatienceSeconds(s)), teamHasIt = g.stage === 'cooking';
+  return <div className={rowClass(value < .3)}>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1.5 text-[10px] font-bold text-ink/50">chef has it</span>}</p>
+      <PatienceBar value={value} />
+    </div>
+    <button className={cn('flex min-h-[44px] min-w-[4.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} aria-hidden />{teamHasIt ? 'Take over' : 'Cook'}</button>
+    {!teamHasIt && <>
+      <button className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}><Zap size={16} aria-hidden /></button>
+      <button className="relative grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><Gift size={16} aria-hidden /><span aria-hidden className="absolute right-0.5 top-0.5 text-[9px] font-extrabold">{comps}</span></button>
+    </>}
   </div>;
 }
 

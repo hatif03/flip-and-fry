@@ -69,17 +69,26 @@ export default function ManagementGame({ onTestKitchen }: { onTestKitchen?: () =
   const [cover, setCover] = useState<{ bottom: number; right: number; left: number }>({ bottom: 0, right: 0, left: 0 });
   useLayoutEffect(() => {
     const scene = sceneRef.current, workspace = scene?.parentElement; if (!scene || !workspace) return;
+    // The pass grows and shrinks with the jobs on it; the camera keeps the largest height it has had this service, so the room does not breathe.
+    let passMax = 0;
     const measure = () => {
-      const box = scene.getBoundingClientRect(), el = workspace.querySelector<HTMLElement>('[data-cover]');
+      const box = scene.getBoundingClientRect(), covers = Array.from(workspace.querySelectorAll<HTMLElement>('[data-cover]'));
       // On a desktop the rail of tabs sits over the left edge of the scene, so the room is framed to the right of it.
-      const left = window.matchMedia('(min-width: 1024px)').matches && !dockCollapsedRef.current ? 108 : 0;
-      let next = { bottom: 0, right: 0, left };
-      if (el) { const r = el.getBoundingClientRect(); next = el.dataset.cover === 'panel' && window.matchMedia('(min-width: 1024px)').matches ? { bottom: 0, right: Math.max(0, Math.round(box.right - r.left + 8)), left } : { bottom: Math.max(0, Math.round(box.bottom - r.top + 8)), right: 0, left }; }
+      const desktop = window.matchMedia('(min-width: 1024px)').matches, left = desktop && !dockCollapsedRef.current ? 108 : 0;
+      let bottom = 0, right = 0;
+      for (const el of covers) {
+        const r = el.getBoundingClientRect();
+        if (el.dataset.cover === 'panel' && desktop) right = Math.max(right, Math.round(box.right - r.left + 8));
+        else if (el.dataset.cover === 'pass') { passMax = Math.max(passMax, Math.round(box.bottom - r.top + 8)); bottom = Math.max(bottom, passMax); }
+        else bottom = Math.max(bottom, Math.round(box.bottom - r.top + 8));
+      }
+      if (!covers.some(el => el.dataset.cover === 'pass')) passMax = 0;
+      const next = { bottom: Math.max(0, bottom), right: Math.max(0, right), left };
       setCover(c => c.bottom === next.bottom && c.right === next.right && c.left === next.left ? c : next);
     };
     measure();
-    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null, el = workspace.querySelector('[data-cover]');
-    watch?.observe(workspace); if (el) watch?.observe(el);
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    watch?.observe(workspace); workspace.querySelectorAll('[data-cover]').forEach(el => watch?.observe(el));
     window.addEventListener('resize', measure);
     return () => { watch?.disconnect(); window.removeEventListener('resize', measure); };
   }, [panel, showInspector, Boolean(capitalWarning), state.phase, dockCollapsed]);
