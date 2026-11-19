@@ -81,6 +81,13 @@ describe('the garden tab', () => {
     await expect.element(board.getByRole('button', { name: 'Need more produce' }).first()).toBeDisabled();
   });
 
+  it('shows the block party and the shared fridge', async () => {
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const screen = await render(<ManagementGame />); await screen.getByRole('button', { name: 'Garden', exact: true }).click();
+    const block = screen.getByRole('region', { name: 'The block' }); await expect.element(block).toBeVisible();
+    await expect.element(block).toHaveTextContent('Block party'); await expect.element(block).toHaveTextContent('Shared fridge'); await expect.element(block).toHaveTextContent('The fridge is empty');
+  });
+
   it('every button is at least 44 px tall', async () => {
     const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
     const screen = await render(<ManagementGame />); await screen.getByRole('button', { name: 'Garden', exact: true }).click();

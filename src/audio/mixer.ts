@@ -1,4 +1,5 @@
 import { LOOP_STEPS, STEP_SECONDS, levels, notesAt, type Mix, type Note } from './score';
+import type { Cue } from './cues';
 
 /** The slice of the Web Audio API the mixer touches, so tests can stand in for it. */
 export interface AudioLike {
@@ -34,6 +35,7 @@ export class Mixer {
   private master: GainLike | null = null;
   private musicBus: GainLike | null = null;
   private rainBus: GainLike | null = null;
+  private sfxBus: GainLike | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextStep = 0;
   private nextTime = 0;
@@ -60,8 +62,34 @@ export class Mixer {
     this.master = ctx.createGain(); this.master.gain.value = 0; this.master.connect(ctx.destination);
     this.musicBus = ctx.createGain(); this.musicBus.gain.value = 0; this.musicBus.connect(this.master);
     this.rainBus = ctx.createGain(); this.rainBus.gain.value = 0; this.rainBus.connect(this.master);
+    this.sfxBus = ctx.createGain(); this.sfxBus.gain.value = .5; this.sfxBus.connect(ctx.destination);
     this.startRain(ctx, this.rainBus);
     this.nextTime = ctx.currentTime + .1; this.nextStep = 0;
+  }
+
+  /** Effects are heard when the soundtrack switch is on, the page is visible and the first tap has happened. */
+  private get sfxOn(): boolean { return this.unlocked && !this.hidden && this.mix.music && !this.mix.paused; }
+  /** One short effect. `n` is the chain length for the chain chime (it rises with the chain) and is ignored by the others. */
+  cue(name: Cue, n = 0): void {
+    const ctx = this.ctx, bus = this.sfxBus; if (!ctx || !bus || !this.sfxOn) return;
+    if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+    const t = ctx.currentTime + .005;
+    const tone = (hz: number, at: number, seconds: number, gain: number, type = 'sine'): void => {
+      const osc = ctx.createOscillator(), out = ctx.createGain(); osc.type = type; osc.frequency.setValueAtTime(hz, at);
+      out.gain.setValueAtTime(0, at); out.gain.linearRampToValueAtTime(gain, at + .008); out.gain.linearRampToValueAtTime(0, at + seconds);
+      osc.connect(out); out.connect(bus); osc.start(at); osc.stop(at + seconds + .02);
+    };
+    const click = (at: number, hz: number): void => { const src = ctx.createBufferSource(); src.buffer = this.noise(ctx, .1); const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(hz, at); const out = ctx.createGain(); out.gain.setValueAtTime(.5, at); out.gain.linearRampToValueAtTime(0, at + .06); src.connect(f); f.connect(out); out.connect(bus); src.start(at); src.stop(at + .08); };
+    switch (name) {
+      case 'chain': { const steps = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21], hz = 440 * Math.pow(2, (steps[Math.min(n, steps.length) - 1] ?? 0) / 12); tone(hz, t, .16, .22, 'triangle'); break; }
+      case 'coin': tone(988, t, .08, .18); tone(1319, t + .07, .16, .18); break;
+      case 'bell': tone(784, t, .3, .2); tone(1568, t, .2, .06); break;
+      case 'ding': tone(1175, t, .22, .2, 'triangle'); break;
+      case 'pop': tone(330, t, .06, .25); tone(660, t + .05, .1, .22); break;
+      case 'plop': tone(220, t, .09, .22); tone(165, t + .06, .1, .18); break;
+      case 'hammer': click(t, 1800); click(t + .16, 1500); tone(110, t, .08, .2, 'square'); break;
+      case 'flip': click(t, 3000); tone(520, t, .06, .12, 'triangle'); break;
+    }
   }
 
   private apply(): void {
@@ -69,6 +97,7 @@ export class Mixer {
     const l = levels(this.mix), on = this.audible, now = ctx.currentTime;
     const ramp = (p: ParamLike, v: number): void => { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); p.linearRampToValueAtTime(v, now + .6); };
     ramp(this.master.gain, on ? .55 : 0); ramp(this.musicBus.gain, l.music); ramp(this.rainBus.gain, l.rain);
+    if (this.sfxBus) ramp(this.sfxBus.gain, this.sfxOn ? .5 : 0);
     if (on) { if (ctx.state !== 'running') void ctx.resume().catch(() => undefined); this.startScheduler(); }
     else { this.stopScheduler(); if (ctx.state === 'running') void ctx.suspend().catch(() => undefined); }
   }

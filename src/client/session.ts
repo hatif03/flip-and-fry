@@ -199,7 +199,7 @@ export class Session implements RemoteSession {
       if (r.status !== 200 || isError(r.body)) return { error: message(r) };
       const view = r.body as WorldView; this.worldSeen = { view, offset: view.now - Date.now() }; this.engine.notify(); return view;
     },
-    act: async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> => {
+    act: async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> => {
       if (this.engine.state.phase !== 'planning') return { error: 'The garden waits until the doors are shut.' };
       await this.flush();
       const r = await this.enqueue(() => this.http('POST', `/api/world/${path}`, { rev: this.rev, ...body }));

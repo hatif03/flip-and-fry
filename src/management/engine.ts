@@ -1,5 +1,6 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
 import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, HOST_DELAY, ORDER_DELAY, QUEUE_MAX, QUICK_SEAT, QUICK_ORDER, HUSTLE_DECAY, HUSTLE_TIP, HUSTLE_TIP_MAX, COZY_TIP, isCozy, MOVE_AT, moveQuality, INCIDENT_KINDS, INCIDENT_TTL, DEAL_COST, SWAP_COST, FORECLOSURE_GRACE, FORECLOSURE_PIECES, FORECLOSURE_SALE, BUYBACK, FORECLOSURE_REPUTATION, REPUTATION_FLOOR, type Incident, billsShare, shiftLength, SHIFT_NAMES, type Shift, plateQuality, prepQuality, type Hands, companyValue, cookQuality, freshNight, CATALOG, buyPrice, COMFORT_GAP, COMFORT_GAP_MAX, stationLevel, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { cue } from '../audio/cues';
 import { DISH_INGREDIENTS, GROWN_TIP, STATION_SPEED, STATION_TIP, inStock } from './crops';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
@@ -64,7 +65,7 @@ export interface RemoteSession {
   /** Today's board: official results on this subreddit, from the server's replays. Optional and read-only. */
   board?(shift?: 'lunch' | 'dinner'): Promise<BoardView | { error: string }>;
   /** The rooftop garden, the pantry and the order board, run on the server's clock. Only between services. */
-  world?: { /** The last garden view the session loaded, with the offset from this device's clock to the server's, or null before the first. */ peek?(): { view: WorldView; offset: number } | null; load(): Promise<WorldView | { error: string }>; act(path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> };
+  world?: { /** The last garden view the session loaded, with the offset from this device's clock to the server's, or null before the first. */ peek?(): { view: WorldView; offset: number } | null; load(): Promise<WorldView | { error: string }>; act(path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> };
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };
@@ -493,7 +494,7 @@ export class RestaurantEngine {
   /** How long the current chain has been kept alive: zero once the chain has lapsed. */
   hustleLive(): number { const h = this.state.hustle; return this.state.elapsed - h.at <= HUSTLE_DECAY ? h.chain : 0; }
   /** One good move at the pass: the chain grows, and a lapsed one starts again at one. */
-  private hustleGood(): void { const h = this.state.hustle; h.chain = this.hustleLive() + 1; h.at = this.state.elapsed; if (h.chain > h.best) h.best = h.chain; }
+  private hustleGood(): void { const h = this.state.hustle; h.chain = this.hustleLive() + 1; h.at = this.state.elapsed; if (h.chain > h.best) h.best = h.chain; if (!this.catchingUp) cue('chain', h.chain); }
   seatFree(table: Furniture, seat: number): boolean { const s = this.state; return !s.dirty.includes(`${table.id}:${seat}`) && !s.guests.some(g => g.tableId === table.id && g.seat === seat && g.stage !== 'leaving'); }
   /** The first free seat, in the order the tables were built: where the team seats a party. */
   private firstFreeSeat(): { table: Furniture; seat: number } | undefined {
@@ -554,7 +555,7 @@ export class RestaurantEngine {
     if (!guest || !h) return 'There is nothing on the stove to turn.';
     if (this.notYours(h, by)) return 'That is not your dish.';
     if (h.moved) return 'You have already made your move on this dish.';
-    h.moved = moveQuality(guest.cook / DISHES[guest.dish].seconds); if (h.moved === 3) this.hustleGood();
+    h.moved = moveQuality(guest.cook / DISHES[guest.dish].seconds); if (!this.catchingUp) cue('flip'); if (h.moved === 3) this.hustleGood();
     this.record(this.stamp('move', guestId, h.by)); this.changed(h.moved === 3 ? 'A perfectly timed move.' : h.moved === 2 ? 'A decent move.' : 'A little off. It still cooks.'); return null;
   }
   /** Start the next decision of the night when its time comes: a guest in trouble, an allergy, a supplier at the door. */
@@ -642,6 +643,7 @@ export class RestaurantEngine {
   /** A party at the door. It waits there until you seat it, or until the team does. */
   private queueGuest(f: Pick<Guest, 'special' | 'species' | 'dish' | 'price' | 'regular' | 'visitor'>): void {
     const s = this.state, index = s.guests.filter(g => g.stage === 'queued').length;
+    if (!this.catchingUp) cue('bell');
     s.guests.push({ id: s.nextId++, ...f, x: entrance.x + (index - 1) * .6, z: entrance.z + .9, yaw: Math.PI, route: [], tableId: -1, seat: 0, stage: 'queued', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, cozy: false, grown: false });
   }
   /** The regular sits and orders their usual if it is on the menu, and the first dish otherwise (which will not please them). They never turn at the door over price. */
@@ -760,7 +762,7 @@ export class RestaurantEngine {
       if (staff.task === 'toKitchen') {
         staff.task = 'cooking'; staff.timer = DISHES[guest.dish].seconds * (1 - (staff.level - 1) * .2) * (1 - (stationLevel(s, staff.stationId) - 1) * STATION_SPEED);
         const station = s.furniture.find(f => f.id === staff.stationId); staff.yaw = Math.PI - (station?.rotation ?? 0) * Math.PI / 2;
-      } else if (staff.task === 'cooking') { staff.timer -= dt; if (staff.timer <= 0) { guest.stage = 'ready'; resetStaff(staff); } }
+      } else if (staff.task === 'cooking') { staff.timer -= dt; if (staff.timer <= 0) { guest.stage = 'ready'; resetStaff(staff); if (!this.catchingUp) cue('ding'); } }
       else if (staff.task === 'collect') {
         const table = s.furniture.find(f => f.id === guest.tableId), route = table ? this.route(staff, accessPoints(table)[guest.seat]) : null;
         if (route) { staff.route = route; staff.task = 'deliver'; }
@@ -781,7 +783,7 @@ export class RestaurantEngine {
     const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075) * hustle * (guest.cozy ? COZY_TIP : 1) * (guest.grown ? GROWN_TIP : 1) * (1 + (stationLevel(s, guest.stationId) - 1) * STATION_TIP)));
     if (guest.regular) this.regularVisit(guest, true); if (guest.visitor) this.settleVisitor(guest.visitor, 'served', tip, guest.waiting, guest.quality);
     s.night.waitSeconds += guest.waiting; const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
-    this.recordIncome(earned, 'service', guest.id, tip);
+    this.recordIncome(earned, 'service', guest.id, tip); if (!this.catchingUp) cue('coin');
     this.event = `${DISHES[guest.dish].name} served. +$${earned}${tip ? ` including $${tip} tip` : ''}`;
     for (const challenge of advanceDailyChallenges(s.dailyChallenges, guest, tip)) {
       s.cash += challenge.reward; s.lifetimeChallengeBonus += challenge.reward;

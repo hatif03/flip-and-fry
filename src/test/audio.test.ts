@@ -88,6 +88,14 @@ describe('the mixer', () => {
     mixer.set(mix()); mixer.unlock(); mixer.dispose(); expect(ctx.closed).toBe(true); const n = ctx.nodes.osc.length; ctx.currentTime += 5; await vi.advanceTimersByTimeAsync(2000); expect(ctx.nodes.osc.length).toBe(n);
   });
   it('is safe to unlock twice, and to be told things before it has a context', () => {
-    mixer.setHidden(true); mixer.set(mix()); mixer.unlock(); mixer.unlock(); expect(ctx.nodes.gain.length).toBe(3);
+    mixer.setHidden(true); mixer.set(mix()); mixer.unlock(); mixer.unlock(); expect(ctx.nodes.gain.length).toBe(4);
+  });
+  it('plays a short effect for what the player does, only while the speaker is on, visible and unlocked', async () => {
+    mixer.set(mix()); mixer.cue('coin'); expect(ctx.nodes.osc.length).toBe(0); // before the first tap
+    mixer.unlock(); await vi.advanceTimersByTimeAsync(0); const before = ctx.nodes.osc.length;
+    mixer.cue('coin'); expect(ctx.nodes.osc.length).toBeGreaterThan(before);
+    const rising = (n: number) => { const c = ctx.nodes.osc.length; mixer.cue('chain', n); return ctx.nodes.osc[c].frequency.calls[0][1]; }; expect(rising(5)).toBeGreaterThan(rising(1));
+    mixer.set(mix({ music: false })); const off = ctx.nodes.osc.length; mixer.cue('bell'); expect(ctx.nodes.osc.length).toBe(off);
+    mixer.set(mix()); mixer.setHidden(true); mixer.cue('bell'); expect(ctx.nodes.osc.length).toBe(off);
   });
 });

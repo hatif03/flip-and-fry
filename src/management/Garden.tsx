@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Droplets, Hammer, Hand, Sprout } from 'lucide-react';
 import { toast } from 'sonner';
+import { cue } from '@/audio/cues';
 import { cn } from '@/lib/utils';
 import { CROPS, CROP_IDS, LEVEL_XP, WATER_CUT, type CropId } from './crops';
 import { restaurant } from './engine';
@@ -27,10 +28,10 @@ export function Garden() {
   useEffect(() => { let live = true; void world?.load().then(r => { if (!live) return; if ('error' in r) setError(r.error); else apply(r); }); return () => { live = false; }; }, [world, apply]);
   useEffect(() => { const id = setInterval(() => setTick(n => n + 1), 1000); return () => clearInterval(id); }, []);
   if (!world) return <p className="text-sm text-ink/65">The garden grows on Reddit, where it keeps time while you are away.</p>;
-  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
+  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
     setBusy(true); const r = await world.act(path, body); setBusy(false);
     if ('error' in r) { toast.error(r.error); return; }
-    apply(r); if (done) toast.success(done);
+    apply(r); if (done) toast.success(done); cue(path === 'harvest' ? 'pop' : path === 'upgrade' || path === 'rush' ? 'hammer' : path === 'deliver' ? 'coin' : 'plop');
   };
   if (!view) return <p role="status" className="text-sm text-ink/65">{error ?? 'Walking out to the roof…'}</p>;
   const now = Date.now() + offset, planning = restaurant.state.phase === 'planning';
@@ -66,6 +67,21 @@ export function Garden() {
             {st.next ? <button type="button" aria-label={`Upgrade ${st.name} to level ${st.next.toLevel}`} disabled={busy || !planning || working || blocked || st.next.levelNeeded > view.level || view.cash < st.next.cost} onClick={() => void act('upgrade', { index: st.id }, `${st.name}: a builder is on it.`)} className="min-h-[44px] shrink-0 rounded-xl bg-teal px-3 text-sm font-extrabold text-paper disabled:opacity-40">{working ? 'Building' : `Level ${st.next.toLevel}`}</button> : <span className="shrink-0 text-xs font-extrabold text-teal">Top level</span>}
           </li>; })}
       </ul>
+    </section>
+    <section aria-label="The block">
+      <h3 className="mb-1 text-lg">The block</h3>
+      <div className="rounded-2xl border border-ink/10 bg-white/40 p-3">
+        <p className="flex items-baseline justify-between text-sm font-extrabold"><span>Block party</span><span className="tabular-nums text-ink/65">{view.block.party.stars} stars this week</span></p>
+        <p className="text-[11px] text-ink/55">Every verified star from this community counts{view.block.party.mine ? `; you added ${view.block.party.mine}` : '. Earn a star to share in the gifts'}.</p>
+        <ul className="mt-2 flex gap-1.5">{view.block.party.tiers.map((t, i) => <li key={t.at} className="min-w-0 flex-1"><button type="button" disabled={!t.canClaim || busy || !planning} aria-label={`Party gift at ${t.at} stars: ${money(t.reward)}${t.claimed ? ', collected' : t.reached ? '' : ', not reached yet'}`} onClick={() => void act('claim', { index: i }, `A gift from the block: ${money(t.reward)}.`)} className={cn('flex min-h-[44px] w-full flex-col items-center justify-center rounded-xl border px-1 text-[11px] font-extrabold disabled:opacity-60', t.canClaim ? 'border-gold bg-gold text-ink motion-safe:animate-pulse' : t.claimed ? 'border-teal/40 bg-teal/10 text-teal' : 'border-ink/15 bg-paper')}><span>{t.at}★</span><span>{t.claimed ? 'Collected' : money(t.reward)}</span></button></li>)}</ul>
+      </div>
+      <div className="mt-2 rounded-2xl border border-ink/10 bg-white/40 p-3">
+        <p className="text-sm font-extrabold">Shared fridge</p>
+        <p className="text-[11px] text-ink/55">Leave one crop a day for a neighbor; take one a day.</p>
+        {CROP_IDS.some(c => view.block.fridge.items[c]) ? <ul className="mt-2 flex flex-wrap gap-1.5">{CROP_IDS.filter(c => view.block.fridge.items[c]).map(c => <li key={c}><button type="button" disabled={view.block.fridge.took || busy || !planning} aria-label={`Take ${CROPS[c].name.toLowerCase()} from the fridge`} onClick={() => void act('take', { crop: c }, `${CROPS[c].name} taken.`)} className="flex min-h-[44px] items-center gap-1.5 rounded-xl bg-teal/10 px-3 text-xs font-extrabold disabled:opacity-50"><Dot crop={c} />{CROPS[c].name} ×{view.block.fridge.items[c]}</button></li>)}</ul> : <p className="mt-2 text-xs text-ink/60">The fridge is empty. Leave something for the next neighbor.</p>}
+        {have.length > 0 && !view.block.fridge.left && <div className="mt-2 flex flex-wrap items-center gap-1.5"><span className="text-[11px] font-bold text-ink/55">Leave one:</span>{have.map(c => <button key={c} type="button" disabled={busy || !planning} aria-label={`Leave ${CROPS[c].name.toLowerCase()} in the fridge`} onClick={() => void act('leave', { crop: c }, `${CROPS[c].name} left for a neighbor.`)} className="flex min-h-[44px] items-center gap-1.5 rounded-xl border border-ink/15 bg-paper px-3 text-xs font-extrabold disabled:opacity-50"><Dot crop={c} />{CROPS[c].name}</button>)}</div>}
+        {view.block.fridge.left && <p className="mt-2 text-[11px] font-bold text-teal">You left something today. Thank you.</p>}
+      </div>
     </section>
     <section aria-label="The order board">
       <h3 className="mb-1 text-lg">Order board</h3>

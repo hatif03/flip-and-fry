@@ -9,6 +9,7 @@ import { pendingBonus, spendBonus } from './arcade';
 import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
 import { dueJobs, loadWorld, saveWorld } from './worldstore';
+import { addPartyStars } from './block';
 
 /** Everything here is deterministic and talks only to `Store`, so the rules run unchanged in tests and on Devvit. */
 export type Deps = { store: Store; now: () => number };
@@ -195,6 +196,8 @@ export async function lockService(deps: Deps, user: Player, date: string, action
     await deps.store.expire(keys.board(date, shift), TTL.board);
     if (!existing && shift === 'dinner') { await deps.store.hIncrBy(keys.community(date), 'locks', 1); await deps.store.expire(keys.community(date), TTL.board); }
     if (stars.stars >= 1) await markPlayed(deps.store, user.id, date);
+    // The block party counts every star a verified result adds to what that player already had today for this shift.
+    await addPartyStars(deps.store, date, user.id, stars.stars - (existing ? existing.stars.stars : 0));
   }
   await touchProfile(deps, user);
   return { ok: true, value: { type: 'lock', shift, hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), week: await weekStars(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };

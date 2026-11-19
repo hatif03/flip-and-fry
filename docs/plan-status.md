@@ -33,3 +33,16 @@ See [`plan-v2.md`](plan-v2.md). Status:
 | D. Daily content | Partly: 21 distinct titles (three tellings per weekday, same numbers underneath). Built: the new-player gate (a bot that changes nothing earns a star on each of nights 1 to 3 on every one of the next 21 dates and the judging week), without touching the 21-date gates |
 | E. One card, one next step | Built: stars, profit, award, goals, board and neighbors first; the kitchen card, stats and till under "The night in detail"; flair and follow under "More"; Continue pinned at the bottom |
 | F. Measure it | Built: moderator menu item "Retention report" (totals only). The funnel was already in Journeys (open, first guest, midway, receipt, official end, plus each action) |
+
+## Plan v3 (a night you play, a world between nights, the block)
+
+See [`plan-v3.md`](plan-v3.md). Built on 19 November:
+
+| Phase | Status |
+|---|---|
+| 1a. Lunch shift (the short first service) | Built. `shift` in the state, a 60 s lunch with its own result, board and keys, a lunch/dinner picker, the first service is always lunch |
+| 1b. The night you play | Built: the door queue, seat, order, serve, clear, the hustle chain, the station move, one decision at a time, final notice and foreclosure with storage and buy-back. One recalibration (the team alone clears the goal on about half the dates, hands on the floor on all of them) |
+| 2. The world between nights | Built: garden on the server clock, pantry spent by dishes, order board, XP and levels, builder and station upgrades with overtime. Not built: the workshop, saved layouts, the staff roster |
+| 3. The block | Built: block party with three gift tiers, shared fridge. Also built: the tasks strip and synthesised sound cues |
+| Assets | Everything new is code-built or synthesised; no new model, image or sound file was needed so far (the budgets are unchanged) |
+| Still open | The two-account hosted test, a real phone pass over every new screen, the demo video, the Devpost form, the survey |

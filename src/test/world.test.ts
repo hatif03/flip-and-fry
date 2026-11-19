@@ -4,7 +4,9 @@ import { RestaurantEngine } from '@/management/engine';
 import { createDailyHeadline } from '@/management/daily-headline';
 import { createRestaurant } from '@/management/types';
 import { getToday, loadPark, openService, type Deps, type Player } from '@/server/core/game';
-import { awardXp, deliver, getWorld, harvest, plant, rush, upgrade, water } from '@/server/core/world';
+import { awardXp, claimParty, deliver, getWorld, harvest, leaveInFridge, plant, rush, takeFromFridge, upgrade, water } from '@/server/core/world';
+import { PARTY_TIERS, addPartyStars, weekOf } from '@/server/core/block';
+import { lockService } from '@/server/core/game';
 import { worldKey, loadWorld } from '@/server/core/worldstore';
 import { UPGRADE_STEPS, buildersFor, rushCost, STATION_SPEED, STATION_TIP } from '@/management/crops';
 import { CATALOG, stationLevel } from '@/management/types';
@@ -159,5 +161,38 @@ describe('what a station level does in a night', () => {
     for (const e of [slow, fast]) for (let i = 0; i < 1500; i++) e.tick();
     expect(fast.state.totals.served).toBeGreaterThanOrEqual(slow.state.totals.served); expect(fast.state.totals.tips).toBeGreaterThan(slow.state.totals.tips);
     expect(STATION_SPEED).toBeGreaterThan(0); expect(STATION_TIP).toBeGreaterThan(0);
+  });
+});
+
+describe('the block', () => {
+  const bob: Player = { id: 't2_bob', name: 'bob' };
+  const stock = async (user: Player, crop: 'tomato'): Promise<void> => {
+    const loaded = await loadPark(deps, user) as unknown as { rev: number }, r = good(await plant(deps, user, loaded.rev, 0, crop)); advance(CROPS[crop].seconds + 1); good(await harvest(deps, user, r.rev, 0));
+  };
+  const pkRev = async (user: Player): Promise<number> => ((await loadPark(deps, user)) as unknown as { rev: number }).rev;
+  it('the week starts on Monday', () => { expect(weekOf('2026-12-09')).toBe('2026-12-07'); expect(weekOf('2026-12-07')).toBe('2026-12-07'); expect(weekOf('2026-12-13')).toBe('2026-12-07'); expect(weekOf('2026-12-14')).toBe('2026-12-14'); });
+  it('counts the stars of verified results, once each, and never goes down', async () => {
+    const t = good(await getToday(deps, alice)); good(await openService(deps, alice, t.rev, [])); const locked = good(await lockService(deps, alice, t.date, []));
+    expect(good(await getWorld(deps, alice)).block.party.stars).toBe(locked.stars.stars); expect(good(await getWorld(deps, alice)).block.party.mine).toBe(locked.stars.stars);
+    await addPartyStars(store, '2026-12-09', alice.id, -5); await addPartyStars(store, '2026-12-09', alice.id, 0); expect(good(await getWorld(deps, alice)).block.party.stars).toBe(locked.stars.stars);
+  });
+  it('a gift is paid once, only when the block reached the tier, and only to someone who earned a star', async () => {
+    expect(await claimParty(deps, alice, await pkRev(alice), 0)).toMatchObject({ ok: false, error: expect.stringMatching(/not reached/) });
+    await addPartyStars(store, '2026-12-09', bob.id, PARTY_TIERS[0].at);
+    expect(await claimParty(deps, alice, await pkRev(alice), 0)).toMatchObject({ ok: false, error: expect.stringMatching(/Earn a star/) });
+    const cash = good(await getWorld(deps, bob)).cash, w = good(await claimParty(deps, bob, await pkRev(bob), 0));
+    expect(w.cash).toBe(cash + PARTY_TIERS[0].reward); expect(w.block.party.tiers[0].claimed).toBe(true);
+    expect(await claimParty(deps, bob, w.rev, 0)).toMatchObject({ ok: false, error: expect.stringMatching(/already collected/) });
+  });
+  it('the fridge: leave one a day, take one a day, never below zero, and a refused change puts things back', async () => {
+    await stock(alice, 'tomato'); await stock(bob, 'tomato');
+    expect(await takeFromFridge(deps, bob, await pkRev(bob), 'tomato')).toMatchObject({ ok: false, error: expect.stringMatching(/none of that/) });
+    const left = good(await leaveInFridge(deps, alice, await pkRev(alice), 'tomato')); expect(left.block.fridge.items.tomato).toBe(1); expect(left.pantry.tomato).toBe(CROPS.tomato.yield - 1); expect(left.block.fridge.left).toBe(true);
+    expect(await leaveInFridge(deps, alice, left.rev, 'tomato')).toMatchObject({ ok: false, error: expect.stringMatching(/already left/) });
+    const took = good(await takeFromFridge(deps, bob, await pkRev(bob), 'tomato')); expect(took.pantry.tomato).toBe(CROPS.tomato.yield + 1); expect(took.block.fridge.items.tomato).toBeUndefined();
+    expect(await takeFromFridge(deps, bob, took.rev, 'tomato')).toMatchObject({ ok: false, error: expect.stringMatching(/already took/) });
+    // a stale revision refuses the whole change and the fridge is not left a crop short
+    advance(86400); const mine = await pkRev(alice); expect(await leaveInFridge(deps, alice, mine - 1, 'tomato')).toMatchObject({ ok: false, status: 409 });
+    expect(good(await getWorld(deps, alice)).block.fridge.left).toBe(false); expect((good(await getWorld(deps, alice)).block.fridge.items.tomato ?? 0)).toBe(0);
   });
 });

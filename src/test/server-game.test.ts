@@ -190,7 +190,7 @@ describe('limits', () => {
   });
   it('uses a small, fixed number of Redis commands per request', async () => {
     const t = await today(), before = store.calls; good(await openService(deps, alice, t.rev, [])); expect(store.calls - before).toBeLessThan(25);
-    const mid = store.calls; good(await lockService(deps, alice, t.date, [])); expect(store.calls - mid).toBeLessThan(40);
+    const mid = store.calls; good(await lockService(deps, alice, t.date, [])); expect(store.calls - mid).toBeLessThan(60); // the lock also reads the lunch results of the week and adds the block party stars
   });
 });
 

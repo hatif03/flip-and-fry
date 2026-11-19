@@ -19,6 +19,7 @@ const standIn = async () => {
     { index: 0, crop: 'lettuce', plantedAt: t - 1500000, readyAt: t + 2100000, watered: true, ready: false, wilted: false, yield: 3 },
     { index: 1, crop: 'tomato', plantedAt: t - 1500000, readyAt: t - 300000, watered: false, ready: true, wilted: false, yield: 3 }],
     orders: [order(0, 'Mochi', 'rabbit', [{ crop: 'tomato', n: 2 }, { crop: 'lettuce', n: 1 }], 30, 16, false, true), order(1, 'Pickle', 'bear', [{ crop: 'basil', n: 2 }], 21, 14, false, false), order(2, 'Hazel', 'mouse', [{ crop: 'tomato', n: 3 }], 27, 12, true, false)] };
+  view.block = { party: { week: '2026-12-07', stars: 17, mine: 3, tiers: [{ at: 12, reward: 100, reached: true, claimed: false, canClaim: true }, { at: 40, reward: 200, reached: false, claimed: false, canClaim: false }, { at: 100, reward: 300, reached: false, claimed: false, canClaim: false }] }, fridge: { items: { basil: 2 }, left: false, took: false } };
   restaurant.remote.world = { load: async () => view, act: async () => view };
   restaurant.notify();
 };

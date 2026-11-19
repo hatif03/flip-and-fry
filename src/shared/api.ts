@@ -79,6 +79,8 @@ export type StationView = { id: number; kind: string; name: string; level: numbe
 export type WorldView = {
   type: 'world'; now: number; xp: number; level: number; nextXp: number | null; slots: number; plots: PlotView[];
   orders: (Order & { done: boolean; canFill: boolean })[]; pantry: Pantry; cash: number;
+  /** The block: the weekly party and the shared fridge. */
+  block: { party: { week: string; stars: number; mine: number; tiers: { at: number; reward: number; reached: boolean; claimed: boolean; canClaim: boolean }[] }; fridge: { items: Partial<Record<CropId, number>>; left: boolean; took: boolean } };
   builders: { count: number; jobs: { furnitureId: number; name: string; toLevel: number; readyAt: number; rushCost: number }[]; rushUsed: boolean };
   stations: StationView[];
 };

@@ -2,6 +2,7 @@ import { CROPS, CROP_IDS, MAX_STATION_LEVEL, UPGRADABLE, UPGRADE_STEPS, WATER_CU
 import { CATALOG, stationLevel, type RestaurantState } from '../../management/types';
 import type { PlotView, WorldResponse, WorldView, XpGain } from '../../shared/api';
 import { casUpdate, withinRate } from './store';
+import { PARTY_TIERS, claimTier, fridgeLeave, fridgeTake, fridgeUntake, fridgeUnleave, fridgeView, partyView, unclaimTier } from './block';
 import { loadWorld, saveWorld, worldKey, type World } from './worldstore';
 import { loadPark, settleUpgrades, TTL, utcDate, keys, type Deps, type Fail, type Park, type Player } from './game';
 import { shiftDate } from '../../management/daily-headline';
@@ -15,7 +16,7 @@ const fail = (status: Fail['status'], error: string): Fail => ({ ok: false, stat
 async function guard(deps: Deps, uid: string): Promise<Fail | null> { return (await withinRate(deps.store, `rate:world:${uid}`, 90, 60)) ? null : fail(429, 'Slow down a little and try again.'); }
 
 /** The garden as the screen shows it: grown to the number of plots the level allows, with everything derived from the server's `now`. */
-function view(world: World, park: RestaurantState, now: number): WorldView {
+function view(world: World, park: RestaurantState, now: number, block: WorldView['block']): WorldView {
   const level = levelFor(world.xp), slots = plotsFor(level), date = utcDate(now);
   const plots: PlotView[] = Array.from({ length: slots }, (_, index) => {
     const p = world.plots[index];
@@ -30,17 +31,22 @@ function view(world: World, park: RestaurantState, now: number): WorldView {
     return { id: f.id, kind: f.kind, name: CATALOG[f.kind].name, level: lvl, next: step ? { toLevel, cost: Math.floor(CATALOG[f.kind].price * step.price), seconds: step.seconds, levelNeeded: step.level } : null };
   });
   const jobs = world.jobs.map(j => ({ furnitureId: j.furnitureId, name: CATALOG[park.furniture.find(f => f.id === j.furnitureId)?.kind ?? 'prep'].name, toLevel: j.toLevel, readyAt: j.readyAt, rushCost: rushCost(Math.max(0, j.readyAt - now)) }));
-  return { type: 'world', now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations };
+  return { type: 'world', now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations, block };
+}
+
+async function blockOf(deps: Deps, uid: string): Promise<WorldView['block']> {
+  const date = utcDate(deps.now()); return { party: await partyView(deps.store, date, uid), fridge: await fridgeView(deps.store, date, uid) };
 }
 
 export async function getWorld(deps: Deps, user: Player): Promise<{ ok: true; value: WorldView } | Fail> {
   const limited = await guard(deps, user.id); if (limited) return limited;
   const first = await loadPark(deps, user); if ('status' in first) return first;
   const park = await settleUpgrades(deps, user, first);
-  return { ok: true, value: view(await loadWorld(deps.store, user.id), park.state, deps.now()) };
+  return { ok: true, value: view(await loadWorld(deps.store, user.id), park.state, deps.now(), await blockOf(deps, user.id)) };
 }
 
-type Change = { world: World; park?: (state: RestaurantState) => string | null };
+/** `pre` runs before the restaurant is written and may refuse; `undo` puts it back if the restaurant then refuses. */
+type Change = { world: World; park?: (state: RestaurantState) => string | null; pre?: () => Promise<string | null>; undo?: () => Promise<void> };
 /**
  * Apply one change to the world and, when it touches money or the pantry, to the saved restaurant in the same request. The restaurant's own
  * revision is checked, so a stale tab cannot overwrite a newer one; the world is written only after the restaurant took the change.
@@ -55,6 +61,7 @@ async function change(deps: Deps, user: Player, rev: number, make: (world: World
   for (const date of [today, shiftDate(today, -1)]) for (const shift of ['dinner', 'lunch'] as const) if (await deps.store.hGet(keys.opens(date, shift), user.id)) return fail(409, 'Finish tonight\'s service first: the garden waits until the doors are shut.');
   const world = await loadWorld(deps.store, user.id), now = deps.now(), made = make(world, loaded.state, now);
   if (typeof made === 'string') return fail(400, made);
+  const early = made.pre ? await made.pre() : null; if (early) return fail(400, early);
   let finalState: RestaurantState | null = null; const refusal: { text: string | null } = { text: null };
   const result = await casUpdate<Park>(deps.store, keys.park(user.id), current => {
     const park = current ?? loaded;
@@ -65,9 +72,10 @@ async function change(deps: Deps, user: Player, rev: number, make: (world: World
     finalState = state;
     return { value: { rev: park.rev + 1, state } };
   }, { ttlSeconds: TTL.park, now: deps.now });
+  if ('error' in result) await made.undo?.();
   if ('error' in result) return refusal.text ? fail(400, refusal.text) : (() => { const conflict = !!result.conflict || result.error.includes('another tab'); return { ok: false as const, status: conflict ? 409 as const : 400 as const, error: result.error, conflict }; })();
   await saveWorld(deps.store, user.id, made.world, deps.now());
-  return { ok: true, value: { ...view(made.world, finalState ?? loaded.state, now), rev: result.value.rev, park: result.value.state } };
+  return { ok: true, value: { ...view(made.world, finalState ?? loaded.state, now, await blockOf(deps, user.id)), rev: result.value.rev, park: result.value.state } };
 }
 
 export const plant = (deps: Deps, user: Player, rev: number, plotIndex: number, crop: CropId) => change(deps, user, rev, (world, park, now) => {
@@ -142,4 +150,32 @@ export const rush = (deps: Deps, user: Player, rev: number, furnitureId: number)
   return { world: { ...world, rushDate: date, jobs: world.jobs.filter(j => j !== job) }, park: s => {
     if (s.cash < cost) return `Overtime costs $${cost}.`; s.cash -= cost; if (s.furniture.some(f => f.id === furnitureId)) s.levels[String(furnitureId)] = job.toLevel; return null;
   } };
+});
+
+/** Collect a block-party gift: cash, once per tier, for anyone who earned a star this week while the community reached it. */
+export const claimParty = (deps: Deps, user: Player, rev: number, tier: number) => change(deps, user, rev, (world, _park, now) => {
+  const t = PARTY_TIERS[tier]; if (!t) return 'There is no such tier.';
+  const date = utcDate(now);
+  return { world, pre: async () => {
+    const view = await partyView(deps.store, date, user.id), mine = view.tiers[tier];
+    if (!mine.reached) return 'The block has not reached that yet.'; if (mine.claimed) return 'You already collected that one.'; if (view.mine <= 0) return 'Earn a star this week to share in the gifts.';
+    return (await claimTier(deps.store, date, user.id, tier)) ? null : 'You already collected that one.';
+  }, undo: () => unclaimTier(deps.store, date, user.id, tier), park: s => { s.cash += t.reward; return null; } };
+});
+
+/** Leave one crop in the shared fridge (once a day). */
+export const leaveInFridge = (deps: Deps, user: Player, rev: number, crop: CropId) => change(deps, user, rev, (world, park, now) => {
+  const date = utcDate(now);
+  if (!CROP_IDS.includes(crop)) return 'That is not a crop we know.';
+  if ((park.pantry[crop] ?? 0) < 1) return 'You have none of that to leave.';
+  return { world, pre: async () => (await fridgeLeave(deps.store, date, user.id, crop)) ? null : 'You already left something today.', undo: () => fridgeUnleave(deps.store, date, user.id, crop),
+    park: s => { if ((s.pantry[crop] ?? 0) < 1) return 'You have none of that to leave.'; s.pantry[crop] = (s.pantry[crop] ?? 0) - 1; if (!s.pantry[crop]) delete s.pantry[crop]; return null; } };
+});
+
+/** Take one crop from the shared fridge (once a day). */
+export const takeFromFridge = (deps: Deps, user: Player, rev: number, crop: CropId) => change(deps, user, rev, (world, _park, now) => {
+  const date = utcDate(now);
+  if (!CROP_IDS.includes(crop)) return 'That is not a crop we know.';
+  return { world, pre: async () => { const r = await fridgeTake(deps.store, date, user.id, crop); return r === 'ok' ? null : r === 'already' ? 'You already took something today.' : 'There is none of that in the fridge.'; },
+    undo: () => fridgeUntake(deps.store, date, user.id, crop), park: s => { s.pantry[crop] = (s.pantry[crop] ?? 0) + 1; return null; } };
 });

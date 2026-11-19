@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { Mixer } from '@/audio/mixer';
+import { cues } from '@/audio/cues';
 import { GOALS, restaurant } from './engine';
 import { placementError } from './layout';
 import { CATALOG, buyPrice, shiftLength, capacity, comfort, width, type Furniture, type FurnitureKind, type Point } from './types';
@@ -104,10 +105,10 @@ export default function ManagementGame({ onTestKitchen }: { onTestKitchen?: () =
   }, []);
   // The soundtrack is made while it plays. It starts only after the first tap, stops when the tab is hidden, and follows the one speaker switch.
   useEffect(() => {
-    const m = new Mixer(); mixer.current = m;
+    const m = new Mixer(); mixer.current = m; cues.listener = (name, n) => m.cue(name, n);
     const unlock = (): void => m.unlock(), visibility = (): void => m.setHidden(document.hidden);
     document.addEventListener('pointerdown', unlock); document.addEventListener('keydown', unlock); document.addEventListener('visibilitychange', visibility); visibility();
-    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', unlock); document.removeEventListener('visibilitychange', visibility); m.dispose(); mixer.current = null; };
+    return () => { document.removeEventListener('pointerdown', unlock); document.removeEventListener('keydown', unlock); document.removeEventListener('visibilitychange', visibility); m.dispose(); mixer.current = null; cues.listener = null; };
   }, []);
   useEffect(() => { mixer.current?.set({ music: state.music, weather: weatherKind, service: state.phase === 'service', paused }); }, [state.music, weatherKind, state.phase, paused]);
   // After the first night the card sends you to the shop with your cash; the card sets this and the screen takes it.
