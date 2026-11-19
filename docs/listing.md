@@ -5,7 +5,7 @@ For the Reddit developer portal (Developer Settings, Directory listing and In-ap
 | Field | Value |
 |---|---|
 | Display name | `Flip and Fry` |
-| Description (15 to 200 characters) | `A rooftop restaurant tycoon. A new headline every night, a crew of animals, and neighbors who drop by. One verified service a day.` (130) |
+| Description (15 to 200 characters) | `Set up a rooftop restaurant, then be its head chef: cook the orders at the pass and beat tonight's headline goal. One verified service a day.` (141) |
 | Terms and conditions URL | `https://github.com/hatif03/flip-and-fry/blob/master/docs/terms.md` |
 | Privacy policy URL | `https://github.com/hatif03/flip-and-fry/blob/master/docs/privacy.md` |
 | NSFW | Off |

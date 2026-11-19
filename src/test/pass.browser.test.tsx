@@ -45,7 +45,7 @@ describe('the pass panel', () => {
 
   it('shows waiting tickets with a patience bar and big Cook, Rush and Comp buttons', async () => {
     openKitchen(); const screen = await render(<ManagementGame />);
-    const pass = screen.getByRole('region', { name: 'The pass' }); await expect.element(pass).toBeVisible(); await expect.element(pass).toHaveTextContent('Waiting for a chef');
+    const pass = screen.getByRole('region', { name: 'The pass' }); await expect.element(pass).toBeVisible(); await expect.element(pass).toHaveTextContent('Order up');
     await expect.element(screen.getByRole('progressbar', { name: 'Guest patience' }).first()).toBeVisible();
     for (const name of [/Cook/, /Rush/, /Comp/]) { const b = await screen.getByRole('button', { name }).first().element(); expect(b.getBoundingClientRect().height, String(name)).toBeGreaterThanOrEqual(44); }
   });
@@ -92,7 +92,7 @@ describe('the pass panel', () => {
   it('says what to do when nobody is waiting', async () => {
     restaurant.reset(); restaurant.welcome(); restaurant.remote = remote(); restaurant.open(); restaurant.pause(true);
     const screen = await render(<ManagementGame />);
-    await expect.element(screen.getByRole('region', { name: 'The pass' })).toHaveTextContent('Your team has it');
+    await expect.element(screen.getByRole('region', { name: 'The pass' })).toHaveTextContent('The next order lands here');
   });
 
   it('never overlaps the night bar with the camera buttons, and stays inside the phone screen', async () => {

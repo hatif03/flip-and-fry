@@ -19,6 +19,15 @@ export const GOALS: Record<HeadlineId, Goal> = {
   inspection: { text: 'At most one dirty seat at closing and a rating of 3.5 or better', met: (r, h) => h.dirtyAtClose <= 1 && r.rating >= 3.5, stretch: 340 },
 };
 
+/**
+ * A player's first three nights have a gentler goal that the starter restaurant meets on its own: it is the first week's curve. A new owner
+ * who only taps Open still sees a star and starts a streak; from the fourth night the headline's own goal is the one that counts.
+ */
+export const FIRST_NIGHTS = 3;
+const WELCOME: Goal = { text: 'Serve 8 guests and finish in profit', met: r => r.served >= 8 && r.profit > 0, stretch: 0 };
+/** The goal line to show for a headline on the player's `night`th service (1 is the first ever). */
+export const goalText = (id: HeadlineId, night: number): string => night <= FIRST_NIGHTS ? WELCOME.text : GOALS[id].text;
+
 export interface Stars {
   stars: 0 | 1 | 2 | 3;
   goal: boolean;
@@ -27,12 +36,12 @@ export interface Stars {
   goalText: string;
 }
 
-export function evaluateStars(report: Report, headline: HeadlineState, previousProfit: number | null): Stars {
-  const g = GOALS[headline.id], goal = g.met(report, headline);
+export function evaluateStars(report: Report, headline: HeadlineState, previousProfit: number | null, night: number = FIRST_NIGHTS + 1): Stars {
+  const g = GOALS[headline.id], welcome = night <= FIRST_NIGHTS, goal = welcome ? WELCOME.met(report, headline) || g.met(report, headline) : g.met(report, headline);
   const challenges = report.challenges.filter(c => c.rewarded).length;
   const beatPrevious = previousProfit === null ? report.profit >= g.stretch : report.profit > previousProfit;
   const stars = !goal ? 0 : challenges < 2 ? 1 : !beatPrevious ? 2 : 3;
-  return { stars, goal, challenges, beatPrevious, goalText: g.text };
+  return { stars, goal, challenges, beatPrevious, goalText: welcome ? WELCOME.text : g.text };
 }
 
 /** `stars * 1_000_000 + rating * 1000`, the leaderboard score: stars first, then rating. */

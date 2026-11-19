@@ -72,5 +72,6 @@ progress::-moz-progress-bar { @apply rounded-full bg-gold; }
   .pixel-ui progress, .pixel-ui [role='progressbar'], .pixel-ui [role='meter'] { image-rendering: pixelated; }
 }
 
-/* Pixelify Sans draws a 5 that reads as an S at small sizes, and ratings and prices need a clear 5. Only that one digit comes from Fredoka. */
-@font-face { font-family: 'Pixel Five'; font-style: normal; font-weight: 700; src: url('@fontsource/fredoka/files/fredoka-latin-700-normal.woff2') format('woff2'); unicode-range: U+0035; }
+/* Pixelify Sans draws digits and money signs that blur together at small sizes (a 5 reads as an S, 3 and 8 and 0 run into each other), and
+   cash, ratings and prices must be read at a glance. Digits and the signs that go with them come from Fredoka; the letters stay pixel. */
+@font-face { font-family: 'Pixel Five'; font-style: normal; font-weight: 700; src: url('@fontsource/fredoka/files/fredoka-latin-700-normal.woff2') format('woff2'); unicode-range: U+0024, U+002B-002F, U+0030-0039, U+003A, U+00D7, U+2212; }

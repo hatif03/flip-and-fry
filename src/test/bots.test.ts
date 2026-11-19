@@ -55,3 +55,20 @@ describe('judging week (9 to 16 December)', () => {
   });
   it('the starter park never loses money on any judging day', () => { expect(bare.every(n => n.profit > 0)).toBe(true); });
 });
+
+describe('the first week: a new owner who only taps Open', () => {
+  // The coach bot changes nothing: the starter restaurant, as it comes. It must see a star on each of its first three nights, on every date.
+  const coach: Bot = { name: 'coach', actions: [] };
+  const ran = (date: string, night: number) => { const run = runBot(coach, date); if ('error' in run.result) throw new Error(run.result.error); return evaluateStars(run.result.report, run.result.state.headline!, null, night); };
+  it('earns 1★ on nights 1, 2 and 3 for every one of the next 21 dates', () => {
+    for (const date of NEXT_21) for (const night of [1, 2, 3]) expect(ran(date, night).stars, `${date} night ${night}`).toBeGreaterThanOrEqual(1);
+  });
+  it('and for every day of the judging week', () => { for (const date of JUDGING) expect(ran(date, 1).stars, date).toBeGreaterThanOrEqual(1); });
+  it('from the fourth night the headline decides, so doing nothing is no longer enough on the hard nights', () => {
+    expect(NEXT_21.filter(date => ran(date, 4).goal).length).toBeLessThan(NEXT_21.length / 2);
+  });
+  it('the welcome goal text names what to do, and is the one shown only on the first three nights', async () => {
+    const { goalText, FIRST_NIGHTS } = await import('@/management/stars');
+    expect(FIRST_NIGHTS).toBe(3); expect(goalText('critic', 1)).toBe('Serve 8 guests and finish in profit'); expect(goalText('critic', 3)).toBe(goalText('rush', 2)); expect(goalText('critic', 4)).toBe('Every star guest leaves happy and at most 3 guests are missed');
+  });
+});

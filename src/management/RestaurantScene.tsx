@@ -21,15 +21,21 @@ import type { WeatherKind, WeatherMode } from './weather';
 import { PixelPass } from '@/scene/pixel/PixelPass';
 import { pixelSettings } from '@/scene/pixel/pixel-settings';
 
-interface SceneProps { state: RestaurantState; building: boolean; draft: Furniture | null; selected: number | null; zoom: number; angle: number; cityView?: boolean; cityDistrict?: CityDistrict; trafficAudio?: boolean; weatherMode: WeatherMode; onWeatherChange: (kind: WeatherKind) => void; onTile: (point: Point) => void; onSelect: (id: number) => void; }
+interface SceneProps { state: RestaurantState; building: boolean; draft: Furniture | null; selected: number | null; zoom: number; angle: number; cityView?: boolean; cityDistrict?: CityDistrict; trafficAudio?: boolean; weatherMode: WeatherMode; cover?: Cover; onWeatherChange: (kind: WeatherKind) => void; onTile: (point: Point) => void; onSelect: (id: number) => void; }
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch() { restaurant.pause(true); }
   render() { return this.state.failed ? <div className="flex h-full items-center justify-center p-6"><div className="paper max-w-sm p-6 text-center"><h2 className="text-2xl">Let’s reopen the rooftop</h2><p className="my-3">The 3D scene could not load. Your saved restaurant is safe. Check your connection and WebGL support.</p><button className="game-button mx-auto" onClick={() => window.location.reload()}>Reload</button></div></div> : this.props.children; }
 }
-function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean }) {
+/** How much of the canvas a panel hides, in CSS pixels. The canvas itself never resizes; the camera frames the room in what is left. */
+const NO_COVER: Cover = { bottom: 0, right: 0 };
+export interface Cover { bottom: number; right: number; left?: number }
+interface Framing { zoom: number; ox: number; oy: number }
+function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, cover }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean; cover: Cover }) {
   const { camera, size } = useThree();
+  const goal = useRef<Framing | null>(null), now = useRef<Framing | null>(null), key = useRef('');
+  const apply = (f: Framing) => { const cam = camera as THREE.OrthographicCamera; cam.zoom = f.zoom; cam.setViewOffset(size.width, size.height, f.ox, f.oy, size.width, size.height); cam.updateProjectionMatrix(); };
   useEffect(() => {
     const wide = cityView && !building;
     const neighborhood = cityMapBounds(columns, cityDistrict);
@@ -40,9 +46,20 @@ function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building }: 
     const bounds = new THREE.Box3();
     for (const x of wide ? [neighborhood.left, neighborhood.right] : [-1.2, columns * CELL - .2]) for (const y of [-1, wide ? neighborhood.height : 4.3]) for (const z of wide ? [neighborhood.back, neighborhood.front] : [-1.3, 14.4]) bounds.expandByPoint(new THREE.Vector3(x, y, z).applyMatrix4(camera.matrixWorldInverse));
     const extent = bounds.getSize(new THREE.Vector3());
-    cam.zoom = Math.min(size.width / (extent.x + 1.3), size.height / (extent.y + 1.3)) * zoom * (wide || building ? 1 : .86); cam.updateProjectionMatrix();
+    // Frame the room in the part of the canvas no panel covers, then shift it to the middle of that part. The canvas keeps its size.
+    const left = cover.left ?? 0, visibleW = Math.max(120, size.width - cover.right - left), visibleH = Math.max(120, size.height - cover.bottom);
+    goal.current = { zoom: Math.min(visibleW / (extent.x + 1.3), visibleH / (extent.y + 1.3)) * zoom * (wide || building ? 1 : .86), ox: (cover.right - left) / 2, oy: cover.bottom / 2 };
+    // A new camera position (rotate, neighborhood view) cuts; a panel opening, zooming or resizing glides.
+    const next = `${wide}:${angle}:${cityDistrict}:${columns}`, still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!now.current || key.current !== next || still) { key.current = next; now.current = { ...goal.current }; apply(now.current); }
     camera.userData.cityView = wide; camera.userData.district = wide ? cityDistrict : 'restaurant';
-  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building, cover.bottom, cover.right, cover.left]);
+  useFrame((_, dt) => {
+    const c = now.current, g = goal.current; if (!c || !g) return;
+    if (Math.abs(g.zoom - c.zoom) < .01 && Math.abs(g.ox - c.ox) < .5 && Math.abs(g.oy - c.oy) < .5) { if (c.zoom !== g.zoom || c.ox !== g.ox || c.oy !== g.oy) { Object.assign(c, g); apply(c); } return; }
+    const k = 1 - Math.exp(-Math.min(dt, .1) * 10); c.zoom += (g.zoom - c.zoom) * k; c.ox += (g.ox - c.ox) * k; c.oy += (g.oy - c.oy) * k; apply(c);
+  }, -3);
   useFrame((_, dt) => restaurant.update(dt), -2);
   return null;
 }
@@ -84,13 +101,13 @@ function Ghost({ item, valid }: { item: Furniture; valid: boolean }) {
   </group>;
 }
 export default function RestaurantScene(props: SceneProps) {
-  const { state, draft, building, selected, onTile, onSelect, zoom, angle, cityView = false, cityDistrict = 'city', trafficAudio = true, weatherMode, onWeatherChange } = props;
+  const { state, draft, building, selected, onTile, onSelect, zoom, angle, cityView = false, cityDistrict = 'city', trafficAudio = true, weatherMode, cover = NO_COVER, onWeatherChange } = props;
   const [lost, setLost] = useState<boolean>(false), columns = width(state), patienceSeconds = guestPatienceSeconds(state);
   const labels = useRef<Map<string, HTMLDivElement>>(new Map()), pixel = useMemo(() => pixelSettings(), []);
   return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={pixel.enabled ? 1 : [1, 1.5]} style={pixel.enabled ? { imageRendering: 'pixelated' } : undefined} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
     {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} /><FrameWatch />
-    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} />
+    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} />
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
     {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}

@@ -94,3 +94,14 @@ describe('three tellings of each headline', () => {
     expect(createDailyHeadline('2026-12-15')).toEqual(createDailyHeadline('2026-12-15'));
   });
 });
+
+describe('the three tellings lean the same night a little differently', () => {
+  it('the judging week keeps the original numbers; the other weeks move one weight a few percent', async () => {
+    const { headlineEffects, tellingOf, createDailyHeadline, NEUTRAL } = await import('@/management/daily-headline');
+    expect(tellingOf('2026-12-09')).toBe(0);
+    const rush = (date: string) => headlineEffects(createDailyHeadline(date)).gapDelta;
+    expect(rush('2026-11-24')).not.toBe(rush('2026-12-01')); // two different tellings of the same weekday
+    expect(headlineEffects({ id: 'rush', seed: 1 }).gapDelta).toBe(-1); // no date: the original
+    expect(headlineEffects(null)).toBe(NEUTRAL);
+  });
+});

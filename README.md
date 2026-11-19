@@ -1,6 +1,6 @@
 # Flip and Fry
 
-A rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a new neighborhood headline. You build the room, hire the crew, set the menu, open the doors for one night, and Reddit's server replays your service to lock in the result. Built for Reddit's **Game of the Day** hackathon on Devvit Web.
+**An action-tycoon about one night a day: set up your rooftop restaurant in the morning, then be the head chef for the evening service.** It lives inside a Reddit post. Every day brings a new neighborhood headline. You build the room, hire the crew, set the menu, open the doors for one night, and Reddit's server replays your service to lock in the result. Built for Reddit's **Game of the Day** hackathon on Devvit Web.
 
 > **This is a port of a game we already owned.** The browser version (a React Three Fiber restaurant tycoon called *Too Many Cooks*, tagged `pre-devvit` in this repository) was reworked for Reddit. See [What changed in the port](#what-changed-in-the-port).
 
@@ -18,8 +18,8 @@ A rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a 
 
 1. Open today's post. The headline (for example *Rain on the roof*) and a goal for the night are at the top.
 2. **Build:** place tables, planters, lanterns and kitchen equipment. **Team:** hire and train. **Menu:** switch dishes on and set prices.
-3. Tap **Open**. Your team cooks, serves and cleans. When a ticket is waiting, tap **Cook** at the pass, optionally hold **Prep** and let go when the bar is green, then plate it in the green zone. A neighbor can help at your pass (**Cook together**).
-4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night.
+3. Tap **Open**. **You run the pass.** Every order lands in the pass at the bottom: tap **Cook** (or **Take over** from a chef who has just started), optionally hold **Prep** and let go when the bar is green, then plate it in the green zone. **Rush** moves a ticket up, **Comp** keeps a guest who is about to walk. Your team covers whatever you leave, but a night where you cook nothing earns few stars, and the result card says so. A neighbor can help at your pass (**Cook together**).
+4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night. Your first three nights have a gentler goal (serve 8 guests and finish in profit), so a new owner always sees a star.
 5. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
 
 Between nights you can step into the **Test Kitchen** and cook by hand: three shifts, solo or two chefs, and a **Today's shift** picked by the date. New stars there earn a little research for your restaurant (at most 10 a day), and a result can be posted to the thread with the same confirm step as the restaurant's.

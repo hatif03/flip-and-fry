@@ -50,8 +50,8 @@ it('puts the moderators’ neighborhood name in front of the date, and leaves it
 it('tells the player the goal and what to do before opening', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
-  await expect.element(bar).toHaveTextContent('Goal: Finish with a rating of 4.0 or better');
-  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('Tap Open to run your first night.');
+  await expect.element(bar).toHaveTextContent('Goal: Serve 8 guests and finish in profit');
+  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('You are the head chef. Tap Open, then cook the orders yourself.');
 });
 
 it('shows the pass, not a paragraph, while the doors are open', async () => {
@@ -226,6 +226,14 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
     await screen.getByRole('button', { name: /Follow this kitchen/ }).click();
     await expect.element(screen.getByText('Reddit could not follow this community.')).toBeVisible(); await expect.element(screen.getByRole('button', { name: /Follow this kitchen/ })).toBeEnabled();
     await screen.getByRole('button', { name: 'Continue' }).click(); expect(r.result).toBeNull();
+  });
+
+  it('says how much of the night was yours, and after the first night offers to spend the cash', async () => {
+    const { r } = social(); restaurant.state.history = [restaurant.state.history[0] ?? ({} as never)]; restaurant.state.cash = 1200; restaurant.cooked = { plated: 0, perfect: 0, tookOver: 0 };
+    const screen = await render(<ManagementGame />);
+    await expect.element(screen.getByLabelText('What you did tonight')).toHaveTextContent('You did not cook tonight');
+    await screen.getByRole('button', { name: /^Spend your \$1,200/ }).click(); expect(r.result).toBeNull(); expect(restaurant.nextPanel).toBeNull();
+    await expect.element(screen.getByRole('complementary', { name: 'Interiors' })).toBeVisible();
   });
 
   it('offers no flair until there is a streak, and keeps every button at least 44px tall', async () => {

@@ -102,7 +102,7 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   await card.getByRole('button', { name: /Follow this kitchen/ }).click();
 
   // Continue, then leave the door open from the ledger.
-  await card.getByRole('button', { name: 'Continue' }).click();
+  await card.getByRole('button', { name: /^(Continue|Spend your)/ }).click();
   // Wait for the card to be gone (it zooms out), so nothing is animating over the next click.
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
   await screen.getByRole('button', { name: 'Ledger', exact: true }).click();

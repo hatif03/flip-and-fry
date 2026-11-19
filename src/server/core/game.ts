@@ -159,7 +159,7 @@ export async function lockService(deps: Deps, user: Player, date: string, action
   await deps.store.hDel(keys.opens(date), [user.id]); // one open, one close: the same replay can never be submitted twice
 
   const history = replay.state.history, previousProfit = history.length >= 2 ? history[history.length - 2].profit : null;
-  const stars = evaluateStars(replay.report, replay.state.headline!, previousProfit);
+  const stars = evaluateStars(replay.report, replay.state.headline!, previousProfit, history.length);
   const night = nightSummary(replay.state, replay.report);
   const run: StoredRun = { report: replay.report, stars, hash: replay.hash, headline: headline.id, submittedAt: deps.now(), username: user.name, night, name: replay.state.name, style: houseStyle(replay.state) };
   const existingRaw = await deps.store.hGet(keys.runs(date), user.id), existing = existingRaw ? (JSON.parse(existingRaw) as StoredRun) : null;

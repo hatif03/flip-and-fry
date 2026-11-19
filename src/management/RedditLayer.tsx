@@ -7,17 +7,17 @@ import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
 import { createDailyHeadline, formatDate, shiftDate } from './daily-headline';
-import { RESEARCH, researched, type RestaurantState } from './types';
+import { CATALOG, RESEARCH, researched, type RestaurantState } from './types';
 import type { BoardView } from '../shared/api';
 import { NOTE_MAX, flairForStreak, neighborLine } from './social';
-import { GOALS as STAR_GOALS } from './stars';
+import { goalText } from './stars';
 
 /** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
 export const prettyDate = formatDate;
 
 /** What the player should do right now, in one sentence. Tied to the real state of the game, never generic. */
 export function coachLine(phase: 'planning' | 'service' | 'report', hasResultToday: boolean): string {
-  if (phase === 'service') return 'Your team is cooking, serving and cleaning. When a ticket is waiting, tap Cook in the pass below, hold Prep if you like, and plate it in the green zone.';
+  if (phase === 'service') return 'Orders land in the pass below. Tap Cook, hold Prep if you like, and plate it in the green zone. Your team covers anything you leave.';
   if (hasResultToday) return 'Tonight’s result is saved. Rebuild, rehire or reprice, then open again: only your best night of the day counts.';
   return 'Set up first: build tables and decor, hire a team, set prices. Then tap Open to run tonight’s service.';
 }
@@ -26,14 +26,14 @@ export function coachLine(phase: 'planning' | 'service' | 'report', hasResultTod
 export function hintLine(phase: 'planning' | 'service' | 'report', firstNight: boolean, hasResultToday: boolean): string | null {
   if (phase !== 'planning') return null;
   if (hasResultToday) return 'Your result is saved. Only your best night of the day counts.';
-  return firstNight ? 'Tap Open to run your first night.' : 'Spend your cash, then tap Open.';
+  return firstNight ? 'You are the head chef. Tap Open, then cook the orders yourself.' : 'Spend your cash, then tap Open. Then run the pass.';
 }
 
 /** Today's date, headline and goal, in two short lines. It sits in the header's flow so it can never cover the stats on a narrow phone. */
 export function DailyBar() {
   const remote = restaurant.remote;
   if (!remote?.today) return null;
-  const { today, result } = remote, streak = result?.streak ?? today.streak, goal = STAR_GOALS[today.headline.id].text;
+  const { today, result } = remote, streak = result?.streak ?? today.streak, goal = goalText(today.headline.id, restaurant.state.history.length + (result ? 0 : 1));
   return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-1.5 max-w-[1600px] rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] sm:mt-2 sm:rounded-2xl sm:px-4">
     <div className="flex items-center gap-x-2">
       <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
@@ -50,6 +50,16 @@ export function RedditLayer() {
 }
 
 /** One card at the end of a service. Everything on it comes from the server's replayed receipt. */
+/** How much of the night was yours. A night with no hands says so, because cooking yourself is what earns the stars and the tips. */
+export function handsLine(plated: number, perfect: number, tookOver: number): string {
+  if (plated === 0) return 'You did not cook tonight, so your team ran it alone. Cook the orders yourself for bigger tips, a faster room and more stars.';
+  const dishes = `${plated} ${plated === 1 ? 'dish' : 'dishes'}`;
+  return `You cooked ${dishes} yourself${perfect ? `, ${perfect} perfect` : ''}${tookOver ? `, ${tookOver} taken from a chef` : ''}. ${perfect === plated ? 'Every plate was perfect.' : 'Plate in the green for a perfect one.'}`;
+}
+function YourHands() {
+  const { plated, perfect, tookOver } = restaurant.cooked;
+  return <p aria-label="What you did tonight" className={cn('rounded-2xl px-3 py-2 text-sm', plated ? 'bg-teal/10 text-teal' : 'bg-tomato/10 text-ink')}><b>Your hands: </b>{handsLine(plated, perfect, tookOver)}</p>;
+}
 function ResultCard() {
   const remote = restaurant.remote;
   const result = remote?.result, today = remote?.today;
@@ -66,6 +76,7 @@ function ResultCard() {
         {[1, 2, 3].map(n => <Star key={n} size={40} className={n <= stars.stars ? 'fill-gold text-gold' : 'text-ink/20'} />)}
       </div>
       <p className={cn('text-center font-display text-2xl', report.profit >= 0 ? 'text-teal' : 'text-tomato')} aria-label="Profit">{report.profit >= 0 ? 'Profit ' : 'Loss '}{money(Math.abs(report.profit))}</p>
+      <YourHands />
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
       <ul className="space-y-1 text-sm">
         <li className={cn('flex gap-2', stars.goal ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.goal ? '★' : '☆'}</span><span><b>Tonight's goal:</b> {stars.goalText}</span></li>
@@ -100,7 +111,7 @@ function ResultCard() {
       {result.week && <p className="text-xs text-ink/70" aria-label="This week"><b>This week:</b> {result.week.stars} ★{result.week.tier ? ` · ${result.week.tier}` : ''}{result.week.next ? ` · ${result.week.next.at - result.week.stars} more for ${result.week.next.name}` : ' · the top tier'}.</p>}
       <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
       {remote!.postResult && <ShareActions streak={result.streak} />}
-      <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => remote!.dismissResult()}>Continue</button></div>
+      <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => { const first = restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price; remote!.dismissResult(); if (first) { restaurant.nextPanel = 'build'; restaurant.notify(); } }}>{restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price ? `Spend your ${money(restaurant.state.cash)}` : 'Continue'}</button></div>
     </DialogContent>
   </Dialog>;
 }

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
-import { COMPS_PER_NIGHT, COOK_BURN, DISHES, cookQuality, guestPatienceSeconds, idealPrep, type Guest } from './types';
+import { COMPS_PER_NIGHT, COOK_BURN, DAY_LENGTH, DISHES, cookQuality, guestPatienceSeconds, idealPrep, type Guest } from './types';
 
 /** Where the dish is in its cooking, as a share of its normal time. Uses the engine's own bands, so the bar can never disagree with the plate. */
 export type CookZone = 'raw' | 'early' | 'perfect' | 'over' | 'burnt';
@@ -18,14 +18,20 @@ const BAR = 'linear-gradient(to right, #b9ad94 0 30%, #F2B743 30% 42.5%, #4f9a5c
 
 const tell = (error: string | null) => { if (error) toast.error(error); };
 
-/** Waiting tickets and the dish in your hands. Only on Reddit, only while the doors are open. */
+/**
+ * The orders and the dish in your hands. Only on Reddit, only while the doors are open. Every new order lands here, so there is always something to do:
+ * cook it, rush it, comp it, or take it out of a chef's hands in the first seconds. The team still covers anything you leave.
+ */
 export function Pass() {
   const s = restaurant.state;
   if (!restaurant.remote || s.phase !== 'service') return null;
-  const cooking = restaurant.myDish(), line = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting).slice(0, 3);
+  const cooking = restaurant.myDish();
+  const waiting = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting);
+  const takeable = s.guests.filter(g => restaurant.canTakeOver(g)).sort((a, b) => b.waiting - a.waiting);
+  const line = [...waiting, ...takeable].slice(0, 3);
   return <section aria-label="The pass" className="mx-auto mb-2 max-w-[1100px] space-y-2 rounded-2xl border border-paper/80 bg-paper/95 p-2 shadow-[0_4px_0_#73513d30]">
     <ChallengePips />
-    {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : <p className="px-2 py-1 text-xs text-ink/65">No ticket is waiting. Your team has it. Stay close: when a chef is busy, a ticket will appear here.</p>}
+    {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= DAY_LENGTH ? 'Last orders are out. Your team finishes the service.' : 'The next order lands here. You run the pass: tap Cook, prep, plate it in the green.'}</p>}
   </section>;
 }
 
@@ -41,19 +47,21 @@ function ChallengePips() {
 }
 
 function Tickets({ guests }: { guests: Guest[] }) {
-  const s = restaurant.state, patience = guestPatienceSeconds(s), comps = COMPS_PER_NIGHT - s.comps;
+  const s = restaurant.state, patience = guestPatienceSeconds(s), comps = COMPS_PER_NIGHT - s.comps, anyWaiting = guests.some(g => g.stage === 'waiting');
   return <div>
-    <p className="px-2 pb-1 text-[11px] font-extrabold uppercase tracking-wider text-teal">Waiting for a chef · tap Cook to help</p>
+    <p className="px-2 pb-1 text-[11px] font-extrabold uppercase tracking-wider text-teal">{anyWaiting ? 'Order up · tap Cook' : 'Your team just started these · take over?'}</p>
     <ul className="space-y-1.5">{guests.map(g => {
-      const left = Math.max(0, 1 - g.waiting / patience), urgent = left < .3;
+      const left = Math.max(0, 1 - g.waiting / patience), urgent = left < .3, teamHasIt = g.stage === 'cooking';
       return <li key={g.id} className={cn('flex flex-wrap items-center gap-2 rounded-xl border px-2 py-1.5', urgent ? 'border-tomato/60 bg-tomato/10' : 'border-ink/10 bg-white/40')}>
         <div className="min-w-[8.5rem] flex-1">
-          <p className="text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}</p>
+          <p className="text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1 text-[10px] font-extrabold uppercase text-ink/55">chef is on it</span>}</p>
           <div role="progressbar" aria-label="Guest patience" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(left * 100)} className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink/10"><div className={cn('h-full rounded-full', urgent ? 'bg-tomato' : 'bg-teal')} style={{ width: `${left * 100}%` }} /></div>
         </div>
-        <button className="flex min-h-[44px] min-w-[4.5rem] items-center justify-center gap-1.5 rounded-xl bg-teal px-3 text-sm font-extrabold text-paper" onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} />Cook</button>
-        <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}><Zap size={15} />Rush</button>
-        <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><Gift size={15} />Comp {comps}</button>
+        <button className={cn('flex min-h-[44px] min-w-[4.5rem] items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} />{teamHasIt ? 'Take over' : 'Cook'}</button>
+        {!teamHasIt && <>
+          <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}><Zap size={15} />Rush</button>
+          <button className="flex min-h-[44px] items-center justify-center gap-1 rounded-xl bg-ink/8 px-2.5 text-xs font-extrabold disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><Gift size={15} />Comp {comps}</button>
+        </>}
       </li>;
     })}</ul>
   </div>;

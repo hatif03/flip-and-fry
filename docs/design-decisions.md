@@ -10,6 +10,10 @@ Each decision, why it was made, and what was refused. Grouped by theme. The date
 
 **One official night a day, and it locks by itself.** A Lock button adds an end-screen decision the Overview asks us to avoid. The first closed night of a UTC day counts; a later one replaces it only with more stars, or equal stars and higher profit. Practice nights still save.
 
+**You run the pass; the team is the safety net.** Phone testing showed a night could pass with nothing for the player to do, and the screen said "Your team has it". The measurement: a player who changes nothing earns a star on 4 of the next 21 nights, and cooking at the pass raises both service and rating in the replay tests. So the pass now lists every order, a chef's fresh dish can be taken over, and the card opens with how many dishes were yours. Refused: making chefs wait for the player (it would move every calibration), and cash for perfect plates (it would add saved state).
+
+**The first three nights are gentle on purpose.** Nights 1 to 3 score "serve 8 guests and finish in profit", which the starter restaurant meets; from night 4 the headline's goal counts. A calibration test fails if a new owner who changes nothing misses a star on any of the next 21 dates or the judging week.
+
 **Stars read the receipt.** 1★ is the headline's goal; 2★ also needs two of three daily challenges; 3★ also beats your previous night (or a stretch figure on a first night). The goals were *calibrated with bots*, not guessed (see Engineering).
 
 **The player's job during service is the pass.** The first phone test found that "everything is happening automatically" was the biggest problem. Now, when a ticket is waiting, the owner can cook it: tap Cook, optionally hold Prep and release when the bar is green, then plate in the green zone. A perfect plate tips 15% more. Rush a ticket to the front and comp two tables a night. **Refused:** letting the browser report how well it cooked. The quality is computed by the engine from simulated time and tick-stamped holds, so the server's replay is the whole truth. The hands-on 3D kitchen exists as the Test Kitchen instead.

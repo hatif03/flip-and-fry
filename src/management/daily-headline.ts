@@ -153,22 +153,30 @@ export function weatherFor(id: HeadlineId, seed: number): WeatherKind { return i
 
 export function createDailyHeadline(date: string): DailyHeadline {
   const id = WEEK[weekday(date)], seed = mixSeed(Number(date.replace(/-/g, '')) ^ 0x5eed);
-  const [y, m, d] = parseDate(date), telling = (Math.floor((daysFromCivil(y, m, d) + 4) / 7) + 2) % 3; // offset so the judging week (from 9 Dec 2026) shows the original tellings
+  const telling = tellingOf(date);
   return { date, seed, weather: weatherFor(id, seed), id, ...TEXT[id][telling] };
 }
 
 /** Pure. The same {id, seed} always gives the same effects, so a stored snapshot replays identically. */
-export function headlineEffects(headline: { id: HeadlineId; seed: number } | null | undefined): HeadlineEffects {
+/** Which of the three tellings a date gets: 0 is the original (the judging week from 9 Dec 2026), 1 and 2 the later weeks. Offset so the judging week shows the original. */
+export function tellingOf(date: string): number { const [y, m, d] = parseDate(date); return (Math.floor((daysFromCivil(y, m, d) + 4) / 7) + 2) % 3; }
+
+/**
+ * `headline.date` is optional so older callers keep working. The second and third tellings lean the same night slightly harder or easier
+ * (a few percent on one weight), so the three weeks are not the same night with new words; the first telling is exactly the original.
+ */
+export function headlineEffects(headline: { id: HeadlineId; seed: number; date?: string } | null | undefined): HeadlineEffects {
   if (!headline) return NEUTRAL;
   const fx: HeadlineEffects = { ...NEUTRAL }, jitter = (mixSeed(headline.seed ^ 0x9e3779b9) % 5) / 20; // 0, .05, .10, .15, .20
+  const lean = headline.date ? [0, 1, -1][tellingOf(headline.date)] : 0; // +1: a little harder, -1: a little easier
   switch (headline.id) {
-    case 'quiet': fx.patience = 1.15; fx.gapDelta = .8; break;
-    case 'rush': fx.gapDelta = -1; break;
-    case 'rain': fx.walk = .9; fx.tipComfort = 1.5; break;
+    case 'quiet': fx.patience = 1.15; fx.gapDelta = .8 - lean * .15; break;
+    case 'rush': fx.gapDelta = -1 - lean * .15; break;
+    case 'rain': fx.walk = .9; fx.tipComfort = 1.5 + lean * -.1; break;
     case 'supplier': fx.burgerCost = 1.4 + jitter; break;
     case 'critic': fx.specialAlways = true; fx.criticCap = true; break;
-    case 'payday': fx.priceRoll = .5; break;
-    case 'inspection': fx.dirtyPenalty = .35; break;
+    case 'payday': fx.priceRoll = .5 - lean * .05; break;
+    case 'inspection': fx.dirtyPenalty = .35 + lean * .05; break;
   }
   if (weatherFor(headline.id, headline.seed) === 'sun') { fx.patience *= .95; fx.burgerBias = .15; }
   return fx;

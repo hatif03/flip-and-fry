@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { tonight } from './bills';
 import { money } from './format';
 import { DAY_LENGTH } from './types';
-import { GOALS } from './stars';
+import { goalText } from './stars';
 import { Star } from 'lucide-react';
 
 /**
@@ -13,7 +13,7 @@ import { Star } from 'lucide-react';
 export function TonightBar() {
   const s = restaurant.state;
   if (s.phase !== 'service') return null;
-  const goal = restaurant.remote?.today ? GOALS[restaurant.remote.today.headline.id].text : null;
+  const goal = restaurant.remote?.today ? goalText(restaurant.remote.today.headline.id, s.history.length + 1) : null;
   const { bills, earned, net, covered } = tonight(s), through = Math.min(1, s.elapsed / DAY_LENGTH), last = s.elapsed >= DAY_LENGTH;
   return <section aria-label="Tonight" className="pointer-events-auto mx-auto mt-1.5 max-w-[1600px] rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] sm:mt-2 sm:rounded-2xl sm:px-4">
     <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-gold">

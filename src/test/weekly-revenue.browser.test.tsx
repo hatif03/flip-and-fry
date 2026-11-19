@@ -26,7 +26,7 @@ it.each([320, 390, 768, 1280])('shows the weekly chart immediately in Ledger at 
   expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
   if (width < 1024) {
-    expect(screen.getByTestId('restaurant-scene').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
+    expect(screen.getByTestId('scene-frame').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
     // On a narrow phone the status line is hidden while a panel is open, so there is nothing for the panel to overlap.
     const status = screen.getByText('Saved on this device', { exact: true }).element().getBoundingClientRect();
     if (status.height > 0) expect(bounds.bottom).toBeLessThanOrEqual(status.top);

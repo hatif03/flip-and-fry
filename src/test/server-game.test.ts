@@ -98,12 +98,19 @@ describe('locking is the server replaying the opened service', () => {
 
 describe('one official result per UTC day', () => {
   it('keeps the first result, replaces it only with a better one', async () => {
+    // Past the first three nights, whose goal is gentle on purpose: play three earlier days, then come back to the 9th.
+    for (const day of [6, 7, 8]) { store.now = at(2026, 12, day); await play(alice, []); }
+    store.now = at(2026, 12, 9);
     const first = (await play(alice, cozyBot.actions)).locked;
     expect(first.official).toBe(true); expect(first.replaced).toBe(false);
     // A second service with a bold menu on the same day earns fewer stars: the stored result stays.
     const worse = (await play(alice, greedyBot.actions)).locked;
     expect(worse.stars.stars).toBeLessThan(first.stars.stars); expect(worse.official).toBe(false);
     const stored = (await today()).run!; expect(stored.hash).toBe(first.hash); expect(stored.stars).toEqual(first.stars);
+  });
+  it('a first night with no changes earns a star from the welcome goal, and says so', async () => {
+    const { locked } = await play(alice, []);
+    expect(locked.stars.stars).toBeGreaterThanOrEqual(1); expect(locked.stars.goalText).toBe('Serve 8 guests and finish in profit');
   });
   it('counts one lock per day for the neighborhood however many services are played', async () => {
     await play(alice, cozyBot.actions); await play(alice, []);

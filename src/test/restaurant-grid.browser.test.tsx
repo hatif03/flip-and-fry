@@ -63,7 +63,7 @@ it.each([320, 390, 768])('keeps the grid readout, preview area and placement con
   await screen.getByRole('button', { name: 'Build', exact: true }).click();
   await screen.getByRole('button', { name: /Bistro table/ }).click();
   const region = screen.getByRole('region', { name: 'Furniture placement' }).element();
-  const rect = region.getBoundingClientRect(), scene = screen.getByTestId('restaurant-scene').element().getBoundingClientRect();
+  const rect = region.getBoundingClientRect(), scene = screen.getByTestId('scene-frame').element().getBoundingClientRect();
   expect(rect.left).toBeGreaterThanOrEqual(0); expect(rect.right).toBeLessThanOrEqual(width);
   expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth);
   expect(scene.bottom).toBeLessThanOrEqual(rect.top); expect(scene.height).toBeGreaterThan(160);

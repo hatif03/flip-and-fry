@@ -317,9 +317,9 @@ export class RestaurantEngine {
       this.state.seed = mixSeed(this.state.seed ^ headline.seed);
       this.state.headline = { id: headline.id, date: headline.date, seed: headline.seed, walkouts: 0, dirtyAtClose: 0, closed: false };
     } else this.state.headline = null;
-    this.state.hands = [];
+    this.state.hands = []; this.cooked = { plated: 0, perfect: 0, tookOver: 0 };
     Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [], comps: 0, night: freshNight() });
-    this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Your team has it from here.'); return null;
+    this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Run the pass: cook the orders yourself.'); return null;
   }
   private startChallenges(): void {
     if (this.state.dailyChallenges.length) return;
@@ -346,7 +346,11 @@ export class RestaurantEngine {
    */
   coop: { submit(action: Action): void } | null = null;
   /** Whose hands this device's pass controls are: 0 for the owner, 1 for a neighbor helping in a hosted service. */
+  /** A panel the next screen should open on (set when a result card is closed). The game screen takes it and clears it. */
+  nextPanel: 'build' | null = null;
   handsBy = 0;
+  /** What this device's own hands did tonight. Memory only, not part of the saved state or the replay: it feeds the result card. */
+  cooked: { plated: number; perfect: number; tookOver: number } = { plated: 0, perfect: 0, tookOver: 0 };
   /** Called after every step of the simulation. A hosted service uses it to publish and compare checksums. */
   afterStep: (() => void) | null = null;
   private scheduled: Action[] = [];
@@ -387,12 +391,29 @@ export class RestaurantEngine {
   /** The service action to record: the `by` field only appears for a neighbor's hands, so a solo log is exactly as it always was. */
   private stamp<K extends 'claimTicket' | 'cook' | 'abandon' | 'hold' | 'release'>(kind: K, guestId: number, by: number): Action { return { tick: this.tickCount(), kind, guestId, ...(by > 0 ? { by } : {}) } as Action; }
   private handsOf(guestId: number): Hands | undefined { return this.state.hands.find(h => h.guestId === guestId); }
-  /** Take a waiting ticket and cook it yourself. Each pair of hands cooks one dish at a time. */
+  /**
+   * Whether you can still take this dish out of a chef's hands: the chef has not got far yet (walking to the stove, or less than half through
+   * the cooking). Nothing changes unless someone taps, so a night played with no hands is exactly what it was.
+   */
+  canTakeOver(guest: Guest): boolean {
+    if (guest.stage !== 'cooking' || guest.owner) return false;
+    const chef = this.state.staff.find(w => w.role === 'chef' && w.guestId === guest.id); if (!chef) return false;
+    return chef.task === 'toKitchen' || chef.task === 'cooking' && chef.timer > DISHES[guest.dish].seconds * (1 - (chef.level - 1) * .2) * .5;
+  }
+  /** Take a ticket and cook it yourself: a waiting one, or one a chef has only just started (the chef is freed for the next ticket). Each pair of hands cooks one dish at a time. */
   claimTicket(guestId: number, by = 0): string | null {
     if (this.intercept('claimTicket', guestId, by)) return null;
     const s = this.state; if (s.phase !== 'service') return 'The doors are closed.';
-    const guest = s.guests.find(g => g.id === guestId); if (!guest || guest.stage !== 'waiting') return 'That ticket is already being cooked.';
+    const guest = s.guests.find(g => g.id === guestId); if (!guest) return 'That ticket is already being cooked.';
+    const takeOver = guest.stage === 'cooking' && this.canTakeOver(guest);
+    if (guest.stage !== 'waiting' && !takeOver) return guest.stage === 'cooking' && !guest.owner ? 'Your chef is almost done with that one.' : 'That ticket is already being cooked.';
     if (s.hands.some(h => h.by === by)) return 'Finish the dish you are cooking first.';
+    if (takeOver) {
+      // The ingredients are already paid and the stove is the chef's: the chef steps away and the dish starts over in your hands.
+      s.staff.filter(w => w.guestId === guest.id && w.role === 'chef').forEach(resetStaff);
+      guest.owner = true; guest.cook = 0; s.hands.push({ guestId, by, holding: false, prep: 0, quality: 0 }); if (by === this.handsBy) this.cooked.tookOver++;
+      this.record(this.stamp('claimTicket', guestId, by)); this.changed(`${by ? 'A neighbor took' : 'You took'} over the ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
+    }
     const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + stationName(DISHES[guest.dish].station) + ' is busy.';
     const cost = dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
     guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; s.hands.push({ guestId, by, holding: false, prep: 0, quality: 0 });
@@ -431,6 +452,7 @@ export class RestaurantEngine {
     const quality = plateQuality(cookQuality(guest.cook / DISHES[guest.dish].seconds), (hands?.quality ?? 0) as 0 | 1 | 2 | 3);
     this.record(this.stamp('cook', guestId, hands?.by ?? 0));
     if (quality === 0) { this.failCook(guest, guest.cook < DISHES[guest.dish].seconds * .6 ? 'Too early: the dish is still raw. The ingredients are lost.' : 'Too late: the dish burnt. The ingredients are lost.'); return null; }
+    if ((hands?.by ?? 0) === this.handsBy) { this.cooked.plated++; if (quality === 3) this.cooked.perfect++; }
     guest.owner = false; guest.cook = 0; guest.quality = quality; guest.stage = 'ready'; this.state.hands = this.state.hands.filter(h => h.guestId !== guestId);
     this.changed(quality === 3 ? 'Perfect plate! The guest will tip more.' : quality === 2 ? 'Slightly over, but it goes out.' : 'Plated. A little early, but it goes out.'); return null;
   }

@@ -46,7 +46,7 @@ it.each([320, 390, 1280])('previews, cancels and buys a table without overflow o
   await expect.element(screen.getByTestId('purchase-budget')).toHaveTextContent('Keep $120 to reopen');
   const inspector = screen.getByRole('region', { name: 'Furniture placement' }).element();
   expect(inspector.scrollWidth).toBeLessThanOrEqual(inspector.clientWidth);
-  expect(screen.getByTestId('restaurant-scene').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(inspector.getBoundingClientRect().top);
+  expect(screen.getByTestId('scene-frame').element().getBoundingClientRect().bottom).toBeLessThanOrEqual(inspector.getBoundingClientRect().top);
   for (const button of inspector.querySelectorAll('button')) { const rect = button.getBoundingClientRect(); expect(rect.right).toBeLessThanOrEqual(width); expect(rect.height).toBeGreaterThanOrEqual(44); expect(rect.width).toBeGreaterThanOrEqual(44); }
   await screen.getByRole('button', { name: 'Cancel placement' }).click();
   expect(restaurant.state.cash).toBe(1250);

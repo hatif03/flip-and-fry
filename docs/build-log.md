@@ -4,6 +4,70 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — You run the pass: orders always on screen, take a dish from a chef
+
+**Why:** the author played on a phone and could not tell what the game was ("a strategy game or an action game?"), and the night "happened without me doing anything". The measurement behind it: a player who only taps Open earns a star on **4 of the next 21 nights** (`src/test/bots.test.ts`, first-week block), while the replay tests already show that cooking at the pass raises served guests and rating. So hands matter, but the screen said "Your team has it" and showed a ticket only when every chef was busy. Nothing told the player the game was theirs to play.
+
+**What:** (1) The pass lists every new order, so there is always a ticket to act on; the Cook button pulses (not under reduced motion). (2) `RestaurantEngine.canTakeOver` and `claimTicket` now also take a dish a chef has just started (walking to the stove, or under half cooked): the chef is freed for the next ticket, the ingredients stay paid once, and the dish starts over in your hands. It changes nothing unless someone taps, so a night with no taps and every golden hash are unchanged (all 988 existing unit tests still pass); a night with take-overs replays to the same hash on the server (`src/test/take-over.test.ts`). (3) The first hint says what the job is ("You are the head chef. Tap Open, then cook the orders yourself."), the doors-open event no longer says "Your team has it from here", and the result card opens with **Your hands**: how many dishes you cooked and how many were perfect, or a plain line that a night with no cooking was run by the team alone. The counts are in memory on the engine (`cooked`), not in the saved state or the replay.
+
+**Refused:** making chefs wait before they take a ticket (every bot night and the 21-date calibration would shift); cash for a perfect plate (it would add fields to the state and refresh every golden); a bankruptcy rule (still refused, it deletes progress).
+
+Devvit or third party: none; no new permission.
+Code: `src/management/engine.ts` (`canTakeOver`, `claimTicket`, `cooked`), `src/management/Pass.tsx`, `src/management/RedditLayer.tsx` (`handsLine`, `YourHands`, `hintLine`).
+
+## 2026-11-19 — The first three nights have a gentler goal
+
+**Why:** plan v2 phase D asked for a first-week curve and a new-player bot that must earn a star on days 1 to 3. The measurement above shows the starter restaurant clears the headline goal on 4 of 21 nights, so a new player who only taps Open saw 0 stars and no streak on most first nights.
+
+**What:** on a player's nights 1 to 3 the goal is "Serve 8 guests and finish in profit" (or the headline's own goal, whichever is met). From the fourth night the headline's goal is the one that counts. `evaluateStars` takes the night number (the server passes `history.length`); `goalText` gives the line shown in the bars. A new calibration block in `bots.test.ts` runs a "coach" bot (the starter restaurant, no changes) over the next 21 dates and the judging week and fails if any of nights 1 to 3 has no star, and checks that doing nothing is **not** enough from night 4. The existing 21-date gates are untouched.
+
+**Also built:** after the first night the result card's button reads "Spend your $X" and opens Build; the table carries a "Best first buy" badge for the first three nights.
+
+**Refused:** a shorter first service. The service length is shared by every replay, bot and board, and the board compares like with like. The first night is instead made short in effort: one hint, one tap to open, orders on the pass, a goal that is met.
+
+Devvit or third party: none.
+Code: `src/management/stars.ts`, `src/server/core/game.ts` (the `lockService` call), `src/management/InteriorsPanel.tsx`, `src/management/RedditLayer.tsx`, `src/management/ManagementGame.tsx` (`nextPanel`).
+
+## 2026-11-19 — The camera glides when a panel opens
+
+**Why:** the author noticed that opening Build, Team, Menu or Ledger made the whole restaurant and city jump and rescale, because the canvas itself was resized and the camera refitted in one frame.
+
+**What:** the scene's canvas now keeps one size. A panel or the placement bar covers part of it; `ManagementGame` measures that cover (`data-cover`) and passes it as `cover`, and `SceneClock` frames the room in what is left and moves there over about a third of a second (zoom and offset by `setViewOffset`). Rotating or switching to the neighborhood view still cuts, and a reduced-motion setting cuts everything. A hidden `scene-frame` element marks the area the camera frames, so tests can say "the room is above the panel" (two layout tests now read it instead of the canvas box).
+
+**Refused:** keeping the resize and only easing the zoom (the centre would still jump), and a slide animation on the panels themselves.
+
+Devvit or third party: none.
+Code: `src/management/RestaurantScene.tsx` (`SceneClock`, `Cover`), `src/management/ManagementGame.tsx`.
+
+## 2026-11-19 — Numbers use a plain face
+
+**Why:** the pixel typeface made digits hard to read at small sizes (3, 8 and 0 run together), and cash, bills and ratings are what a player reads most.
+
+**What:** the `Pixel Five` face that already supplied the digit 5 from Fredoka now supplies every digit and the signs that go with them ($ + , - . / : × and the minus sign). Letters stay in Pixelify Sans. One stylesheet rule, no new file.
+
+**Refused:** dropping the pixel typeface altogether (the headings are the identity of the screen); a second numeric face (extra weight for no gain).
+
+Devvit or third party: none (the Fredoka file was already bundled).
+Code: `src/index.css`.
+
+## 2026-11-19 — The second and third tellings lean the night a little
+
+**Why:** plan v2 phase D wanted variants that are more than new words. The 21 titles were text only.
+
+**What:** `headlineEffects` reads the date and moves one weight a few percent for tellings 1 and 2 (rush and quiet: arrival gap by 0.15 s; rain: tip comfort by 0.1; payday: price roll by 0.05; inspection: dirt penalty by 0.05). Telling 0, the one the judging week shows, is exactly the original, and a call with no date is the original too. All 21-date and judging-week calibration gates still pass without changing a number in them, and no golden hash moved.
+
+**Refused:** variants that change the star lines (the gates are set from the bots) or add a new effect (it would need a new field in the saved state).
+
+Devvit or third party: none.
+Code: `src/management/daily-headline.ts` (`tellingOf`, `headlineEffects`), `src/test/daily-headline.test.ts`.
+
+## 2026-11-19 — A rail of tabs on desktop
+
+**Why:** plan v2 phase A asked for a left rail above 900 px, and the author asked for the unbuilt items to be built. From 1024 px the Build, Team, Menu and Ledger tabs sit in a vertical rail on the left, the bottom bar keeps seats, cosiness, Test Kitchen and Open, and the room is framed to the right of the rail. Phones are unchanged.
+
+Devvit or third party: none.
+Code: `src/management/ManagementGame.tsx` (the `nav`, `cover.left`).
+
 ## 2026-11-20 — Weekly rank; the challenge pips stay on one line
 
 **Why:** plan v2 phase C listed a weekly arc as the reason to come back on day 3, 5 and 7. It was the first cut if time ran short; it was small enough to build.
