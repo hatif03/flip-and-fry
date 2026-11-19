@@ -1,7 +1,7 @@
 import { createDailyHeadline, type DailyHeadline } from './daily-headline';
 import { RestaurantEngine } from './engine';
 import { applyPlanning, MAX_SERVICE_TICKS, runService, stateHash, type Action, type ServiceResult } from './replay';
-import { COMPS_PER_NIGHT, DISHES, createRestaurant, guestPatienceSeconds, type RestaurantState } from './types';
+import { COMPS_PER_NIGHT, DISHES, createRestaurant, guestPatienceSeconds, isCozy, MOVE_AT, type RestaurantState } from './types';
 
 /**
  * Bots own a restaurant; they do not tap tickets. Each is a fixed set of planning actions on the starter park,
@@ -54,6 +54,28 @@ export function helperPolicy(engine: RestaurantEngine): void {
   }
   const next = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting)[0];
   if (next) engine.claimTicket(next.id);
+}
+
+/** How long the scripted owner takes to notice a job and react, in simulated seconds. A person is not instant. */
+export const REACTION = 1;
+/**
+ * The scripted owner with the floor too: seats a party at a cosy table when there is one, takes orders, carries finished dishes, wipes
+ * tables, and then does everything `helperPolicy` does at the pass. It reacts after REACTION seconds, as a person would.
+ */
+export function floorPolicy(engine: RestaurantEngine): void {
+  const s = engine.state;
+  const party = s.guests.find(g => g.stage === 'queued' && g.waiting >= REACTION);
+  if (party) {
+    const options = s.furniture.filter(f => f.kind === 'table').flatMap(table => [0, 1].filter(seat => engine.seatFree(table, seat)).slice(0, 1).map(seat => ({ table, seat, cozy: isCozy(s.furniture, table) }))).sort((a, b) => Number(b.cozy) - Number(a.cozy));
+    if (options.length) engine.seat(party.id, options[0].table.id, options[0].seat);
+  }
+  if (s.incident && s.elapsed - s.incident.at >= REACTION) engine.decide(s.incident.kind === 'complaint' ? 2 : 1);
+  const mine = s.guests.find(g => g.owner), hands = mine && s.hands.find(h => h.guestId === mine.id);
+  if (mine && hands && !hands.moved && mine.cook >= MOVE_AT * DISHES[mine.dish].seconds) engine.move(mine.id);
+  const seated = s.guests.find(g => g.stage === 'seated' && g.timer >= REACTION); if (seated) engine.order(seated.id);
+  const ready = s.guests.find(g => g.stage === 'ready' || g.stage === 'delivering'); if (ready) engine.serve(ready.id);
+  const dirty = s.dirty[0]; if (dirty) { const [tableId, seat] = dirty.split(':').map(Number); engine.clear(tableId, seat); }
+  helperPolicy(engine);
 }
 
 export type HelpedRun = { actions: Action[]; liveHash: string; live: RestaurantState; replay: ServiceResult };

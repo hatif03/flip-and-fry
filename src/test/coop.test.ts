@@ -6,7 +6,7 @@ import { runService, stateHash, type Action } from '@/management/replay';
 import { DISHES, createRestaurant, type RestaurantState } from '@/management/types';
 
 const headline = createDailyHeadline('2026-12-09');
-const snapshot = (): RestaurantState => { const s = createRestaurant(); s.staff = s.staff.map(m => ({ ...m, role: 'server' as const })); s.cash = 5000; s.furniture.push({ id: 90, kind: 'prep', x: 9, z: 4, rotation: 0 }); return s; };
+const snapshot = (): RestaurantState => { const s = createRestaurant(); s.staff = s.staff.map(m => ({ ...m, role: 'server' as const })); s.cash = 5000; s.menu.burger.enabled = false; s.furniture.push({ id: 90, kind: 'prep', x: 9, z: 4, rotation: 0 }); return s; };
 const engine = (): RestaurantEngine => { const e = new RestaurantEngine(undefined, () => 0); e.autoRoll = false; return e; };
 
 /** Two devices and a pretend network. Time advances one tick at a time; a message sent now arrives `latency` ticks later. */
@@ -39,7 +39,7 @@ describe('stamping', () => {
   });
   it('sends a helper\'s tap to the host, which stamps it with the helper\'s hands', () => {
     const r = rig(); while (waitingTickets(r.host).length < 2) r.step();
-    const [a, b] = waitingTickets(r.host); r.host.claimTicket(a.id); r.guest.claimTicket(b.id); r.step(60);
+    const [a, b] = waitingTickets(r.host).slice(-2); r.host.claimTicket(a.id); r.guest.claimTicket(b.id); r.step(60);
     expect(r.host.state.hands.map(h => [h.guestId, h.by]).sort()).toEqual([[a.id, 0], [b.id, 1]].sort()); expect(r.log.find(x => x.kind === 'claimTicket' && x.by === 1)).toBeTruthy();
     expect(stateHash(r.host.state)).toBe(stateHash(r.guest.state) === stateHash(r.host.state) ? stateHash(r.host.state) : 'x');
   });

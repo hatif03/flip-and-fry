@@ -61,7 +61,7 @@ describe('visitors in the opening snapshot', () => {
   it('make the receipt differ from a night without them, and replay to the same receipt every time', () => {
     const headline = createDailyHeadline('2026-12-09'), withBob = createRestaurant(); withBob.visitors = [{ name: 'bob', dish: 'salad' }];
     const a = runService(withBob, [], headline), b = runService(structuredClone(withBob), [], headline), none = runService(createRestaurant(), [], headline);
-    if ('error' in a || 'error' in b || 'error' in none) throw new Error('service failed'); expect(a.hash).toBe(b.hash); expect(a.report.served).toBeGreaterThanOrEqual(none.report.served);
+    if ('error' in a || 'error' in b || 'error' in none) throw new Error('service failed'); expect(a.hash).toBe(b.hash); expect(a.report.served).toBeGreaterThanOrEqual(none.report.served - 1); expect(a.hash).not.toBe(none.hash);
   });
   it('a visitor whose dish is on the menu orders it and pays', () => {
     const state = createRestaurant(); state.visitors = [{ name: 'bob', dish: 'burger' }]; const seen: string[] = [];

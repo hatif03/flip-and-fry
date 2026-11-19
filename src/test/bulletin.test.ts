@@ -5,7 +5,7 @@ import { DAY_LENGTH, createRestaurant, type Guest } from '@/management/types';
 import { cityDelta, cityLoop, sampleStreet } from '@/management/city-motion';
 import { PARK } from '@/management/park-motion';
 
-const guest = (stage: Guest['stage'], id = 20): Guest => ({ id, special: false, species: 'mouse', tableId: 3, seat: 0, dish: 'salad', price: 24, stage, waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, regular: null, visitor: null, x: 4, z: 9, yaw: 0, route: [] });
+const guest = (stage: Guest['stage'], id = 20): Guest => ({ id, special: false, species: 'mouse', tableId: 3, seat: 0, dish: 'salad', price: 24, stage, waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, cozy: false, regular: null, visitor: null, x: 4, z: 9, yaw: 0, route: [] });
 describe('truthful street bulletin', () => {
   it('starts empty with an honestly upcoming opening, not invented attendance', () => {
     const s = createRestaurant(), data = readBulletin(s, false);

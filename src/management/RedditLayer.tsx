@@ -77,6 +77,14 @@ export function handsLine(plated: number, perfect: number, tookOver: number): st
   const dishes = `${plated} ${plated === 1 ? 'dish' : 'dishes'}`;
   return `You cooked ${dishes} yourself${perfect ? `, ${perfect} perfect` : ''}${tookOver ? `, ${tookOver} taken from a chef` : ''}. ${perfect === plated ? 'Every plate was perfect.' : 'Plate in the green for a perfect one.'}`;
 }
+/** If the bank stepped in tonight, or has put the restaurant on notice, the card says what it took and what it did not. */
+function BankLine() {
+  const park = restaurant.remote?.result?.park; if (!park) return null;
+  const f = park.foreclosure;
+  if (f && f.day === park.history[park.history.length - 1]?.day) return <p aria-label="The bank" className="rounded-2xl bg-tomato/10 px-3 py-2 text-sm"><b>The bank stepped in. </b>It took {f.kinds.map(k => CATALOG[k].name.toLowerCase()).join(', ') || 'nothing'} into storage and let {f.released} of your crew go; your loan is cleared. Buy the pieces back in Build for 60%. Your name, stars, streak and records are untouched.</p>;
+  if (park.notice === 1) return <p aria-label="The bank" className="rounded-2xl bg-tomato/10 px-3 py-2 text-sm"><b>Final notice. </b>Another night at a loss and the bank sells up to three of your best pieces into storage. A profitable night clears it.</p>;
+  return null;
+}
 function YourHands() {
   const { plated, perfect, tookOver } = restaurant.cooked;
   return <p aria-label="What you did tonight" className={cn('rounded-2xl px-3 py-2 text-sm', plated ? 'bg-teal/10 text-teal' : 'bg-tomato/10 text-ink')}><b>Your hands: </b>{handsLine(plated, perfect, tookOver)}</p>;
@@ -98,6 +106,7 @@ function ResultCard() {
       </div>
       <p className={cn('text-center font-display text-2xl', report.profit >= 0 ? 'text-teal' : 'text-tomato')} aria-label="Profit">{report.profit >= 0 ? 'Profit ' : 'Loss '}{money(Math.abs(report.profit))}</p>
       <YourHands />
+      <BankLine />
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
       {result.shift === 'lunch' ? <ul className="space-y-1 text-sm" aria-label="Lunch goals">
         {[stars.goal, stars.challenges >= 2, stars.beatPrevious].map((met, i) => <li key={i} className={cn('flex gap-2', met ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{met ? '★' : '☆'}</span><span>{i === 0 && <b>Lunch goal: </b>}{LUNCH_STARS[i]}</span></li>)}

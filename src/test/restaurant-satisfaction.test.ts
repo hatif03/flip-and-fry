@@ -41,7 +41,7 @@ describe('management customer satisfaction', () => {
   });
   it('follows real waiting, pause, speed, timeout and cleanup without changing costs', () => {
     const engine = new RestaurantEngine(); engine.open(); engine.state.cash = 0;
-    tick(engine, 8); const guest = engine.state.guests[0], patience = guestPatienceSeconds(engine.state);
+    tick(engine, 14); const guest = engine.state.guests[0], patience = guestPatienceSeconds(engine.state);
     const value = guestSatisfaction(guest, patience); expect(value).toBeLessThan(100);
     engine.pause(true); tick(engine, 10); expect(guestSatisfaction(guest, patience)).toBe(value);
     const before = guest.waiting; engine.setSpeed(3); tick(engine, 1); expect(guest.waiting - before).toBeCloseTo(3);

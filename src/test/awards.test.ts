@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { averagePathLength, cardThought, nightSummary, valueScore } from '@/management/awards';
-import { bareBot, cozyBot, datesFrom, greedyBot, runBot } from '@/management/bots';
+import { bareBot, cozyBot, datesFrom, floorPolicy, greedyBot, playWithHelper, runBot } from '@/management/bots';
 import { FLAIR, NOTE_MAX, cleanNote, flairForStreak, houseStyle, receiptComment } from '@/management/social';
 import { CATALOG, companyValue, createRestaurant, type RestaurantState } from '@/management/types';
 
@@ -41,7 +41,9 @@ describe('the kitchen card', () => {
     const date = '2026-12-09', summary = (bot: typeof cozyBot) => { const { state, report } = night(bot, date); return nightSummary(state, report).card; };
     expect(summary(cozyBot).welcome).toBeGreaterThan(summary(bareBot).welcome);
     expect(summary(cozyBot).value).toBeGreaterThan(summary(greedyBot).value);
-    expect(summary(cozyBot).speed).toBeGreaterThan(summary(bareBot).speed);
+    // Speed is what hands change: the same room, with the floor played, serves faster than the team alone.
+    const played = (() => { const r = playWithHelper(cozyBot, date, undefined, floorPolicy).replay; if ('error' in r) throw new Error(r.error); return nightSummary(r.state, r.report).card; })();
+    expect(played.speed).toBeGreaterThan(summary(cozyBot).speed);
   });
   it('rewards a layout that is quick to walk and a menu near fair', () => {
     const s = createRestaurant(); expect(averagePathLength(s)).toBeGreaterThan(0);

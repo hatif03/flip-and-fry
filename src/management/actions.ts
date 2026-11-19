@@ -36,11 +36,20 @@ export const actionSchema = z.discriminatedUnion('kind', [
   z.object({ ...service, kind: z.literal('hold'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('release'), guestId: z.number().int() }),
   z.object({ ...service, kind: z.literal('priority'), guestId: z.number().int() }),
+  // The station move while a dish cooks (flip, stir, toss): one tap, scored from the tick it was made on.
+  z.object({ ...service, kind: z.literal('move'), guestId: z.number().int() }),
+  // The one decision a night puts to you (a complaint, an allergy, a supplier): choice 0, 1 or 2.
+  z.object({ ...service, kind: z.literal('decide'), choice: z.number().int().min(0).max(2) }),
   z.object({ ...service, kind: z.literal('comp'), guestId: z.number().int() }),
+  // The floor: seat the party at the door, take the order, hand a ready dish over, clear a dirty seat. Each has a slower automatic fallback.
+  z.object({ ...service, kind: z.literal('seat'), guestId: z.number().int(), tableId: z.number().int(), seat: z.number().int().min(0).max(1) }),
+  z.object({ ...service, kind: z.literal('order'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('serve'), guestId: z.number().int() }),
+  z.object({ ...service, kind: z.literal('clear'), tableId: z.number().int(), seat: z.number().int().min(0).max(1) }),
 ]);
 export type Action = z.infer<typeof actionSchema>;
-export const MAX_ACTIONS = 400;
+export const MAX_ACTIONS = 700;
 /** The most owner actions one service may carry. A busy night needs a few dozen. */
-export const MAX_SERVICE_ACTIONS = 140;
+export const MAX_SERVICE_ACTIONS = 400;
 export const isServiceAction = (a: Action): boolean => a.tick > 0;
 export const actionLogSchema = z.array(actionSchema).max(MAX_ACTIONS);

@@ -60,6 +60,6 @@ describe('the counters behind them', () => {
   });
   it('are filled in for saves that never had them', () => {
     const old = JSON.parse(JSON.stringify(createRestaurant())); delete old.streaks;
-    expect(restaurantSchema.parse(old).streaks).toEqual({ nailed: 0, honest: 0, loanCleared: 0 });
+    expect(restaurantSchema.parse(old).streaks).toEqual({ nailed: 0, honest: 0, loanCleared: 0, losses: 0 });
   });
 });

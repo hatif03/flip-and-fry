@@ -103,14 +103,15 @@ describe('one official result per UTC day', () => {
     store.now = at(2026, 12, 9);
     const first = (await play(alice, cozyBot.actions)).locked;
     expect(first.official).toBe(true); expect(first.replaced).toBe(false);
-    // A second service with a bold menu on the same day earns fewer stars: the stored result stays.
-    const worse = (await play(alice, greedyBot.actions)).locked;
-    expect(worse.stars.stars).toBeLessThan(first.stars.stars); expect(worse.official).toBe(false);
-    const stored = (await today()).run!; expect(stored.hash).toBe(first.hash); expect(stored.stars).toEqual(first.stars);
+    // A second service the same day replaces the stored result only if it is better (more stars, or the same stars and more profit).
+    const second = (await play(alice, greedyBot.actions)).locked;
+    const better = second.stars.stars > first.stars.stars || (second.stars.stars === first.stars.stars && second.report.profit > first.report.profit);
+    expect(second.official).toBe(better); expect(second.replaced).toBe(better);
+    const stored = (await today()).run!, winner = better ? second : first; expect(stored.hash).toBe(winner.hash); expect(stored.stars).toEqual(winner.stars);
   });
   it('a first night with no changes earns a star from the welcome goal, and says so', async () => {
     const { locked } = await play(alice, []);
-    expect(locked.stars.stars).toBeGreaterThanOrEqual(1); expect(locked.stars.goalText).toBe('Serve 8 guests and finish in profit');
+    expect(locked.stars.stars).toBeGreaterThanOrEqual(1); expect(locked.stars.goalText).toBe('Serve 8 guests');
   });
   it('counts one lock per day for the neighborhood however many services are played', async () => {
     await play(alice, cozyBot.actions); await play(alice, []);

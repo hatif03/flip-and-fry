@@ -57,7 +57,7 @@ export function Customer({ guest, patienceSeconds }: { guest: Guest; patienceSec
   useEffect(() => () => rig.dispose(), [rig]);
   useFrame((_, dt) => {
     if (!group.current) return;
-    const seated = !['arriving', 'leaving'].includes(guest.stage), eating = guest.stage === 'eating';
+    const seated = !['queued', 'arriving', 'leaving'].includes(guest.stage), eating = guest.stage === 'eating';
     const active = !restaurant.paused && restaurant.state.phase === 'service';
     if (active) visualTime.current += (restaurant.state.clock - visualTime.current) * (1 - Math.exp(-dt * 22));
     const t = visualTime.current, gait = !reduced.matches && guest.route.length > 0 ? Math.sin(t * 10 + guest.id) * .42 : 0;

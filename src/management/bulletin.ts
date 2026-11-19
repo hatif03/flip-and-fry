@@ -24,7 +24,7 @@ export function readBulletin(state: RestaurantState, paused: boolean): BulletinR
   }
   return {
     name: state.name, day: state.day, guests: state.guests.length,
-    seated: state.guests.filter(guest => guest.stage !== 'arriving' && guest.stage !== 'leaving').length,
+    seated: state.guests.filter(guest => guest.stage !== 'queued' && guest.stage !== 'arriving' && guest.stage !== 'leaving').length,
     status, notices,
   };
 }

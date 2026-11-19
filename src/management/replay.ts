@@ -38,6 +38,12 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'hold': return engine.holdPrep(a.guestId, a.by);
     case 'release': return engine.releasePrep(a.guestId, a.by);
     case 'comp': return engine.comp(a.guestId);
+    case 'move': return engine.move(a.guestId, a.by);
+    case 'decide': return engine.decide(a.choice);
+    case 'seat': return engine.seat(a.guestId, a.tableId, a.seat);
+    case 'order': return engine.order(a.guestId);
+    case 'serve': return engine.serve(a.guestId);
+    case 'clear': return engine.clear(a.tableId, a.seat);
   }
 }
 

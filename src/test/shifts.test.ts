@@ -43,7 +43,7 @@ describe('lunch stars', () => {
     expect(evaluateStars(report({ served: 5, profit: 10, rating: 4.2 }), h, null, 1, 'lunch').stars).toBe(2);
     expect(evaluateStars(report({ served: 5, profit: 10, rating: 4.2 }), h, null, 1, 'lunch', 4).stars).toBe(3);
   });
-  it('shows the lunch goal text on every night, not the first-week one', () => { expect(goalText('critic', 9, 'lunch')).toBe(LUNCH_STARS[0]); expect(goalText('critic', 1)).toBe('Serve 8 guests and finish in profit'); });
+  it('shows the lunch goal text on every night, not the first-week one', () => { expect(goalText('critic', 9, 'lunch')).toBe(LUNCH_STARS[0]); expect(goalText('critic', 1)).toBe('Serve 8 guests'); });
 });
 
 describe('the server keeps lunch and dinner apart', () => {

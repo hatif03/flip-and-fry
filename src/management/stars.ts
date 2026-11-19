@@ -24,7 +24,7 @@ export const GOALS: Record<HeadlineId, Goal> = {
  * who only taps Open still sees a star and starts a streak; from the fourth night the headline's own goal is the one that counts.
  */
 export const FIRST_NIGHTS = 3;
-const WELCOME: Goal = { text: 'Serve 8 guests and finish in profit', met: r => r.served >= 8 && r.profit > 0, stretch: 0 };
+const WELCOME: Goal = { text: 'Serve 8 guests', met: r => r.served >= 8, stretch: 0 };
 /** The goal line to show for a headline on the player's `night`th service (1 is the first ever). */
 export const goalText = (id: HeadlineId, night: number, shift: Shift = 'dinner'): string => shift === 'lunch' ? LUNCH_STARS[0] : night <= FIRST_NIGHTS ? WELCOME.text : GOALS[id].text;
 /**

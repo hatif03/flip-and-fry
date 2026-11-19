@@ -43,7 +43,7 @@ const agentSchema = pointSchema.extend({ yaw: z.number().finite(), route: z.arra
 const staffSchema = agentSchema.extend({ id: z.number().int(), name: z.string().max(30), role: roleSchema, level: z.number().int().min(1).max(3), task: z.enum(['idle', 'toKitchen', 'cooking', 'collect', 'deliver', 'clean']), guestId: z.number().int().nullable(), stationId: z.number().int().nullable(), timer: z.number().finite().nonnegative() });
 export type Staff = Validated<z.infer<typeof staffSchema>>;
 export const SPECIES = ['mouse', 'crocodile', 'rabbit', 'bear'] as const;
-const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(SPECIES), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['queued', 'arriving', 'seated', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false), regular: z.string().max(20).nullable().default(null), visitor: z.string().max(20).nullable().default(null) });
+const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(SPECIES), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['queued', 'arriving', 'seated', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false), regular: z.string().max(20).nullable().default(null), visitor: z.string().max(20).nullable().default(null), cozy: z.boolean().default(false) });
 export type Guest = Validated<z.infer<typeof guestSchema>>;
 const totalsSchema = z.object({ revenue: z.number().nonnegative(), ingredients: z.number().nonnegative(), served: z.number().int().nonnegative(), missed: z.number().int().nonnegative(), tips: z.number().nonnegative() });
 export type Totals = Validated<z.infer<typeof totalsSchema>>;
@@ -62,9 +62,9 @@ const nightSchema = z.object({ visitors: z.array(visitNoteSchema).max(3).default
 export type Night = Validated<z.infer<typeof nightSchema>>;
 export const freshNight = (): Night => ({ visitors: [], waitSeconds: 0, refused: 0, walkouts: 0, dirtyAtClose: 0, closed: false, arrivals: 0 });
 /** Running counts the contracts read: services since furniture was last sold, services in a row at honest prices, and whether the recovery loan was ever cleared. */
-const streaksSchema = z.object({ nailed: z.number().int().nonnegative().default(0), honest: z.number().int().nonnegative().default(0), loanCleared: z.number().int().min(0).max(1).default(0) });
+const streaksSchema = z.object({ nailed: z.number().int().nonnegative().default(0), honest: z.number().int().nonnegative().default(0), loanCleared: z.number().int().min(0).max(1).default(0), losses: z.number().int().nonnegative().default(0) });
 export type Streaks = Validated<z.infer<typeof streaksSchema>>;
-export const freshStreaks = (): Streaks => ({ nailed: 0, honest: 0, loanCleared: 0 });
+export const freshStreaks = (): Streaks => ({ nailed: 0, honest: 0, loanCleared: 0, losses: 0 });
 /** A dish is priced honestly within this many dollars of fair. */
 export const HONEST_BAND = 4;
 /** What the research budget buys, in the order it is earned. Points are dollars spent on research. */
@@ -86,7 +86,7 @@ const outfitSchema = z.object({ hat: z.enum(OUTFIT_IDS), apron: z.enum(OUTFIT_ID
  * The owner's hands while cooking a ticket. Holding the prep button (chopping, trimming, seasoning) adds to `prep` for as long as it is
  * held, in simulated seconds, so the result is a function of the tick-stamped hold and release alone and replays identically.
  */
-const handsSchema = z.object({ guestId: z.number().int(), /** Whose hands: 0 is the owner, 1 is a neighbor helping in a hosted service. */ by: z.number().int().min(0).max(1).default(0), holding: z.boolean(), prep: z.number().nonnegative(), quality: z.number().int().min(0).max(3) });
+const handsSchema = z.object({ guestId: z.number().int(), /** Whose hands: 0 is the owner, 1 is a neighbor helping in a hosted service. */ by: z.number().int().min(0).max(1).default(0), holding: z.boolean(), prep: z.number().nonnegative(), quality: z.number().int().min(0).max(3), /** The station move (flip, stir, toss): 0 not made, else how well it was timed. */ moved: z.number().int().min(0).max(3).default(0) });
 export type Hands = Validated<z.infer<typeof handsSchema>>;
 /** How long a good prep takes: a share of the dish's cooking time, never less than two seconds. */
 export const idealPrep = (dish: Dish): number => Math.max(2, DISHES[dish].seconds * .4);
@@ -114,6 +114,44 @@ const headlineStateSchema = z.object({ id: headlineId, date: z.string().regex(/^
 export type HeadlineState = Validated<z.infer<typeof headlineStateSchema>>;
 const reportSchema = totalsSchema.extend({ headline: headlineId.nullable().default(null), challenges: challengesSchema, day: z.number().int().positive(), wages: z.number().nonnegative(), rent: z.number().nonnegative(), debtPayment: z.number().nonnegative(), research: z.number().nonnegative().default(0), profit: z.number().finite(), rating: z.number().min(1).max(5) });
 export type Report = Validated<z.infer<typeof reportSchema>>;
+/**
+ * The hustle chain: each good move at the pass (a quick seating, a quick order, a perfect plate, a hand-off, a cleared table) adds one; the
+ * chain drops to nothing after HUSTLE_DECAY idle seconds. A live chain multiplies tips. It is computed from the tick-stamped actions only.
+ */
+const hustleSchema = z.object({ chain: z.number().int().nonnegative(), best: z.number().int().nonnegative(), at: z.number() });
+export type Hustle = z.infer<typeof hustleSchema>;
+export const HUSTLE_DECAY = 8, HUSTLE_TIP = .05, HUSTLE_TIP_MAX = 10;
+/** The team seats a party at the door after this many seconds, and takes an order after the second one. Your hands are quicker; that is the point. */
+export const HOST_DELAY = 4, ORDER_DELAY = 3, QUEUE_MAX = 4;
+/** A quick seating is one made within this many seconds of the party arriving, and a quick order within this many of sitting down. */
+export const QUICK_SEAT = 3, QUICK_ORDER = 2;
+/** A table is cozy when a plant, lantern, bench or screen stands within two tiles of it. A party seated there by hand tips ten percent more. */
+export const COZY_TIP = 1.1;
+export const isCozy = (furniture: readonly Furniture[], table: Furniture): boolean => furniture.some(f => CATALOG[f.kind].comfort > 0 && Math.max(Math.abs(f.x - table.x), Math.abs(f.z - table.z)) <= 2);
+/** The station move: one tap while a dish cooks, best near the middle of its cooking time. */
+export const MOVE_AT = .5, MOVE_PERFECT = .15, MOVE_GOOD = .3;
+export const moveQuality = (ratio: number): 1 | 2 | 3 => { const off = Math.abs(ratio - MOVE_AT); return off <= MOVE_PERFECT ? 3 : off <= MOVE_GOOD ? 2 : 1; };
+export const STATION_MOVE: Record<FurnitureKind, string> = { prep: 'Chop', grill: 'Flip', pot: 'Stir', wok: 'Toss', oven: 'Turn', table: '', plant: '', divider: '', lamp: '', bench: '' };
+
+/**
+ * One decision at a time while the doors are open, from the date: a guest with a complaint, a guest with an allergy, a supplier at the
+ * door. It waits INCIDENT_TTL seconds; if nobody decides, the default (the first choice that costs nothing) is taken.
+ */
+export const INCIDENT_KINDS = ['complaint', 'allergy', 'supplier'] as const;
+export type IncidentKind = typeof INCIDENT_KINDS[number];
+export const INCIDENT_TTL = 12, DEAL_COST = 40, DEAL_DISCOUNT = .75, SWAP_COST = 4;
+const incidentSchema = z.object({ kind: z.enum(INCIDENT_KINDS), guestId: z.number().int(), at: z.number() });
+export type Incident = z.infer<typeof incidentSchema>;
+
+/**
+ * Foreclosure takes things, never the restaurant. After a final notice, a further loss-making night lets the bank sell up to three of the
+ * most valuable pieces (at half price, into storage where they can be bought back at 60%), let the extra crew go and clear the debt. The
+ * name, stars, streak, records, regulars, research, outfits and every past night stay. Not in the first seven nights, at most once a week.
+ */
+export const FORECLOSURE_GRACE = 7, FORECLOSURE_PIECES = 3, FORECLOSURE_SALE = .5, BUYBACK = .6, FORECLOSURE_REPUTATION = .6, REPUTATION_FLOOR = 2;
+const foreclosureSchema = z.object({ day: z.number().int().positive(), kinds: z.array(furnitureKind).max(FORECLOSURE_PIECES), released: z.number().int().nonnegative(), proceeds: z.number().nonnegative() });
+export type Foreclosure = z.infer<typeof foreclosureSchema>;
+
 /** One entry per dish. A dish a save does not mention yet is simply off, at its fair price, so older saves keep loading. */
 export type MenuItem = { enabled: boolean; price: number };
 const menuItem = z.object({ enabled: z.boolean(), price: z.number().int().min(PRICE_MIN).max(PRICE_MAX) });
@@ -124,6 +162,9 @@ export const restaurantSchema = z.object({
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
   shift: z.enum(SHIFTS).default('dinner'),
+  hustle: hustleSchema.default({ chain: 0, best: 0, at: -100 }),
+  incident: incidentSchema.nullable().default(null), incidents: z.number().int().nonnegative().default(0), deal: z.boolean().default(false),
+  notice: z.number().int().min(0).max(1).default(0), storage: z.array(furnitureKind).max(30).default([]), foreclosure: foreclosureSchema.nullable().default(null),
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
   headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), visitors: z.array(visitorSchema).max(MAX_VISITORS).default([]), research: researchSchema.default({ budget: 0, points: 0 }), hands: z.preprocess(v => v ?? [], z.array(handsSchema).max(2)).default([]), outfit: outfitSchema.default({ hat: 'cream', apron: 'tomato' }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
@@ -144,6 +185,8 @@ export const CATALOG: Record<FurnitureKind, CatalogItem> = {
   lamp: { name: 'Warm lantern', description: '+8 atmosphere. A little golden-hour magic.', price: 110, size: 1, category: 'Atmosphere', comfort: 8 },
 };
 export const researched = (state: Pick<RestaurantState, 'research'>, id: ResearchId): boolean => state.research.points >= RESEARCH.find(r => r.id === id)!.at;
+/** What a piece costs to put in the room: a piece from storage (after a foreclosure) is 60% of its price, anything else the full price. */
+export const buyPrice = (state: Pick<RestaurantState, 'storage'>, kind: FurnitureKind): number => state.storage.includes(kind) ? Math.floor(CATALOG[kind].price * BUYBACK) : CATALOG[kind].price;
 export const stationName = (kind: FurnitureKind): string => CATALOG[kind].name.toLowerCase();
 export const DAY_LENGTH = 150;
 /**
@@ -183,7 +226,7 @@ export const comfort = (state: RestaurantState): number => Math.min(100, state.f
 /** Shared service deadline, including the restaurant's existing atmosphere bonus. */
 export const guestPatienceSeconds = (state: RestaurantState): number => (48 + comfort(state) * .18) * headlineEffects(state.headline).patience;
 /** Ingredient cost for one dish tonight; the supplier headline raises the grill dishes. */
-export const dishCost = (state: RestaurantState, dish: Dish): number => Math.round(DISHES[dish].cost * (DISHES[dish].station === 'grill' ? headlineEffects(state.headline).burgerCost : 1));
+export const dishCost = (state: RestaurantState, dish: Dish): number => Math.round(DISHES[dish].cost * (DISHES[dish].station === 'grill' ? headlineEffects(state.headline).burgerCost : 1) * (state.deal ? DEAL_DISCOUNT : 1));
 /** Average share below fair across the enabled dishes, as a fraction of the arrival gap (0 at or above fair). */
 export const discountLift = (state: RestaurantState): number => {
   const on = DISH_IDS.filter(dish => state.menu[dish].enabled);
@@ -207,6 +250,6 @@ export function createRestaurant(): RestaurantState {
       { id: 11, name: 'Pip', role: 'server', level: 1, x: 4, z: 7, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
     ], guests: [], dirty: [], menu: { ...Object.fromEntries(DISH_IDS.map(id => [id, { enabled: false, price: DISHES[id].fair }])) as Record<Dish, MenuItem>, salad: { enabled: true, price: 24 }, burger: { enabled: true, price: 38 } },
     headline: null, comps: 0, night: freshNight(), best: { value: 0, day: 0 }, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
-    shift: 'dinner', phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
+    shift: 'dinner', hustle: { chain: 0, best: 0, at: -100 }, incident: null, incidents: 0, deal: false, notice: 0, storage: [], foreclosure: null, phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
   };
 }

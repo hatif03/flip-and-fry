@@ -63,7 +63,7 @@ describe('what the server accepts in an owner log', () => {
     const run = playWithHelper(bareBot, '2026-12-09');
     for (const a of run.actions) expect(Object.keys(a).sort()).not.toContain('quality');
     // Plating a tick early or late changes the replayed night, because quality comes from the simulated cooking time alone.
-    const shifted = run.actions.map(a => a.kind === 'cook' && a.tick > 1 ? { ...a, tick: a.tick + 4 } : a);
+    const last = run.actions.map(a => a.kind).lastIndexOf('cook'), shifted = run.actions.map((a, i) => i === last ? ({ ...a, tick: a.tick + 4 } as Action) : a);
     const early = ok(runService(createRestaurant(), shifted, createDailyHeadline('2026-12-09')));
     expect(early.hash === ok(run.replay).hash).toBe(false);
   });
