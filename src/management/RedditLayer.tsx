@@ -65,20 +65,22 @@ function ResultCard() {
       <div className="flex items-center justify-center gap-2" role="img" aria-label={`${stars.stars} of 3 stars`}>
         {[1, 2, 3].map(n => <Star key={n} size={40} className={n <= stars.stars ? 'fill-gold text-gold' : 'text-ink/20'} />)}
       </div>
+      <p className={cn('text-center font-display text-2xl', report.profit >= 0 ? 'text-teal' : 'text-tomato')} aria-label="Profit">{report.profit >= 0 ? 'Profit ' : 'Loss '}{money(Math.abs(report.profit))}</p>
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
       <ul className="space-y-1 text-sm">
         <li className={cn('flex gap-2', stars.goal ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.goal ? '★' : '☆'}</span><span><b>Tonight's goal:</b> {stars.goalText}</span></li>
         <li className={cn('flex gap-2', stars.challenges >= 2 ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.challenges >= 2 ? '★' : '☆'}</span><span><b>Two of three challenges:</b> {stars.challenges} done</span></li>
         <li className={cn('flex gap-2', stars.beatPrevious ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.beatPrevious ? '★' : '☆'}</span><span><b>A better night than before</b></span></li>
       </ul>
+      <TodaysBoard />
+      {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
+      <details className="group rounded-2xl bg-white/30 px-3 py-2"><summary className="min-h-[44px] cursor-pointer list-none py-2.5 text-sm font-extrabold text-teal marker:hidden">The night in detail</summary><div className="space-y-3 pb-2">
       <section aria-label="Kitchen card" className="space-y-1.5 rounded-2xl bg-white/40 p-3">
         <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Kitchen card</p>
         <Meter label="Welcome" value={night.card.welcome} hint="Comfort and how quickly guests reach a seat" />
         <Meter label="Speed" value={night.card.speed} hint="How long guests waited against their patience" />
         <Meter label="Value" value={night.card.value} hint="How your prices sit against fair" />
       </section>
-      <TodaysBoard />
-      {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
       <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-white/40 p-3 text-center">
         <Stat label="Served" value={String(report.served)} /><Stat label="Missed" value={String(report.missed)} /><Stat label="Rating" value={report.rating.toFixed(1)} />
         <Stat label="Sales" value={money(report.revenue)} /><Stat label="Tips" value={money(report.tips)} /><Stat label="Profit" value={money(report.profit)} strong />
@@ -93,10 +95,11 @@ function ResultCard() {
         <p className="pt-1 text-ink/70" aria-label="Reputation">{reputationLine(today.park.reputation, result.park.reputation)}</p>
       </section>
       <p className="text-xs text-ink/70">Company value <b>{money(night.companyValue)}</b>{night.newBest ? ' · a new best!' : ` · best ${money(night.best.value)}`}.</p>
+      </div></details>
       <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'}{result.freezes ? ` ${result.freezes} streak freeze${result.freezes > 1 ? 's' : ''} saved: a missed day will not break it.` : result.streak > 0 ? ` A freeze is earned every 7 days (${7 - result.streak % 7} to go).` : ''}</p>
       <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
       {remote!.postResult && <ShareActions streak={result.streak} />}
-      <button className="game-button game-button-primary min-h-12 w-full" onClick={() => remote!.dismissResult()}>Continue</button>
+      <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => remote!.dismissResult()}>Continue</button></div>
     </DialogContent>
   </Dialog>;
 }
@@ -163,8 +166,10 @@ function ShareActions({ streak }: { streak: number }) {
         <button className="min-h-[44px] rounded-xl bg-ink/8 px-3 text-sm font-extrabold" onClick={() => setComposing(false)}>Cancel</button>
       </div>
     </div> : <button className="min-h-[44px] w-full rounded-xl bg-ink/8 px-3 text-sm font-extrabold disabled:opacity-60" disabled={social.posted || busy} onClick={async () => { setComposing(true); const r = await remote.previewComment!(''); setPreview('error' in r ? null : r); if ('error' in r) { toast.error(r.error); setComposing(false); } }}>{social.posted ? 'Posted ✓' : 'Post this result'}</button>}
+    <details className="rounded-xl"><summary className="min-h-[44px] cursor-pointer list-none rounded-xl px-3 py-3 text-center text-xs font-extrabold text-ink/65 marker:hidden">More</summary><div className="space-y-2 pb-1">
     <button className="min-h-[44px] w-full rounded-xl bg-ink/8 px-3 text-sm font-extrabold disabled:opacity-60" disabled={!tier || Boolean(social.flair) || busy} onClick={() => void run(() => remote.wearFlair!(), 'Flair set.')}>{social.flair ? `Wearing “${social.flair}” ✓` : tier ? `Wear “${tier}” flair` : 'Earn a star to wear flair'}</button>
     <button className="min-h-[44px] w-full rounded-xl px-3 text-xs font-bold text-ink/65 underline-offset-2 hover:underline disabled:opacity-60" disabled={social.followed || busy} onClick={() => void run(() => remote.follow!(), 'You are following this community.')}>{social.followed ? 'Following ✓' : 'Follow this kitchen’s community'}</button>
+    </div></details>
   </section>;
 }
 

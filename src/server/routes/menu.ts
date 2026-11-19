@@ -3,6 +3,7 @@ import { context, redis } from '@devvit/web/server';
 import type { UiResponse } from '@devvit/web/shared';
 import { rollDay } from '../core/daily-post';
 import { utcDate } from '../core/game';
+import { retentionLine, retentionReport } from '../core/retention';
 import { postApi } from '../reddit';
 
 /** Pin today's post in the community highlights. */
@@ -17,6 +18,12 @@ export const menu = new Hono();
 menu.post('/highlight-today', async c => {
   const r = await highlightToday(Date.now());
   return c.json<UiResponse>({ showToast: 'error' in r ? r.error : 'Today’s post is highlighted.' }, 'error' in r ? 400 : 200);
+});
+
+/** Totals only: how many players, how many came back, and when. Moderators only (devvit.json), and it reads ids, never names. */
+menu.post('/retention-report', async c => {
+  try { return c.json<UiResponse>({ showToast: retentionLine(await retentionReport({ store: redis, now: Date.now })) }); }
+  catch (error) { console.error(`Error building the retention report: ${error}`); return c.json<UiResponse>({ showToast: 'Could not build the report.' }, 400); }
 });
 
 /** Same function the scheduler and the first player request of the day call; creating twice is impossible. */

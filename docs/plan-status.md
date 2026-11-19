@@ -20,3 +20,16 @@
 ## Gates (plan section 19)
 
 G0 to G4 and G11 pass as written. G5 to G10 pass in their automated form; their device-only parts are in the checklist. G12 (optimization) passes for size and not yet for device frame time. G13 (the dry run) is the author's.
+
+## Plan v2 (20 November onward)
+
+See [`plan-v2.md`](plan-v2.md). Status:
+
+| Phase | Status |
+|---|---|
+| A. A screen that reads as a game | Built: one-row header, two-line daily bar, one hint line, one-row dock, camera toggle, Test Kitchen in the Ledger on a phone, toasts above the dock. A left rail on desktop was not built; the desktop keeps the bottom dock and a right-hand drawer |
+| B. The first sixty seconds | Mostly through A: no welcome card, one hint, the Open button. Not built: a shorter first service and the "build something with your $X" card step |
+| C. Visible stakes | Built: night bar with bills, the till and reputation on the card, today's board, streak freezes. Not built: weekly rank, a bankruptcy rule (refused: it would delete progress) |
+| D. Daily content | Partly: 21 distinct titles (three tellings per weekday, same numbers underneath). Not built: new mechanics variants and a new-player bot gate; the bots' first-night calibration would have had to change, and the plan's risk section says to keep the 21-date gate |
+| E. One card, one next step | Built: stars, profit, award, goals, board and neighbors first; the kitchen card, stats and till under "The night in detail"; flair and follow under "More"; Continue pinned at the bottom |
+| F. Measure it | Built: moderator menu item "Retention report" (totals only). The funnel was already in Journeys (open, first guest, midway, receipt, official end, plus each action) |

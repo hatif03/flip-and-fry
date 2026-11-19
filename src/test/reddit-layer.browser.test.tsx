@@ -150,6 +150,9 @@ it('shows the board on the card, with your place, and says nothing when the boar
   const again = await render(<ManagementGame />); await expect.element(again.getByRole('dialog')).toBeVisible(); await expect.element(again.getByLabelText("Today's board")).not.toBeInTheDocument();
 });
 
+const more = async (screen: { getByText: (t: string, o?: { exact: boolean }) => { click(): Promise<void> } }) => screen.getByText('More', { exact: true }).click();
+const detail = async (screen: { getByText: (t: string, o?: { exact: boolean }) => { click(): Promise<void> } }) => screen.getByText('The night in detail').click();
+
 describe('the end of the night: award, kitchen card and optional sharing', () => {
   function social(overrides: Partial<RemoteSession> = {}) {
     const posted: string[] = [], r = remote(lock(2));
@@ -165,7 +168,7 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
   }
 
   it('shows the award banner, the three kitchen card meters and the company value on the one card', async () => {
-    social(); const screen = await render(<ManagementGame />), card = screen.getByRole('dialog');
+    social(); const screen = await render(<ManagementGame />), card = screen.getByRole('dialog'); await detail(screen);
     await expect.element(card).toHaveTextContent('Warmest room.'); await expect.element(card).toHaveTextContent('A cozy room and almost nobody walked out.');
     for (const [name, value] of [['Welcome', 72], ['Speed', 64], ['Value', 88]] as const) await expect.element(screen.getByRole('progressbar', { name })).toHaveAttribute('aria-valuenow', String(value));
     await expect.element(card).toHaveTextContent('Company value $2,400'); await expect.element(card).toHaveTextContent('a new best!');
@@ -182,7 +185,7 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
     expect(document.querySelector('[aria-label="Neighbors tonight"]')).toBeNull();
   });
   it('has three separate optional buttons, and Continue works without touching any of them', async () => {
-    const { r } = social(); const screen = await render(<ManagementGame />);
+    const { r } = social(); const screen = await render(<ManagementGame />); await more(screen);
     for (const name of [/Post this result/, /Wear .Regular. flair|Wear .*flair/, /Follow this kitchen/]) await expect.element(screen.getByRole('button', { name })).toBeVisible();
     await screen.getByRole('button', { name: 'Continue' }).click(); expect(r.result).toBeNull(); expect(r.postResult).not.toHaveBeenCalled(); expect(r.wearFlair).not.toHaveBeenCalled(); expect(r.follow).not.toHaveBeenCalled();
   });
@@ -207,13 +210,13 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
   });
 
   it('flair and follow are separate actions that each work on their own', async () => {
-    const { r } = social(); const screen = await render(<ManagementGame />);
+    const { r } = social(); const screen = await render(<ManagementGame />); await more(screen);
     await screen.getByRole('button', { name: /flair/ }).click(); expect(r.wearFlair).toHaveBeenCalledTimes(1); expect(r.follow).not.toHaveBeenCalled(); expect(r.postResult).not.toHaveBeenCalled();
     await screen.getByRole('button', { name: /Follow this kitchen/ }).click(); expect(r.follow).toHaveBeenCalledTimes(1); await expect.element(screen.getByRole('button', { name: /Following/ })).toBeDisabled();
   });
 
   it('a failed action shows its message and leaves the card usable', async () => {
-    const { r } = social({ follow: vi.fn(async () => 'Reddit could not follow this community.') }); const screen = await render(<><ManagementGame /><Toaster /></>);
+    const { r } = social({ follow: vi.fn(async () => 'Reddit could not follow this community.') }); const screen = await render(<><ManagementGame /><Toaster /></>); await more(screen);
     await screen.getByRole('button', { name: /Follow this kitchen/ }).click();
     await expect.element(screen.getByText('Reddit could not follow this community.')).toBeVisible(); await expect.element(screen.getByRole('button', { name: /Follow this kitchen/ })).toBeEnabled();
     await screen.getByRole('button', { name: 'Continue' }).click(); expect(r.result).toBeNull();
@@ -221,7 +224,7 @@ describe('the end of the night: award, kitchen card and optional sharing', () =>
 
   it('offers no flair until there is a streak, and keeps every button at least 44px tall', async () => {
     const r = remote({ ...lock(0), streak: 0 }); Object.assign(r, { social: { posted: false, flair: null, followed: false }, previewComment: async () => ({ text: 'x', reply: true }), postResult: async () => null, wearFlair: async () => null, follow: async () => null }); restaurant.remote = r;
-    const screen = await render(<ManagementGame />);
+    const screen = await render(<ManagementGame />); await more(screen);
     await expect.element(screen.getByRole('button', { name: 'Earn a star to wear flair' })).toBeDisabled();
     await new Promise(r => setTimeout(r, 600)); // the dialog scales in from 95%: measure once it has settled
     for (const name of ['Post this result', 'Earn a star to wear flair', 'Continue']) expect((await screen.getByRole('button', { name }).element()).getBoundingClientRect().height, name).toBeGreaterThanOrEqual(44);

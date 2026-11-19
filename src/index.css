@@ -60,7 +60,7 @@ progress::-moz-progress-bar { @apply rounded-full bg-gold; }
  */
 @layer components {
   .pixel-ui { --radius: 2px; }
-  .pixel-ui .font-display, .pixel-ui h1, .pixel-ui h2, .pixel-ui h3 { font-family: 'Pixel Five', 'Pixelify Sans', 'Fredoka', monospace; font-weight: 700; letter-spacing: 0; -webkit-font-smoothing: none; }
+  .pixel-ui .font-display, .pixel-ui h1, .pixel-ui h2, .pixel-ui h3 { font-family: 'Pixel Five', 'Pixelify Sans', 'Fredoka', monospace; font-weight: 700; letter-spacing: 0; -webkit-font-smoothing: none; font-variant-ligatures: none; font-feature-settings: 'liga' 0, 'clig' 0; }
   .pixel-ui [class*='rounded'] { border-radius: 2px !important; }
   .pixel-ui .paper { border: 3px solid #233D3B; background-image: none; background-color: #FFF2D7; box-shadow: 4px 4px 0 #233D3B55; }
   .pixel-ui .game-button { border: 3px solid #233D3B; background-image: none; box-shadow: 0 4px 0 #233D3B; }

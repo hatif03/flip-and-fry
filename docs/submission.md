@@ -31,6 +31,10 @@ Flip and Fry is a **port of a game we already owned**: a browser restaurant tyco
 
 The decisions behind each, and the ones we refused, are in `docs/build-log.md` in the repository.
 
+Screens for the video and the page are in [`img/`](img/) and can be retaken with `node tools/look-shot.mjs name docs/img`.
+
+<img src="img/phone-planning.png" width="200" alt="Planning"> <img src="img/phone-service.png" width="200" alt="Service"> <img src="img/phone-card.png" width="200" alt="Result card">
+
 ## Demo video shot list (under one minute, shot on a phone)
 
 | Seconds | Shot |

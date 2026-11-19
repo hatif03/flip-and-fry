@@ -1,6 +1,6 @@
 # Plan v2: from "it works" to "it is a game people want to open tomorrow"
 
-Written 19 November 2026, after the first plan ([`hackathon-plan.md`](hackathon-plan.md), status in [`plan-status.md`](plan-status.md)) was built out. The first plan answered "can this run on Reddit, verified?". This one answers what the author's screenshots showed: **you cannot tell what the game is, nothing is at stake, and the screen is crowded.** Deadline: 8 December 2026, 6 pm PT (19 days). Feature freeze proposed for **Sat 5 December**; the last three days are fixes and the demo video only, because judging (9 to 16 December) needs a stable app.
+Written 19 November 2026; phases A, C, E and F built on 20 November (status in [`plan-status.md`](plan-status.md)). Written after the first plan ([`hackathon-plan.md`](hackathon-plan.md), status in [`plan-status.md`](plan-status.md)) was built out. The first plan answered "can this run on Reddit, verified?". This one answers what the author's screenshots showed: **you cannot tell what the game is, nothing is at stake, and the screen is crowded.** Deadline: 8 December 2026, 6 pm PT (19 days). Feature freeze proposed for **Sat 5 December**; the last three days are fixes and the demo video only, because judging (9 to 16 December) needs a stable app.
 
 ## 1. What is wrong, from the screenshots
 
@@ -13,6 +13,10 @@ Written 19 November 2026, after the first plan ([`hackathon-plan.md`](hackathon-
 | Nothing says what a bad night costs. Rent and wages exist in the engine but are invisible; a missed star changes nothing (by design, see `design-decisions.md`) | No stakes, so no reason to care or return | Daily content, retention |
 
 **Already fixed (19 Nov):** the scene's pixel size is now always 1 scene pixel per CSS pixel (it was 3 on desktop). The 24-colour per-weather palette and hard edges still give the pixel look; `?k=2` brings the blocks back for comparison and `?pixel=0` turns the look off. Evidence: `tools/look-shot.mjs`, screenshots under `tools/pixel/out/look-*.png`. If the author still finds the palette look wrong on a real phone, the fall-back is `pixel=0` as the default (one line).
+
+Before and after on a phone (before: the crowded layout of 19 November; after: phase A and C, 20 November):
+
+<img src="img/before-phone-planning.png" width="200" alt="Before: planning"> <img src="img/phone-planning.png" width="200" alt="After: planning"> <img src="img/before-phone-service.png" width="200" alt="Before: service"> <img src="img/phone-service.png" width="200" alt="After: service">
 
 ## 2. What the organisers asked for, and what each means for us
 

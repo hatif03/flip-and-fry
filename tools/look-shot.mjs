@@ -33,6 +33,15 @@ try {
     await page.getByRole('button', { name: 'Close panel' }).click(); await page.waitForTimeout(400);
     await page.evaluate(async () => { const { restaurant } = await import('/src/management/engine.ts'); restaurant.open(); restaurant.setSpeed(3); });
     await page.waitForTimeout(9000); await shot('service');
+    await page.evaluate(async () => {
+      const { restaurant } = await import('/src/management/engine.ts');
+      const park = restaurant.state, report = { revenue: 412, tips: 46, ingredients: 148, served: 17, missed: 2, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 220, rating: 4.3 };
+      restaurant.state.phase = 'planning'; restaurant.remote.board = async () => ({ type: 'board', date: '2026-12-09', total: 9, entries: [{ rank: 1, name: 'a neighbor', stars: 3, rating: 4.8, profit: 410, you: false }, { rank: 2, name: 'ho1505', stars: 2, rating: 4.3, profit: 220, you: true }, { rank: 3, name: 'maple_cook', stars: 2, rating: 4.1, profit: 180, you: false }], you: { rank: 2, stars: 2, profit: 220 } });
+      restaurant.remote.postResult = async () => null; restaurant.remote.previewComment = async () => ({ text: 'x', reply: true }); restaurant.remote.wearFlair = async () => null; restaurant.remote.follow = async () => null; restaurant.remote.social = { posted: false, flair: null, followed: false };
+      restaurant.remote.result = { type: 'lock', hash: 'h', official: true, replaced: false, streak: 5, freezes: 1, rev: 2, park, report, stars: { stars: 2, goal: true, challenges: 2, beatPrevious: false, goalText: 'Finish with a rating of 4.0 or better' }, night: { neighbors: [{ name: 'maple_cook', outcome: 'served', tip: 4, wait: 11, quality: 3 }], card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm', title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 } };
+      restaurant.notify();
+    });
+    await page.waitForTimeout(1500); await shot('card');
     await page.close();
   }
   console.log('saved', tag);

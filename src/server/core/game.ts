@@ -18,6 +18,14 @@ type StoredOpen = { snapshot: RestaurantState; parkRev: number; openedAt: number
 
 const DAY = 86400;
 export const TTL = { park: 30 * DAY, run: 30 * DAY, board: 45 * DAY, streak: 400 * DAY, profile: 30 * DAY } as const;
+/** Who was first seen when, and who was active each day: the only inputs to the moderators' retention report. Ids only, no names. */
+export const COHORT_KEY = 'cohort:first', activeKey = (date: string): string => `active:${date}`;
+export const ACTIVE_TTL = 40 * DAY, COHORT_TTL = 150 * DAY;
+async function recordActivity(store: Store, uid: string, date: string): Promise<void> {
+  await store.hSetNX(COHORT_KEY, uid, date); await store.expire(COHORT_KEY, COHORT_TTL);
+  await store.hSet(activeKey(date), { [uid]: '1' }); await store.expire(activeKey(date), ACTIVE_TTL);
+}
+
 export const keys = {
   park: (uid: string) => `park:${uid}`,
   opens: (date: string) => `opens:${date}`,
@@ -67,6 +75,7 @@ export async function loadPark(deps: Deps, user: Player): Promise<Park | Fail> {
 
 async function touchProfile(deps: Deps, user: Player): Promise<void> {
   await deps.store.set(keys.profile(user.id), JSON.stringify({ username: user.name, lastSeen: deps.now() }), { expiration: expiration(deps.now(), TTL.profile) });
+  await recordActivity(deps.store, user.id, utcDate(deps.now()));
 }
 
 /** Persist planning changes. The server applies them with the engine's own methods, so cash and layout rules are the game's. */

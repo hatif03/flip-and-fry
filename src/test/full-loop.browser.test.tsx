@@ -96,6 +96,7 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   await vi.waitFor(() => expect(comments).toHaveLength(1)); expect(comments[0].parent).toBe('t1_sticky'); expect(comments[0].text).toMatch(/Little Rooftop · .+ · rating \d\.\d/);
 
   // Flair and follow are their own buttons.
+  await card.getByText('More', { exact: true }).click();
   const flair = card.getByRole('button', { name: /Wear/ });
   if (session.result!.stars.stars >= 1) { await flair.click(); await vi.waitFor(() => expect(flairs).toHaveLength(1)); }
   await card.getByRole('button', { name: /Follow this kitchen/ }).click();

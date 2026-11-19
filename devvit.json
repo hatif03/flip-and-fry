@@ -52,6 +52,13 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-today"
+      },
+      {
+        "label": "Retention report",
+        "description": "Players, daily and monthly actives, and day 1, 7 and 30 return rates (totals only)",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/retention-report"
       }
     ]
   },

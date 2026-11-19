@@ -10,6 +10,7 @@ When you play, the game stores the following on Reddit's Devvit platform (its Re
 - **Your restaurant**: layout, staff, menu, prices, cash, research, and the list of actions you took during each night.
 - **Results**: stars, profit, awards, your streak, and which day you last played.
 - **Neighborhood activity**: whether your door is open for visits, a short automatic note about how a visit to your kitchen went (no typed text), and that you had a post open recently so neighbors can be shown at the tables.
+- **Activity**: the day you were first seen and which days you were active (your Reddit user id only, no name), kept 150 and 40 days. Moderators can read totals from it (players, returning players, day 1, 7 and 30 return rates), never who.
 - **Test Kitchen scores** you earn in the arcade mode.
 - **Reminder choice**, only if you switch reminders on.
 

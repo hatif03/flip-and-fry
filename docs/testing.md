@@ -6,7 +6,7 @@ What is tested, how, and what the tests cannot prove. Run them with the commands
 
 | Command | What | Size (at writing) |
 |---|---|---|
-| `npm test` | Unit tests (Vitest, Node), then browser tests (Vitest browser mode on Playwright Chromium, 360 by 760 phone viewport) | about 960 unit, 230 browser |
+| `npm test` | Unit tests (Vitest, Node), then browser tests (Vitest browser mode on Playwright Chromium, 360 by 760 phone viewport) | about 980 unit, 231 browser |
 | `npm run test:engines` | The same receipts in Chromium, Firefox and WebKit | 3 files, 96 fixtures |
 | `npm run lint` | ESLint over the repository | clean |
 | `npx tsc -p tsconfig.app.json`, `-p tsconfig.server.json` | Type checks for client and server | clean |
@@ -27,6 +27,7 @@ What is tested, how, and what the tests cannot prove. Run them with the commands
 - **Client:** batching and retry, conflicts reloading, the finish watcher, journeys, the Test Kitchen's debounced save, presence heartbeats, live toasts.
 - **Screens (browser):** the result card and its three optional buttons, the daily bar, the pass (including prep by hand, by pointer and by keyboard), the neighborhood, cook together, the research and menu panels, the Test Kitchen with a stub scene and once with the real 3D scene, touch targets of at least 44 px, no overlap at 320, 390, 768 and 1280 px.
 - **Whole loop:** `full-loop.browser.test.tsx` plays a night through the real screens (open, cook, the server's card, post, flair, follow, leave the door open); `judging-week.test.ts` runs 9 to 16 December for three kinds of player; `coop-client.test.ts` runs a hosted night end to end and checks the server's lock of the host's log equals the host's hash.
+- **Stakes and measurement:** the bills shown during service against the engine's closing report (`bills.test.ts`), today's board (ranking, name privacy, only the lock writes it), streak freezes (six cases over the day bits), and the retention report (cohorts, D1 and D7 only for players old enough, ids never names, expiry).
 - **Pixel and assets:** the lookup-table colour distance, the render pass against real palettes, the real models loading after compression.
 - **Hosted service core:** two engines and a pretend network with latency, lag, reordering, a deliberately late message caught by the checksum, and late joining.
 

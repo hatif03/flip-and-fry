@@ -16,11 +16,20 @@ Each decision, why it was made, and what was refused. Grouped by theme. The date
 
 **Depth from the simulation, not from menus.** Twelve dishes in three styles (Garden, Grill, Noodle) from one data table; five appliances; five contracts that teach the systems; named regulars with a fixed arrival slot; a research budget that opens the next appliance; guest thoughts over the tables. Everything draws on state the engine already computed. **Refused:** five hundred dishes (a phone menu cannot be priced at that size), a style chosen at the start with a different starter kitchen (it would invalidate every calibrated number for a day-one choice the shop already offers), a chef-only starter park (same reason), bills that travel to the register (no decision changes).
 
+**The stakes are on the screen, not in a menu.** Wages, rent and the loan instalment were always charged at closing, and reputation always set how often guests arrive; the author could not see either. During service the header shows the bills against what the till has taken, so a quiet night visibly costs money; the card shows the till line by line and one sentence on reputation. Two server-side stakes were added: today's board (from the same replay that locks the score, names only for open doors) and streak freezes (earned every 7 days, read from the day bits, so nothing can be forged). **Refused:** wiping a restaurant after a bad night (a missed star still never resets anything), and any score the browser reports.
+
+**The screen has one job at a time.** Planning shows a one-row header, today's headline and goal, one hint line and a one-row dock. Service replaces the daily bar with the night bar and the dock with the pass. Everything else (zoom, rotate, the Test Kitchen on a phone, flair, follow, the kitchen card) is one tap further away.
+
+<img src="img/phone-service.png" width="220" alt="Service on a phone: the night bar with the bills and the pass">
+
 **The end of the night is one card.** Stars, one award, a kitchen card (Welcome, Speed, Value), company value, a tomorrow line. Posting, flair and follow are three separate, optional buttons. **Refused:** several end screens, and anything required to open tomorrow.
 
 **The Test Kitchen is the original arcade, kept whole.** It is unranked and not replayed on the server, so it feeds the restaurant only through a small, bounded research bonus (5 per new star, at most 10 a day), and a result can be posted through the same confirm step.
 
 ## The look and sound
+
+<img src="img/phone-planning.png" width="220" alt="Planning on a phone"> <img src="img/desktop-planning.png" width="520" alt="Planning on a desktop window">
+
 
 **Pixel art on the real 3D scene, not a flat replacement.** Replacing the scene with a 2D canvas, then with billboard animals, were both refused; the scene renders small and is drawn back up with nearest filtering through a per-weather palette. The first phone check showed it was too pixelated to read, so the pixel size is automatic by screen width and the palettes were reduced to 24 clustered colours from real captures.
 

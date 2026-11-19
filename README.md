@@ -4,11 +4,21 @@ A rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a 
 
 > **This is a port of a game we already owned.** The browser version (a React Three Fiber restaurant tycoon called *Too Many Cooks*, tagged `pre-devvit` in this repository) was reworked for Reddit. See [What changed in the port](#what-changed-in-the-port).
 
+<table>
+<tr>
+<td align="center"><img src="docs/img/phone-planning.png" width="220" alt="Planning on a phone: one header row, today's headline and goal, one hint, one dock row"><br><sub>Planning</sub></td>
+<td align="center"><img src="docs/img/phone-service.png" width="220" alt="Service on a phone: the night bar with the bills, and the pass with a ticket waiting"><br><sub>Service: bills, goal, the pass</sub></td>
+<td align="center"><img src="docs/img/phone-card.png" width="220" alt="The result card: stars, profit, award, goals and today's board"><br><sub>The result card</sub></td>
+</tr>
+</table>
+
+<img src="docs/img/desktop-planning.png" alt="The same game on a desktop window" width="760"><br><sub>On a desktop window. Screens are captured by <code>tools/look-shot.mjs</code> from the running game with a stand-in daily post.</sub>
+
 ## How to play
 
 1. Open today's post. The headline (for example *Rain on the roof*) and a goal for the night are at the top.
 2. **Build:** place tables, planters, lanterns and kitchen equipment. **Team:** hire and train. **Menu:** switch dishes on and set prices.
-3. Tap **Open restaurant**. Your team cooks, serves and cleans. When a ticket is waiting, tap **Cook** at the pass, optionally hold **Prep** and let go when the bar is green, then plate it in the green zone. A neighbor can help at your pass (**Cook together**).
+3. Tap **Open**. Your team cooks, serves and cleans. When a ticket is waiting, tap **Cook** at the pass, optionally hold **Prep** and let go when the bar is green, then plate it in the green zone. A neighbor can help at your pass (**Cook together**).
 4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night.
 5. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
 
@@ -16,7 +26,7 @@ Between nights you can step into the **Test Kitchen** and cook by hand: three sh
 
 ## The daily headline
 
-The weekday picks the headline. The date only jitters the numbers inside it.
+The weekday picks the kind of night; the numbers behind it do not change. Each kind has three tellings, one a week, so the title reads differently three weeks running (21 distinct titles).
 
 | Day | Headline | What it changes |
 |---|---|---|
@@ -32,7 +42,9 @@ The weekday picks the headline. The date only jitters the numbers inside it.
 
 - **One official service a day.** The server opens your night from your saved restaurant and replays it with the same deterministic engine the game runs on. Only the server's receipt counts, so stars cannot be faked from a browser.
 - **Your restaurant is saved on Reddit** (Redis), per player, so it follows you across devices and survives app updates. The Test Kitchen's scores and outfits are saved the same way.
-- **A streak** of days with at least one star, and flair that goes with it (tiers at 1, 3, 7, 14 and 30 days). Flair is a reward for a real streak, never for a comment or a vote.
+- **Stakes you can see.** During service the header shows the bills (wages, rent and any loan instalment) against what the till has taken, and tonight's goal. The result card shows the till line by line and what the night did to your reputation, which sets how often guests arrive tomorrow.
+- **Today's board:** the night's official results on the subreddit, from the server's replays. Names show only for neighbors who left their door open.
+- **A streak** of days with at least one star (a freeze is earned every 7 days and absorbs one missed day, up to two held), and flair that goes with it (tiers at 1, 3, 7, 14 and 30 days). Flair is a reward for a real streak, never for a comment or a vote.
 - **Post this result**, **Wear flair** and **Follow this community** are three separate, optional buttons. Each shows exactly what it will do first ("This posts as you"), runs only when you tap it, and nothing in the game waits for any of them.
 - **Cook together:** invite one neighbor to help at your pass for the night, or help in someone else's. Two devices run the same deterministic engine in lockstep over realtime, and the server replays the host's log, helper included.
 - **Reminders and badge:** an optional, opt-in reminder when a streak is at risk (Reddit's push beta), and the game badge linking to today's post.

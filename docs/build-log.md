@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-20 — Plan v2, phases D, E, F: tellings, one card, retention report; screenshots in the docs
+
+**D (daily content):** each weekday's headline has three tellings (title and blurb) chosen by the week, so there are 21 distinct titles; the offset makes the judging week open on the original tellings (9 Dec is *Rain on the roof*). The numbers behind a headline are unchanged, so the bot calibration, the goals and the golden hashes are untouched. **Refused for now:** new mechanical variants and a new-player bot gate (the first-night calibration would need rewriting; see `plan-status.md`).
+
+**E (one card):** the card now leads with stars, a large profit or loss figure, the award, the three goals, today's board and the neighbors; the kitchen card, stats and the till are under "The night in detail", flair and follow under "More", and Continue is pinned to the bottom. Two bugs found on the way: the pixel font's "fi" ligature drew "Profit" as "ProAt" (ligatures are off for the pixel interface), and the toasts covered the dock (they now sit above it).
+
+**F (measurement):** `core/retention.ts` and a moderator-only menu item, *Retention report*, return totals (players, active today, active in 30 days, D1, D7, D30, lapsed share) as a toast. They are built from two things the game now records as players play: the day each player was first seen (`cohort:first`, 150-day expiry) and the set of players active each day (`active:<date>`, 40-day expiry), both ids only. Rates count only players old enough to have had day N. The privacy page says so. No new Devvit permission; one new menu entry in `devvit.json`. Journeys already covered the funnel (open, first guest, midway, receipt, official end, and each action), so no new events were added.
+
+**Screenshots:** `tools/look-shot.mjs` takes phone and desktop screens from the running game with a stand-in daily post; `tools/shrink-img.mjs` makes them small palette PNGs in `docs/img/`. They are embedded in the README and in the how-it-was-built, design-decisions, devvit-and-reddit, submission and plan-v2 pages.
+
+**Checks:** 981 unit, 231 browser and 3 engine tests, lint, both typechecks and the size budgets pass.
+
 ## 2026-11-20 — Plan v2, phase C: visible stakes (night bar, the till, today's board, streak freezes)
 
 **Why:** the author could not see anything at stake ("no real stakes, no penalty that makes the grind worth it"). Rent, wages and loan instalments already existed in the engine, and reputation already set how often guests arrive (`9.5 - reputation * .6` seconds between arrivals), but none of it was on the screen. Phase C makes the existing stakes visible and adds two server-side ones, without ever deleting a player's restaurant (the earlier rule that a missed star never resets a park stands).

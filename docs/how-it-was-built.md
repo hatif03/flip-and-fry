@@ -45,7 +45,10 @@ The interface got the pixel look (a font chosen after one was rejected for width
 ### 11. Verification and optimization
 Whole-loop browser tests, a judging-week rehearsal, a size guard, quality tiers, Latin-only fonts, then (with the author's go-ahead) compression of the models and audio.
 
-### 12. Documentation
+### 12. The second plan: a screen that reads as a game
+Phone feedback again: the screen was a dashboard, nothing was at stake, and the pixel blocks on a desktop window were too big. [`plan-v2.md`](plan-v2.md) answered with a one-row header, a two-line daily bar, one hint, a one-row dock, a night bar that shows the bills, a result card that shows the till and reputation, today's board, streak freezes and a retention report for moderators. The pixel size became 1 everywhere.
+
+### 13. Documentation
 This set of documents, the README, asset provenance and feedback notes for the developer survey.
 
 ## Problems and how we solved them
@@ -75,4 +78,11 @@ This set of documents, the README, asset provenance and feedback notes for the d
 
 ## Where it ended up
 
-The numbers at the time of writing: 960 unit tests, 230 browser tests, a three-engine hash test, lint and both typechecks clean; installed as version 0.0.15 on `r/flip_and_fry_dev`. What is not built, and what needs a device or an approval, is in [`submission.md`](submission.md) and [`devvit-and-reddit.md`](devvit-and-reddit.md).
+<table><tr>
+<td align="center"><img src="img/before-phone-service.png" width="200" alt="Before: the crowded service screen"><br><sub>Before plan v2</sub></td>
+<td align="center"><img src="img/phone-service.png" width="200" alt="After: the night bar and the pass"><br><sub>After: bills, goal, the pass</sub></td>
+<td align="center"><img src="img/phone-card.png" width="200" alt="The result card"><br><sub>The result card</sub></td>
+</tr></table>
+
+
+The numbers at the time of writing: 981 unit tests, 231 browser tests, a three-engine hash test, lint and both typechecks clean; installed as version 0.0.17 on `r/flip_and_fry_dev`. What is not built, and what needs a device or an approval, is in [`submission.md`](submission.md) and [`devvit-and-reddit.md`](devvit-and-reddit.md).

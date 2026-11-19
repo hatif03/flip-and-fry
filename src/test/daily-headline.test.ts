@@ -80,3 +80,17 @@ describe('headlineEffects', () => {
     expect(sun).toBeGreaterThan(10); expect(sun).toBeLessThan(40);
   });
 });
+
+describe('three tellings of each headline', () => {
+  it('give 21 distinct titles over 21 days, repeating only every third week, with the same kind of night underneath', () => {
+    const titles = new Set<string>(); let date = '2026-12-09';
+    for (let i = 0; i < 21; i++) { titles.add(createDailyHeadline(date).title); date = shiftDate(date, 1); }
+    expect(titles.size).toBe(21);
+    expect(createDailyHeadline('2026-12-09').title).toBe('Rain on the roof'); expect(createDailyHeadline(shiftDate('2026-12-09', 21)).title).toBe('Rain on the roof');
+    expect(createDailyHeadline(shiftDate('2026-12-09', 7)).id).toBe(createDailyHeadline('2026-12-09').id);
+    expect(createDailyHeadline(shiftDate('2026-12-09', 7)).title).not.toBe('Rain on the roof');
+  });
+  it('are the same on every device: the telling depends only on the date', () => {
+    expect(createDailyHeadline('2026-12-15')).toEqual(createDailyHeadline('2026-12-15'));
+  });
+});

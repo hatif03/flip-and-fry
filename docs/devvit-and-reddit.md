@@ -2,6 +2,8 @@
 
 Every platform capability the game uses, what for, the limits it works within, and the one thing in each that is not yet confirmed on a real device. The reasoning behind the choices is in [`design-decisions.md`](design-decisions.md); the platform problems we hit are in [`devvit-feedback.md`](devvit-feedback.md).
 
+<img src="img/phone-card.png" width="220" alt="The result card: the server's receipt, today's board and the optional share actions"> <img src="img/desktop-card.png" width="460" alt="The result card on a desktop window">
+
 ## Capabilities used
 
 | Capability | What it does here | Where |
@@ -24,6 +26,7 @@ Every platform capability the game uses, what for, the limits it works within, a
 | **Push notifications** | An opt-in switch and one reminder a day for an at-risk streak; the game badge links to today's post. | `core/notify.ts` |
 | **Media upload** | A card image on kitchen posts. | `core/media.ts`, `management/kitchen-card.ts` |
 | **Snoovatars** | The avatar on a neighbor's tag, with a pixel face as the fallback. | `core/avatar.ts`, `NeighborAvatar.tsx` |
+| **Moderator menu: retention report** | Totals only (players, today, 30 days, day 1, 7 and 30 return rates, lapsed share), from ids recorded as players play. No names. | `core/retention.ts`, `routes/menu.ts` |
 | **Developer-account CLI** | `upload` and `install` for every device check; `playtest` is avoided on Windows (see feedback). | |
 
 **Not used, on purpose:** payments (a real charge needs review and would gate play), outside HTTP (`permissions.http.enable: false`, because the docs say it defaults to true), blob storage, external endpoints, and `devvit publish` (App Review) during the hackathon.
