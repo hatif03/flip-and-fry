@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Plan v4: the Test Kitchen stays and gets a plan
+
+**Decision:** the author wants the Test Kitchen kept, joined to the restaurant's gameplay and expanded. [`plan-v4-kitchen.md`](plan-v4-kitchen.md) holds the plan and a tracker (every item has an id, a size, what it needs, a status and a "done when"). Nothing is built.
+
+**The rule that orders it:** the restaurant's score is verified because the server replays it; the kitchen is real-time and is not replayable, so it stays **bounded** (small, capped, never reaching the daily stars, the streak or a board) until a deterministic kitchen core can be replayed. Road 1 (skills, a daily catering gig, the headline in the kitchen, a signature dish, a faster workshop) comes first; road 2 (a verified Daily Kitchen, ghosts, online co-op) last.
+
+**Refused:** an unverified kitchen result affecting the boards, stars or streak; running the kitchen inside a restaurant night (it would break the night's pacing and cannot be replayed).
+
+Devvit or third party: none yet (later: realtime for online co-op, media for a result image). Plan: `docs/plan-v4-kitchen.md`.
+
 ## 2026-11-19 — Fix: a service left open no longer locks the garden for days
 
 **What the author saw:** planting always answered "Finish tonight's service first". The garden refused to change while any service was open, and looked at yesterday's key as well. A service that was opened and never closed (leaving the post or reloading mid-service) cannot be seen or closed by the game, so it blocked the garden until the entry expired.

@@ -34,6 +34,10 @@ See [`plan-v2.md`](plan-v2.md). Status:
 | E. One card, one next step | Built: stars, profit, award, goals, board and neighbors first; the kitchen card, stats and till under "The night in detail"; flair and follow under "More"; Continue pinned at the bottom |
 | F. Measure it | Built: moderator menu item "Retention report" (totals only). The funnel was already in Journeys (open, first guest, midway, receipt, official end, plus each action) |
 
+## Plan v4 (the Test Kitchen, kept and grown)
+
+See [`plan-v4-kitchen.md`](plan-v4-kitchen.md); its section 4 is the tracker and the source of truth. Written on 19 November; **nothing built yet**. Items: K1 to K8 (the kitchen feeds the restaurant), E1 to E9 (the kitchen game grows), V1 to V6 (verified and social), Q1 to Q3. The suggested first step is milestone M1 (K1, K2, K3, K8).
+
 ## Plan v3 (a night you play, a world between nights, the block)
 
 See [`plan-v3.md`](plan-v3.md). Built on 19 November:

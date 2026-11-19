@@ -11,6 +11,7 @@ Start here. Everything about how Flip and Fry was built and why.
 | [`testing.md`](testing.md) | What is tested and how, and what tests cannot prove |
 | [`plan-v2.md`](plan-v2.md) | The second plan: declutter, first sixty seconds, visible stakes, calibrated daily content, one result card, measurement, with a timeline to 8 December |
 | [`push-beta-application.md`](push-beta-application.md) | A draft of the push-notification beta application: what the game would send, the use case text and the facts to have ready |
+| [`plan-v4-kitchen.md`](plan-v4-kitchen.md) | The Test Kitchen kept, joined to the restaurant and expanded: bounded rewards first, a verified Daily Kitchen last, with a tracker of every item and its status |
 | [`remaining-work.md`](remaining-work.md) | What is left that tests cannot prove (real devices, two accounts, real Redis timings, push notifications), and the exact tools Claude needs for each |
 | [`plan-v3.md`](plan-v3.md) | The third plan: a night you play (shifts, hands on the floor, hustle, foreclosure), a world between nights (garden, workshop, builders, orders), the block, assets and budgets, timeline to 8 December |
 | [`plan-status.md`](plan-status.md) | The hackathon plan, section by section: what shipped, what changed, what is left |
