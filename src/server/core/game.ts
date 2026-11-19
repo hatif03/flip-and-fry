@@ -8,6 +8,7 @@ import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse
 import { pendingBonus, spendBonus } from './arcade';
 import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
+import { dueJobs, loadWorld, saveWorld } from './worldstore';
 
 /** Everything here is deterministic and talks only to `Store`, so the rules run unchanged in tests and on Devvit. */
 export type Deps = { store: Store; now: () => number };
@@ -75,6 +76,25 @@ export async function loadPark(deps: Deps, user: Player): Promise<Park | Fail> {
   return park ?? fail(500, 'Your saved restaurant could not be created.');
 }
 
+/**
+ * A builder's finished job becomes a level on the piece in the saved restaurant. It is written without a new revision (nothing the player has
+ * open becomes stale by it), and never while a service is open, because that service's close would overwrite it: the job then waits.
+ */
+export async function settleUpgrades(deps: Deps, user: Player, park: Park): Promise<Park> {
+  const world = await loadWorld(deps.store, user.id), now = deps.now(), due = dueJobs(world, now);
+  if (!due.length) return park;
+  const today = utcDate(now);
+  for (const date of [today, shiftDate(today, -1)]) for (const shift of ['dinner', 'lunch'] as const) if (await deps.store.hGet(keys.opens(date, shift), user.id)) return park;
+  const result = await casUpdate<Park>(deps.store, keys.park(user.id), current => {
+    const p = current ?? park, state = structuredClone(p.state);
+    for (const job of due) if (state.furniture.some(f => f.id === job.furnitureId)) state.levels[String(job.furnitureId)] = job.toLevel;
+    return { value: { rev: p.rev, state } };
+  }, { ttlSeconds: TTL.park, now: deps.now });
+  if ('error' in result) return park;
+  world.jobs = world.jobs.filter(j => !due.includes(j)); await saveWorld(deps.store, user.id, world, now);
+  return result.value;
+}
+
 async function touchProfile(deps: Deps, user: Player): Promise<void> {
   await deps.store.set(keys.profile(user.id), JSON.stringify({ username: user.name, lastSeen: deps.now() }), { expiration: expiration(deps.now(), TTL.profile) });
   await recordActivity(deps.store, user.id, utcDate(deps.now()));
@@ -102,7 +122,8 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
   const limited = await guard(deps, user.id, 'open', 30); if (limited) return limited;
   const date = utcDate(deps.now()), headline = createDailyHeadline(date);
   const log = actionLogSchema.safeParse(actions); if (!log.success) return fail(400, 'Invalid action log.');
-  const loaded = await loadPark(deps, user); if ('status' in loaded) return loaded;
+  const first = await loadPark(deps, user); if ('status' in first) return first;
+  const loaded = await settleUpgrades(deps, user, first);
   let snapshot: RestaurantState | null = null;
   const bonus = await pendingBonus(deps, user); // research earned in the Test Kitchen, applied once with this open
   const result = await casUpdate<Park>(deps.store, keys.park(user.id), current => {
@@ -236,7 +257,8 @@ export async function streakFor(store: Store, uid: string, date: string): Promis
 export async function getToday(deps: Deps, user: Player): Promise<{ ok: true; value: TodayResponse } | Fail> {
   const limited = await guard(deps, user.id, 'today', 120); if (limited) return limited;
   const date = utcDate(deps.now()), headline = createDailyHeadline(date);
-  const loaded = await loadPark(deps, user); if ('status' in loaded) return loaded;
+  const first = await loadPark(deps, user); if ('status' in first) return first;
+  const loaded = await settleUpgrades(deps, user, first);
   const [rawRun, rawOpen, rawLunchRun, rawLunchOpen, community, streak] = await Promise.all([
     deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGet(keys.runs(date, 'lunch'), user.id), deps.store.hGet(keys.opens(date, 'lunch'), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
   ]);

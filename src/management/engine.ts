@@ -1,5 +1,6 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, HOST_DELAY, ORDER_DELAY, QUEUE_MAX, QUICK_SEAT, QUICK_ORDER, HUSTLE_DECAY, HUSTLE_TIP, HUSTLE_TIP_MAX, COZY_TIP, isCozy, MOVE_AT, moveQuality, INCIDENT_KINDS, INCIDENT_TTL, DEAL_COST, SWAP_COST, FORECLOSURE_GRACE, FORECLOSURE_PIECES, FORECLOSURE_SALE, BUYBACK, FORECLOSURE_REPUTATION, REPUTATION_FLOOR, type Incident, billsShare, shiftLength, SHIFT_NAMES, type Shift, plateQuality, prepQuality, type Hands, companyValue, cookQuality, freshNight, CATALOG, buyPrice, COMFORT_GAP, COMFORT_GAP_MAX, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, HOST_DELAY, ORDER_DELAY, QUEUE_MAX, QUICK_SEAT, QUICK_ORDER, HUSTLE_DECAY, HUSTLE_TIP, HUSTLE_TIP_MAX, COZY_TIP, isCozy, MOVE_AT, moveQuality, INCIDENT_KINDS, INCIDENT_TTL, DEAL_COST, SWAP_COST, FORECLOSURE_GRACE, FORECLOSURE_PIECES, FORECLOSURE_SALE, BUYBACK, FORECLOSURE_REPUTATION, REPUTATION_FLOOR, type Incident, billsShare, shiftLength, SHIFT_NAMES, type Shift, plateQuality, prepQuality, type Hands, companyValue, cookQuality, freshNight, CATALOG, buyPrice, COMFORT_GAP, COMFORT_GAP_MAX, stationLevel, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { DISH_INGREDIENTS, GROWN_TIP, STATION_SPEED, STATION_TIP, inStock } from './crops';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
@@ -7,7 +8,7 @@ import type { CashReceipt } from './cash-feedback';
 import type { Action } from './actions';
 import type { CoopListing } from './coop';
 import type { NeighborhoodView, VisitResult } from './social';
-import type { BoardView, LockResponse, TodayResponse } from '../shared/api';
+import type { BoardView, LockResponse, TodayResponse, WorldView } from '../shared/api';
 
 export const GOALS = [
   { id: 'first-service', title: 'A warm welcome', text: 'Serve your first 5 guests', target: 5, reward: 180, value: (s: RestaurantState) => s.lifetimeServed },
@@ -62,6 +63,8 @@ export interface RemoteSession {
   follow?(): Promise<string | null>;
   /** Today's board: official results on this subreddit, from the server's replays. Optional and read-only. */
   board?(shift?: 'lunch' | 'dinner'): Promise<BoardView | { error: string }>;
+  /** The rooftop garden, the pantry and the order board, run on the server's clock. Only between services. */
+  world?: { load(): Promise<WorldView | { error: string }>; act(path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> };
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };
@@ -415,7 +418,7 @@ export class RestaurantEngine {
   canTakeOver(guest: Guest): boolean {
     if (guest.stage !== 'cooking' || guest.owner) return false;
     const chef = this.state.staff.find(w => w.role === 'chef' && w.guestId === guest.id); if (!chef) return false;
-    return chef.task === 'toKitchen' || chef.task === 'cooking' && chef.timer > DISHES[guest.dish].seconds * (1 - (chef.level - 1) * .2) * .5;
+    return chef.task === 'toKitchen' || chef.task === 'cooking' && chef.timer > DISHES[guest.dish].seconds * (1 - (chef.level - 1) * .2) * (1 - (stationLevel(this.state, chef.stationId) - 1) * STATION_SPEED) * .5;
   }
   /** Take a ticket and cook it yourself: a waiting one, or one a chef has only just started (the chef is freed for the next ticket). Each pair of hands cooks one dish at a time. */
   claimTicket(guestId: number, by = 0): string | null {
@@ -432,8 +435,8 @@ export class RestaurantEngine {
       this.record(this.stamp('claimTicket', guestId, by)); this.changed(`${by ? 'A neighbor took' : 'You took'} over the ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
     }
     const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + stationName(DISHES[guest.dish].station) + ' is busy.';
-    const cost = dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
-    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; s.hands.push({ guestId, by, holding: false, prep: 0, quality: 0, moved: 0 });
+    const stock = this.hasStock(guest.dish), cost = stock ? 0 : dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
+    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; if (stock) this.spendStock(guest); s.hands.push({ guestId, by, holding: false, prep: 0, quality: 0, moved: 0 });
     this.record(this.stamp('claimTicket', guestId, by)); this.changed(`${by ? 'A neighbor is' : 'You are'} cooking ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
   }
   private settlePrep(guest: Guest): void {
@@ -639,7 +642,7 @@ export class RestaurantEngine {
   /** A party at the door. It waits there until you seat it, or until the team does. */
   private queueGuest(f: Pick<Guest, 'special' | 'species' | 'dish' | 'price' | 'regular' | 'visitor'>): void {
     const s = this.state, index = s.guests.filter(g => g.stage === 'queued').length;
-    s.guests.push({ id: s.nextId++, ...f, x: entrance.x + (index - 1) * .6, z: entrance.z + .9, yaw: Math.PI, route: [], tableId: -1, seat: 0, stage: 'queued', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, cozy: false });
+    s.guests.push({ id: s.nextId++, ...f, x: entrance.x + (index - 1) * .6, z: entrance.z + .9, yaw: Math.PI, route: [], tableId: -1, seat: 0, stage: 'queued', waiting: 0, timer: 0, happy: false, stationId: null, paid: false, owner: false, cook: 0, quality: 0, priority: false, cozy: false, grown: false });
   }
   /** The regular sits and orders their usual if it is on the menu, and the first dish otherwise (which will not please them). They never turn at the door over price. */
   private arriveRegular(regular: RestaurantState['regulars'][number], dishes: Dish[]): void {
@@ -692,11 +695,11 @@ export class RestaurantEngine {
       if (member.role === 'chef') {
         for (const guest of s.guests.filter(g => g.stage === 'waiting').sort((a, b) => Number(b.priority) - Number(a.priority))) {
           const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !s.staff.some(worker => worker.stationId === f.id && worker.role === 'chef' && worker.task !== 'idle') && !s.guests.some(g => g.owner && g.stationId === f.id));
-          const cost = dishCost(s, guest.dish);
+          const stock = this.hasStock(guest.dish), cost = stock ? 0 : dishCost(s, guest.dish);
           if (!station || s.cash < cost) continue;
           const route = this.route(member, accessPoints(station)[0]); if (!route) continue;
           guest.stage = 'cooking'; guest.stationId = station.id; member.guestId = guest.id; member.stationId = station.id; member.task = 'toKitchen'; member.route = route;
-          s.cash -= cost; s.totals.ingredients += cost; break;
+          s.cash -= cost; s.totals.ingredients += cost; if (stock) this.spendStock(guest); break;
         }
       } else {
         const guest = s.guests.find(g => g.stage === 'ready');
@@ -755,7 +758,7 @@ export class RestaurantEngine {
       const guest = s.guests.find(g => g.id === staff.guestId);
       if (!guest || guest.stage === 'leaving') { resetStaff(staff); continue; }
       if (staff.task === 'toKitchen') {
-        staff.task = 'cooking'; staff.timer = DISHES[guest.dish].seconds * (1 - (staff.level - 1) * .2);
+        staff.task = 'cooking'; staff.timer = DISHES[guest.dish].seconds * (1 - (staff.level - 1) * .2) * (1 - (stationLevel(s, staff.stationId) - 1) * STATION_SPEED);
         const station = s.furniture.find(f => f.id === staff.stationId); staff.yaw = Math.PI - (station?.rotation ?? 0) * Math.PI / 2;
       } else if (staff.task === 'cooking') { staff.timer -= dt; if (staff.timer <= 0) { guest.stage = 'ready'; resetStaff(staff); } }
       else if (staff.task === 'collect') {
@@ -775,7 +778,7 @@ export class RestaurantEngine {
     guest.stage = 'eating'; guest.timer = 10; guest.happy = true;
     if (guest.paid) return;
     const hustle = 1 + Math.min(this.hustleLive(), HUSTLE_TIP_MAX) * HUSTLE_TIP;
-    const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075) * hustle * (guest.cozy ? COZY_TIP : 1)));
+    const tip = Math.max(0, Math.round(guest.price * (.04 + comfort(s) * .001 * fx.tipComfort) * Math.max(.15, 1 - guest.waiting / 60) * (1 + Math.max(0, guest.quality - 1) * .075) * hustle * (guest.cozy ? COZY_TIP : 1) * (guest.grown ? GROWN_TIP : 1) * (1 + (stationLevel(s, guest.stationId) - 1) * STATION_TIP)));
     if (guest.regular) this.regularVisit(guest, true); if (guest.visitor) this.settleVisitor(guest.visitor, 'served', tip, guest.waiting, guest.quality);
     s.night.waitSeconds += guest.waiting; const earned = guest.price + tip; s.cash += earned; s.totals.revenue += guest.price; s.totals.tips += tip; s.totals.served++; s.lifetimeServed++; guest.paid = true;
     this.recordIncome(earned, 'service', guest.id, tip);
@@ -811,6 +814,14 @@ export class RestaurantEngine {
     s.debt = 0; s.reputation = Math.max(REPUTATION_FLOOR, Math.round((s.reputation - FORECLOSURE_REPUTATION) * 100) / 100);
     s.notice = 0; s.streaks.losses = 0; s.foreclosure = { day: s.day, kinds: taken.map(f => f.kind), released, proceeds };
     this.event = `The bank took ${taken.length} piece${taken.length === 1 ? '' : 's'} into storage and let ${released} of your crew go. Everything else is yours.`;
+  }
+  /** Whether the pantry holds everything this dish takes. An empty pantry (every bot, every browser game) never does. */
+  private hasStock(dish: Dish): boolean { return inStock(this.state.pantry, dish); }
+  /** The dish takes one of each ingredient from the pantry and tips a little more for it. */
+  private spendStock(guest: Guest): void {
+    for (const crop of DISH_INGREDIENTS[guest.dish]) this.state.pantry[crop] = (this.state.pantry[crop] ?? 0) - 1;
+    for (const crop of Object.keys(this.state.pantry)) if (!this.state.pantry[crop]) delete this.state.pantry[crop];
+    guest.grown = true;
   }
   private finish(): void {
     const s = this.state;

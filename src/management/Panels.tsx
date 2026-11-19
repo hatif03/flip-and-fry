@@ -15,7 +15,7 @@ import { challengeBonus } from './daily-challenges';
 import { money } from './format';
 import { WeeklyRevenue } from './WeeklyRevenue';
 const furnitureIcons = { table: Armchair, prep: ChefHat, grill: Flame, bench: Sofa, pot: CookingPot, wok: Utensils, oven: Flame, plant: Leaf, divider: Fence, lamp: Lamp };
-export type Panel = 'build' | 'team' | 'menu' | 'ledger';
+export type Panel = 'build' | 'garden' | 'team' | 'menu' | 'ledger';
 export type Action = (error: string | null) => void;
 export function SmallButton({ children, onClick, disabled, className, label }: { children: ReactNode; onClick: () => void; disabled?: boolean; className?: string; label?: string }) {
   return <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className={cn('flex min-h-11 items-center justify-center gap-2 rounded-xl border border-ink/15 bg-white/40 px-3 text-sm font-extrabold transition hover:bg-white/80 active:scale-95 disabled:opacity-40', className)}>{children}</button>;

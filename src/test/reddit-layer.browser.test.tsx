@@ -51,7 +51,7 @@ it('tells the player the goal and what to do before opening', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
   await expect.element(bar).toHaveTextContent('Goal: Serve 5 guests and finish in profit');
-  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('You are the head chef. Tap Open for a quick lunch, then cook the orders yourself.');
+  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('Head chef: tap Open for a quick lunch.');
 });
 
 it('shows the pass, not a paragraph, while the doors are open', async () => {

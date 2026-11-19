@@ -26,7 +26,7 @@ export function coachLine(phase: 'planning' | 'service' | 'report', hasResultTod
 export function hintLine(phase: 'planning' | 'service' | 'report', firstNight: boolean, hasResultToday: boolean): string | null {
   if (phase !== 'planning') return null;
   if (hasResultToday) return 'Your result is saved. Only your best night of the day counts.';
-  return firstNight ? 'You are the head chef. Tap Open for a quick lunch, then cook the orders yourself.' : 'Spend your cash, then tap Open. Then run the pass.';
+  return firstNight ? 'Head chef: tap Open for a quick lunch.' : 'Spend your cash, then tap Open. Then run the pass.';
 }
 
 /**
@@ -107,6 +107,7 @@ function ResultCard() {
       <p className={cn('text-center font-display text-2xl', report.profit >= 0 ? 'text-teal' : 'text-tomato')} aria-label="Profit">{report.profit >= 0 ? 'Profit ' : 'Loss '}{money(Math.abs(report.profit))}</p>
       <YourHands />
       <BankLine />
+      {result.xp && <p aria-label="Experience" className="text-center text-xs font-extrabold text-ink/70">+{result.xp.gained} XP · Level {result.xp.level}{result.xp.leveledUp ? ' · a new level: more garden, more seeds' : ''}</p>}
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
       {result.shift === 'lunch' ? <ul className="space-y-1 text-sm" aria-label="Lunch goals">
         {[stars.goal, stars.challenges >= 2, stars.beatPrevious].map((met, i) => <li key={i} className={cn('flex gap-2', met ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{met ? '★' : '☆'}</span><span>{i === 0 && <b>Lunch goal: </b>}{LUNCH_STARS[i]}</span></li>)}

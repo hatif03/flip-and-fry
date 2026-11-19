@@ -3,6 +3,7 @@ import type { DailyHeadline } from '../management/daily-headline';
 import type { DoorSummary } from '../management/social';
 import type { Action } from '../management/replay';
 import type { Stars } from '../management/stars';
+import type { CropId, Order, Pantry } from '../management/crops';
 import type { Report, RestaurantState, Shift } from '../management/types';
 
 /** Request and response shapes shared by the client and the server. Import only types and pure modules from here. */
@@ -46,6 +47,8 @@ export type LockRequest = { date: string; actions: Action[]; shift?: Shift };
 export type LockResponse = {
   type: 'lock';
   shift: Shift;
+  /** Experience this service earned and the level reached; absent if the world could not be updated. */
+  xp?: XpGain | null;
   /** The server's replay is the only receipt that counts. A client preview with a different hash should adopt `park`. */
   hash: string;
   report: Report;
@@ -67,3 +70,20 @@ export type ErrorResponse = { type: 'error'; error: string; conflict?: boolean }
 /** Today's board: official results on this subreddit, best first. Names appear only for players who left their door open, and for the viewer. */
 export type BoardEntry = { rank: number; name: string; stars: number; rating: number; profit: number; you: boolean };
 export type BoardView = { type: 'board'; date: string; shift?: Shift; total: number; entries: BoardEntry[]; you: { rank: number; stars: number; profit: number } | null };
+
+/** The rooftop garden, the order board and experience, as the server's clock sees them. Every time is a server timestamp in milliseconds. */
+/** An empty plot has `crop: null` and zeros. */
+export type PlotView = { index: number; crop: CropId | null; readyAt: number; plantedAt: number; watered: boolean; ready: boolean; wilted: boolean; yield: number };
+/** A station a builder can upgrade, what it is now, and what the next step costs (or null at the top). */
+export type StationView = { id: number; kind: string; name: string; level: number; next: { toLevel: 2 | 3; cost: number; seconds: number; levelNeeded: number } | null };
+export type WorldView = {
+  type: 'world'; now: number; xp: number; level: number; nextXp: number | null; slots: number; plots: PlotView[];
+  orders: (Order & { done: boolean; canFill: boolean })[]; pantry: Pantry; cash: number;
+  builders: { count: number; jobs: { furnitureId: number; name: string; toLevel: number; readyAt: number; rushCost: number }[]; rushUsed: boolean };
+  stations: StationView[];
+};
+/** The reply to a change: the new view, plus the restaurant's new revision and state (cash and pantry moved). */
+export type WorldResponse = WorldView & { rev: number; park: RestaurantState };
+export type WorldRequest = { rev: number; plot?: number; crop?: string; index?: number };
+/** Experience from a closed service. */
+export type XpGain = { gained: number; level: number; leveledUp: boolean };

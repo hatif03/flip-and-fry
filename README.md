@@ -9,6 +9,7 @@
 <td align="center"><img src="docs/img/phone-planning.png" width="220" alt="Planning on a phone: one header row, today's headline and goal, one hint, one dock row"><br><sub>Planning</sub></td>
 <td align="center"><img src="docs/img/phone-service.png" width="220" alt="Service on a phone: the night bar with the bills, and the pass with a ticket waiting"><br><sub>Service: bills, goal, the pass</sub></td>
 <td align="center"><img src="docs/img/phone-card.png" width="220" alt="The result card: stars, profit, award, goals and today's board"><br><sub>The result card</sub></td>
+<td align="center"><img src="docs/img/phone-garden.png" width="220" alt="The rooftop garden: level, plots on timers, pantry, builder and the order board"><br><sub>The garden</sub></td>
 </tr>
 </table>
 
@@ -20,7 +21,8 @@
 2. **Build:** place tables, planters, lanterns and kitchen equipment. **Team:** hire and train. **Menu:** switch dishes on and set prices.
 3. Tap **Open** (your first service is a one-minute **lunch**; after that choose lunch or dinner). **You run the pass.** Parties wait at the door: tap a table to **seat** them (a cosy table tips more), **take their order**, **cook** it (tap **Cook**, or **Take over** from a chef who has just started; **Flip**, **Stir** or **Toss** when the marker is in the box; plate in the green zone), **serve** it and **clear** the table. Each quick move adds to your **hustle** chain, which raises tips. One **decision** at a time comes up (a complaint, an allergy, a supplier). **Rush** moves a ticket up, **Comp** keeps a guest who is about to walk. Your team does all of it more slowly if you leave it, but a night where you do nothing earns few stars, and the result card says so. If you lose money night after night the bank sends a final notice, then takes a few of your pieces into storage; it never takes the restaurant. A neighbor can help at your pass (**Cook together**).
 4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night. Your first three nights have a gentler goal (serve 8 guests and finish in profit), so a new owner always sees a star.
-5. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
+5. **Between nights**, tend the **Garden** (Reddit only): plant, water and harvest crops on real timers, spend the harvest in your dishes (free ingredients, tips 15% more), fill the order board for cash and XP, and put your builder on a better stove. Level up for more plots, seeds and a second builder.
+6. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
 
 Between nights you can step into the **Test Kitchen** and cook by hand: three shifts, solo or two chefs, and a **Today's shift** picked by the date. New stars there earn a little research for your restaurant (at most 10 a day), and a result can be posted to the thread with the same confirm step as the restaurant's.
 

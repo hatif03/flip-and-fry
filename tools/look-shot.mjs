@@ -1,5 +1,5 @@
 // Authoring-time only: the real screens as they look on Reddit (a stand-in daily post is injected), at phone and desktop sizes.
-// Usage: node tools/look-shot.mjs [tag] [outdir]   -> {outdir}/{tag}-{phone|desktop}-{planning|build|service|card}.png
+// Usage: node tools/look-shot.mjs [tag] [outdir]   -> {outdir}/{tag}-{phone|desktop}-{planning|build|garden|service|card}.png
 // The same command makes the screenshots used in the README and docs (outdir docs/img).
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -14,6 +14,12 @@ const standIn = async () => {
   const headline = createDailyHeadline('2026-12-09');
   restaurant.reset(); restaurant.welcome(); restaurant.state.cash = 1840;
   restaurant.remote = { open: async () => restaurant.open(), today: { type: 'today', date: '2026-12-09', headline, rev: 1, park: restaurant.state, open: null, run: null, streak: 4, community: { opens: 5, locks: 2 }, neighborhood: 'Maple Street' }, result: null, dismissResult() {} };
+  const t = Date.now(), order = (index, name, species, wants, reward, xp, done, canFill) => ({ index, name, species, wants, reward, xp, done, canFill });
+  const view = { type: 'world', now: t, xp: 52, level: 2, nextXp: 80, slots: 2, cash: 1840, pantry: { tomato: 2, lettuce: 3 }, builders: { count: 1, rushUsed: false, jobs: [{ furnitureId: 2, name: 'Charcoal grill', toLevel: 2, readyAt: t + 1200000, rushCost: 40 }] }, stations: [{ id: 1, kind: 'prep', name: 'Prep counter', level: 1, next: { toLevel: 2, cost: 120, seconds: 1800, levelNeeded: 2 } }, { id: 2, kind: 'grill', name: 'Charcoal grill', level: 1, next: { toLevel: 2, cost: 180, seconds: 1800, levelNeeded: 2 } }], plots: [
+    { index: 0, crop: 'lettuce', plantedAt: t - 1500000, readyAt: t + 2100000, watered: true, ready: false, wilted: false, yield: 3 },
+    { index: 1, crop: 'tomato', plantedAt: t - 1500000, readyAt: t - 300000, watered: false, ready: true, wilted: false, yield: 3 }],
+    orders: [order(0, 'Mochi', 'rabbit', [{ crop: 'tomato', n: 2 }, { crop: 'lettuce', n: 1 }], 30, 16, false, true), order(1, 'Pickle', 'bear', [{ crop: 'basil', n: 2 }], 21, 14, false, false), order(2, 'Hazel', 'mouse', [{ crop: 'tomato', n: 3 }], 27, 12, true, false)] };
+  restaurant.remote.world = { load: async () => view, act: async () => view };
   restaurant.notify();
 };
 let browser;
@@ -30,6 +36,8 @@ try {
     const shot = async name => writeFile(`${out}/${tag}-${size}-${name}.png`, await page.screenshot({ type: 'png' }));
     await shot('planning');
     await page.getByRole('button', { name: 'Build', exact: true }).click(); await page.waitForTimeout(900); await shot('build');
+    await page.getByRole('button', { name: 'Close panel' }).click(); await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Garden', exact: true }).click(); await page.waitForTimeout(900); await shot('garden');
     await page.getByRole('button', { name: 'Close panel' }).click(); await page.waitForTimeout(400);
     await page.evaluate(async () => { const { restaurant } = await import('/src/management/engine.ts'); restaurant.open(); restaurant.setSpeed(3); });
     await page.waitForTimeout(9000); await shot('service');

@@ -15,6 +15,8 @@ import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
 import { commitAction, endCoop, joinCoop, listCoop, publishSync, relayRequest, startCoop } from '../core/coop';
 import { getBoard } from '../core/board';
+import { awardXp, deliver, getWorld, harvest, plant, rush, upgrade, water } from '../core/world';
+import { serviceXp } from '../../management/crops';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
 import { kitchenOfPost, postKitchen } from '../core/kitchen-post';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
@@ -29,6 +31,7 @@ const deps: Deps = { store: redis, now: () => Date.now() };
 
 const saveBody = z.object({ rev: z.number().int().nonnegative(), actions: actionLogSchema });
 const noteBody = z.object({ note: z.string().max(200).optional() });
+const worldBody = z.object({ rev: z.number().int(), plot: z.number().int().min(0).max(7).optional(), crop: z.string().max(20).optional(), index: z.number().int().min(0).max(100000).optional() });
 const lockBody = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), actions: actionLogSchema, shift: z.enum(['lunch', 'dinner']).optional() });
 
 // A 400-action log is about 40 KB. Anything near the 4 MB platform limit is not a game request.
@@ -94,8 +97,23 @@ api.post('/lock', async c => {
   // The official end of the journey carries the replayed score, never a client claim. Optional: a dropped event changes nothing the player sees.
   const journeyId = c.req.header('x-devvit-journey-id');
   if (journeyId) { try { await telemetry.endJourney(officialEnd(journeyId, r.value)); } catch (error) { console.error(`journey end failed: ${error}`); } }
-  return c.json(r.value);
+  // Experience from the replayed night (never from a client claim). Optional: a failure here never changes the receipt.
+  let xp = null; try { xp = await awardXp(deps, user.id, serviceXp(r.value.stars.stars, r.value.report.served, r.value.park.hustle.best)); } catch (error) { console.error(`xp failed: ${error}`); }
+  return c.json({ ...r.value, xp });
 });
+
+// ---- the world between nights: the garden, the order board
+api.get('/world', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await getWorld(deps, user); return 'error' in r ? failure(c, r) : c.json(r.value);
+});
+for (const [path, run] of [['plant', (u: Player, b: z.infer<typeof worldBody>) => plant(deps, u, b.rev, b.plot ?? -1, b.crop as never)], ['water', (u: Player, b: z.infer<typeof worldBody>) => water(deps, u, b.rev, b.plot ?? -1)], ['harvest', (u: Player, b: z.infer<typeof worldBody>) => harvest(deps, u, b.rev, b.plot ?? -1)], ['deliver', (u: Player, b: z.infer<typeof worldBody>) => deliver(deps, u, b.rev, b.index ?? -1)], ['upgrade', (u: Player, b: z.infer<typeof worldBody>) => upgrade(deps, u, b.rev, b.index ?? -1)], ['rush', (u: Player, b: z.infer<typeof worldBody>) => rush(deps, u, b.rev, b.index ?? -1)]] as const) {
+  api.post(`/world/${path}`, async c => {
+    const user = await player(); if (!user) return c.json(needLogin, 401);
+    const body = worldBody.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+    const r = await run(user, body.data); return 'error' in r ? failure(c, r) : c.json(r.value);
+  });
+}
 
 // ---- the explicit Reddit actions: each its own button, none gates play ------------------------------------------------------
 api.post('/comment/preview', async c => {

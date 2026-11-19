@@ -4,7 +4,7 @@ import { shiftLength } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
 import { houseStyle, type NeighborhoodView, type VisitResult } from '../management/social';
-import type { BoardView, ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse } from '../shared/api';
+import type { BoardView, ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse, WorldResponse, WorldView } from '../shared/api';
 
 /** One round trip to /api. Injected so the session is tested against the real server rules without a network. */
 export type Http = (method: 'GET' | 'POST', path: string, body?: unknown, headers?: Record<string, string>) => Promise<{ status: number; body: unknown }>;
@@ -189,6 +189,23 @@ export class Session implements RemoteSession {
     const r = await this.http('GET', `/api/board?date=${encodeURIComponent(this.today?.date ?? '')}&shift=${shift}`);
     return r.status === 200 && !isError(r.body) ? (r.body as BoardView) : { error: message(r) };
   }
+  /** The garden and order board. A change first sends any planning actions waiting in the queue, so the restaurant's revision is current. */
+  readonly world = {
+    load: async (): Promise<WorldView | { error: string }> => {
+      const r = await this.http('GET', '/api/world');
+      return r.status === 200 && !isError(r.body) ? (r.body as WorldView) : { error: message(r) };
+    },
+    act: async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> => {
+      if (this.engine.state.phase !== 'planning') return { error: 'The garden waits until the doors are shut.' };
+      await this.flush();
+      const r = await this.enqueue(() => this.http('POST', `/api/world/${path}`, { rev: this.rev, ...body }));
+      if (r.status === 409) { this.notice = isError(r.body) ? r.body.error : ''; await this.load(); this.engine.notify(); return { error: isError(r.body) ? r.body.error : 'Your restaurant changed in another tab, so it was reloaded.' }; }
+      if (r.status !== 200 || isError(r.body)) return { error: message(r) };
+      const { rev, park, ...view } = r.body as WorldResponse;
+      this.rev = rev; if (this.today) this.today = { ...this.today, rev, park }; this.engine.adopt(park);
+      return view as WorldView;
+    },
+  };
   async avatar(name: string): Promise<string | null> {
     const r = await this.http('GET', `/api/avatar?name=${encodeURIComponent(name)}`);
     return r.status === 200 && !isError(r.body) ? ((r.body as { url: string | null }).url ?? null) : null;
