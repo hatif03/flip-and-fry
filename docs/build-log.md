@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Scene pixel size is always 1; plan v2 written
+
+**Why:** the author's desktop and phone screenshots showed the scene drawn in 3-pixel blocks ("too pixelated"), a crowded interface that did not read as a game, and no visible stakes. They asked for a fix (or a return to the non-pixel view if it could not be fixed) and for a new plan covering onboarding, visual craft, daily content, focus, end states, Journeys and the retention and engagement metrics.
+
+**Decision:** `autoPixelSize` now returns 1 for every width (it was 1 on a phone, 2 on a tablet, 3 on a desktop). The per-weather 24-colour palette and the hard-edged interface keep the pixel identity; compared side by side at 1600 px (`tools/look-shot.mjs`), size 1 reads clearly and size 2 or 3 does not. `?k=2` and `?pixel=0` remain for comparison. The test that pinned sizes 2 and 3 now pins 1.
+
+**Plan:** `docs/plan-v2.md`: six phases (a game-like screen, the first sixty seconds, a service screen with visible bills and stakes, a bigger headline pool and a first-week curve, one card with one next step, measurement), a timeline with a feature freeze on 5 December, and the risks. The stakes are designed to keep the earlier rule that a missed star never deletes a park: reputation, a visible bills line, a streak freeze, a daily board checked by the server's replay. Monetization metrics were considered and refused: payments stay off. The research was thin (vendor blogs, one Devvit page on an unofficial mirror); the plan says so.
+
+**Not done yet:** none of phases A to F is built; they are the plan.
+
+**Devvit pieces:** none turned on or off. **Code or plan:** `src/scene/pixel/pixel-settings.ts`, `src/test/pixel-settings.test.ts`, `tools/look-shot.mjs`, `docs/plan-v2.md`.
+
 ## 2026-11-19 — Repository renamed to flip-and-fry; listing text no longer leads with Reddit
 
 **Why:** the author asked that the GitHub repository carry the same name as the game and the app (`too-many-cooks` was taken on Reddit, see the earlier entry), and that the store description sell the game itself, not the platform it happens to run on.

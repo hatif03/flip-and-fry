@@ -10,8 +10,8 @@ describe('pixel settings', () => {
 });
 
 describe('automatic pixel size', () => {
-  it('keeps phones fine enough to read, and lets big screens be chunkier', () => {
-    expect(autoPixelSize(360)).toBe(1); expect(autoPixelSize(412)).toBe(1); expect(autoPixelSize(768)).toBe(2); expect(autoPixelSize(1280)).toBe(3); expect(autoPixelSize(2560)).toBe(3);
+  it('is always one scene pixel per CSS pixel, on any screen', () => {
+    for (const w of [360, 412, 768, 1280, 1920, 2560]) expect(autoPixelSize(w)).toBe(1);
   });
   it('always gives a whole number from 1 to 3 and never shrinks the picture below about 300 pixels across', () => {
     for (let w = 200; w <= 3000; w += 17) { const k = autoPixelSize(w); expect(Number.isInteger(k)).toBe(true); expect(k).toBeGreaterThanOrEqual(1); expect(k).toBeLessThanOrEqual(3); if (w >= 300) expect(w / k).toBeGreaterThanOrEqual(300 / 1.0 * .7); }

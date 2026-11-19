@@ -8,11 +8,11 @@ export function pixelSettings(search: string = typeof location === 'undefined' ?
   return { enabled: params.get('pixel') !== '0', k: Number.isFinite(k) && k >= 1 && k <= 6 ? k : null };
 }
 /**
- * Pixel size from the width of the canvas in CSS pixels. The whole city must stay readable: a phone about 360 px wide gets 1
- * (roughly 360 scene pixels across, so animals are still several pixels tall), a tablet 2, a desktop window 3. At a fixed 3 a phone
- * showed only 120 pixels across and the animals became blobs.
+ * Pixel size from the width of the canvas in CSS pixels. Always 1: the palette snap and the hard edges give the look, and blocks of
+ * 2 or 3 CSS pixels (the first rule, by width) turned buildings and animals into noise on a desktop window. Force a bigger block
+ * with `?k=2` to compare. The argument is kept so a size by width can come back without touching the callers.
  */
-export function autoPixelSize(cssWidth: number): number { return Math.max(1, Math.min(3, Math.round(cssWidth / 420))); }
+export function autoPixelSize(_cssWidth: number): number { return 1; }
 /**
  * The pixel look also dresses the interface: square corners, hard edges and a pixel typeface for headings and numbers. It follows the
  * scene's switch (?pixel=0 turns both off) and has its own (?ui=0), so the two can be compared.
