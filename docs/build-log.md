@@ -4,6 +4,17 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Plan v3: more to play, and two refusals turned into designs
+
+**Why:** after the 0.0.19 phone test the author said much of the game is still simulated and asked for the activity loops of Clash of Clans and FarmVille 2, plus the two items refused earlier.
+
+**What was decided (design only, nothing built yet):** [`plan-v3.md`](plan-v3.md). (1) The night keeps its rules but gets more player steps (seat, order, station moves, clear, events, a hustle chain), each with a slower automatic fallback. (2) A second timescale lives in a server-clock "world" (garden, workshop, builders, order board, XP) that is not replayed and reaches the night only as inputs in the opening snapshot. (3) **A shorter first service** is now a design: the service length becomes a property of the night (a `shift`: lunch 60 s, dinner 150 s, banquet 240 s), the first night is lunch, and lunch is a second official service with its own board. (4) **A bankruptcy rule** is now a design that never deletes progress: final notice, then foreclosure takes the three most valuable removable pieces into buy-back storage, lets extra crew go, clears the debt and lowers reputation, with a seven-night grace and a once-a-week limit. (5) All rule changes land in one engine version bump and one recalibration. (6) New assets are mostly code-built primitives and synthesised sound, with at most two small models.
+
+**Refused:** raiding or stealing from other players, payments, a timer that blocks a night, wilting that kills a plot.
+
+Devvit or third party: Redis, scheduler and journeys, all already in use; push notifications only if the beta is granted.
+Code or plan: `docs/plan-v3.md`.
+
 ## 2026-11-19 — You run the pass: orders always on screen, take a dish from a chef
 
 **Why:** the author played on a phone and could not tell what the game was ("a strategy game or an action game?"), and the night "happened without me doing anything". The measurement behind it: a player who only taps Open earns a star on **4 of the next 21 nights** (`src/test/bots.test.ts`, first-week block), while the replay tests already show that cooking at the pass raises served guests and rating. So hands matter, but the screen said "Your team has it" and showed a ticket only when every chef was busy. Nothing told the player the game was theirs to play.

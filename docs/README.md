@@ -10,6 +10,7 @@ Start here. Everything about how Flip and Fry was built and why.
 | [`devvit-and-reddit.md`](devvit-and-reddit.md) | Each Reddit and Devvit capability used, the limits worked within, what is unconfirmed on a device |
 | [`testing.md`](testing.md) | What is tested and how, and what tests cannot prove |
 | [`plan-v2.md`](plan-v2.md) | The second plan: declutter, first sixty seconds, visible stakes, calibrated daily content, one result card, measurement, with a timeline to 8 December |
+| [`plan-v3.md`](plan-v3.md) | The third plan: a night you play (shifts, hands on the floor, hustle, foreclosure), a world between nights (garden, workshop, builders, orders), the block, assets and budgets, timeline to 8 December |
 | [`plan-status.md`](plan-status.md) | The hackathon plan, section by section: what shipped, what changed, what is left |
 | [`build-log.md`](build-log.md) | The dated record of every decision, with evidence (newest first) |
 | [`perf-log.md`](perf-log.md) | Size and speed measurements, budgets and what was done |
