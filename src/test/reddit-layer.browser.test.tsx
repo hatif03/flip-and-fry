@@ -58,6 +58,8 @@ it('shows the pass, not a paragraph, while the doors are open', async () => {
   restaurant.remote = remote(null); restaurant.open();
   const screen = await render(<ManagementGame />);
   await expect.element(screen.getByRole('region', { name: 'The pass' })).toBeVisible();
+  const tonight = screen.getByRole('region', { name: 'Tonight' });
+  await expect.element(tonight).toBeVisible(); await expect.element(tonight).toHaveTextContent('Bills $'); await expect.element(screen.getByRole('progressbar', { name: 'Bills covered' })).toBeVisible();
 });
 
 it('explains that only the best night of the day counts once a result is saved', async () => {
@@ -89,6 +91,7 @@ it('shows one result card with stars, the goal and the numbers, and Continue clo
   await expect.element(card).toHaveTextContent('A great night'); await expect.element(card).toHaveTextContent('Finish with a rating of 4.0 or better');
   await expect.element(card).toHaveTextContent('$198'); await expect.element(card).toHaveTextContent('4.2'); await expect.element(card).toHaveTextContent('official result');
   await expect.element(screen.getByRole('img', { name: '2 of 3 stars' })).toBeVisible();
+  const till = card.getByLabelText('The till'); await expect.element(till).toHaveTextContent('Sales and tips'); await expect.element(till).toHaveTextContent('Wages and rent'); await expect.element(till).toHaveTextContent('Reputation');
   const button = screen.getByRole('button', { name: 'Continue' });
   const rect = (await button.element()).getBoundingClientRect(); expect(rect.height).toBeGreaterThanOrEqual(44);
   await button.click();
@@ -136,6 +139,15 @@ it('keeps the tabs in the plain browser game while the doors are open', async ()
   restaurant.open();
   await expect.element(screen.getByRole('navigation', { name: 'Restaurant management' })).toBeVisible();
   await expect.element(screen.getByText('Saved on this device')).toBeVisible();
+});
+
+it('shows the board on the card, with your place, and says nothing when the board is empty or fails', async () => {
+  const view = { type: 'board' as const, date: '2026-12-09', total: 5, entries: [{ rank: 1, name: 'a neighbor', stars: 3, rating: 4.8, profit: 410, you: false }, { rank: 2, name: 'ann', stars: 2, rating: 4.2, profit: 198, you: true }], you: { rank: 2, stars: 2, profit: 198 } };
+  restaurant.remote = { ...remote(lock(2)), board: async () => view };
+  const screen = await render(<ManagementGame />), card = screen.getByRole('dialog');
+  await expect.element(card.getByLabelText("Today's board")).toHaveTextContent('You are 2nd of 5 tonight.'); await expect.element(card.getByLabelText("Today's board")).toHaveTextContent('a neighbor');
+  await screen.unmount(); restaurant.remote = { ...remote(lock(2)), board: async () => ({ error: 'nope' }) };
+  const again = await render(<ManagementGame />); await expect.element(again.getByRole('dialog')).toBeVisible(); await expect.element(again.getByLabelText("Today's board")).not.toBeInTheDocument();
 });
 
 describe('the end of the night: award, kitchen card and optional sharing', () => {

@@ -4,6 +4,24 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-20 — Plan v2, phase C: visible stakes (night bar, the till, today's board, streak freezes)
+
+**Why:** the author could not see anything at stake ("no real stakes, no penalty that makes the grind worth it"). Rent, wages and loan instalments already existed in the engine, and reputation already set how often guests arrive (`9.5 - reputation * .6` seconds between arrivals), but none of it was on the screen. Phase C makes the existing stakes visible and adds two server-side ones, without ever deleting a player's restaurant (the earlier rule that a missed star never resets a park stands).
+
+**What:**
+- **Night bar** (`TonightBar.tsx`, `bills.ts`): during service the header shows how far through the night it is, **Bills $X** (wages + rent + loan instalment, exactly what `closeService` takes; a unit test compares it with the closing report), a bar for how much of the bills the till covers, the running net in green or red, and the headline's goal. The bills line is read from state; the simulation is untouched.
+- **The till on the result card:** sales and tips, ingredients, wages and rent, loan instalment, profit or loss, and one sentence on reputation (`reputationLine`: more guests tomorrow, fewer, or the same), which is the stake of a bad night.
+- **Today's board** (`server/core/board.ts`, `GET /api/board`): the night's official results, best first by stars then rating, from the sorted set the lock already wrote. Only the server's lock writes it; the route is read-only and rate limited, reads only today and yesterday, and names appear only for neighbors who left their door open (and for the viewer). Everyone else is "a neighbor". The card shows your place and the top three; it says nothing if the board is empty or the call fails.
+- **Streak freezes** (`streakState` in `server/core/game.ts`): every 7 played days in a row earns a freeze (at most 2); a missed day spends one instead of ending the streak. It is a pure reading of the per-day bits, so there is nothing to store, forge or lose. Today does not count as missed until it is over. The card says how many are saved, or how many days to the next.
+
+**Refused:** resetting or fining the restaurant for a bad night; showing every player's name on the board; a client-reported score; weekly arc and bankruptcy (kept for later; the plan lists weekly arc as the first cut if time runs short).
+
+**Tests:** `bills.test.ts`, `board.test.ts` (ranking, privacy of names, today and yesterday only, rate limit, read-only), `streak-freeze.test.ts` (six cases), browser tests for the night bar, the till and the board on the card, and the board through the full-loop test's network. 975 unit and 231 browser tests pass.
+
+**Devvit pieces:** Redis (the existing `lb:<date>` sorted set and `runs:<date>` hash); no new permission.
+
+**Code or plan:** `docs/plan-v2.md` phase C.
+
 ## 2026-11-20 — Plan v2, phase A: a screen that reads as a game
 
 **Why:** the author's phone and desktop screenshots showed a header card, a banner with a paragraph of instructions, a welcome card, five camera buttons, a status line, a challenges card and a two-row dock all on one 360 px screen ("so cluttered", "not a game, a SaaS app").

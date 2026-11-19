@@ -40,7 +40,7 @@ function casFail(result: { error: string; conflict?: boolean }): Fail {
 }
 
 /** Plans may only touch today or yesterday (a service that opened before UTC midnight may close after it). */
-function dateAllowed(date: string, today: string): boolean { return date === today || date === shiftDate(today, -1); }
+export function dateAllowed(date: string, today: string): boolean { return date === today || date === shiftDate(today, -1); }
 
 async function guard(deps: Deps, uid: string, action: string, max: number): Promise<Fail | null> {
   return (await withinRate(deps.store, `rate:${action}:${uid}`, max, 60)) ? null : fail(429, 'Slow down a little and try again.');
@@ -164,7 +164,7 @@ export async function lockService(deps: Deps, user: Player, date: string, action
     if (stars.stars >= 1) await markPlayed(deps.store, user.id, date);
   }
   await touchProfile(deps, user);
-  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, streak: await streakFor(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
+  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), rev: parkResult.value.rev, park: replay.state } };
 }
 
 // ---- streak -----------------------------------------------------------------------------------------------------
@@ -187,15 +187,28 @@ async function yearBits(store: Store, uid: string, year: number): Promise<boolea
   return out;
 }
 
-/** Consecutive played days ending today, or ending yesterday if today is not played yet (so the streak stays visible all day). */
-export async function streakFor(store: Store, uid: string, date: string): Promise<number> {
+export const FREEZE_EVERY = 7, FREEZE_MAX = 2, STREAK_WINDOW = 800;
+
+/**
+ * The streak and the freezes held, read in order from the day bits. Every FREEZE_EVERY played days in a row earn one freeze (at most
+ * FREEZE_MAX are kept); a missed day spends one instead of ending the streak. Today does not count as missed until it is over, so the
+ * streak stays visible all day. Nothing is stored: it is a pure reading of the bits, so a freeze can never be forged or lost.
+ */
+export async function streakState(store: Store, uid: string, date: string): Promise<{ streak: number; freezes: number }> {
   const cache = new Map<number, boolean[]>();
   const played = async (d: string): Promise<boolean> => { const { year, index } = dayOfYear(d); if (!cache.has(year)) cache.set(year, await yearBits(store, uid, year)); return cache.get(year)![index] === true; };
-  let day = date, count = 0;
-  if (!(await played(day))) day = shiftDate(day, -1);
-  while (count < 800 && (await played(day))) { count++; day = shiftDate(day, -1); }
-  return count;
+  let streak = 0, freezes = 0, day = shiftDate(date, -STREAK_WINDOW);
+  for (let i = 0; i <= STREAK_WINDOW; i++, day = shiftDate(day, 1)) {
+    if (await played(day)) { streak++; if (streak % FREEZE_EVERY === 0) freezes = Math.min(FREEZE_MAX, freezes + 1); }
+    else if (day === date) continue; // today is still open
+    else if (streak > 0 && freezes > 0) freezes--;
+    else { streak = 0; freezes = 0; }
+  }
+  return { streak, freezes };
 }
+
+/** Consecutive played days ending today, or ending yesterday if today is not played yet, with freezes bridging single misses. */
+export async function streakFor(store: Store, uid: string, date: string): Promise<number> { return (await streakState(store, uid, date)).streak; }
 
 // ---- today ------------------------------------------------------------------------------------------------------
 
@@ -204,14 +217,14 @@ export async function getToday(deps: Deps, user: Player): Promise<{ ok: true; va
   const date = utcDate(deps.now()), headline = createDailyHeadline(date);
   const loaded = await loadPark(deps, user); if ('status' in loaded) return loaded;
   const [rawRun, rawOpen, community, streak] = await Promise.all([
-    deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGetAll(keys.community(date)), streakFor(deps.store, user.id, date),
+    deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
   ]);
   const opened = rawOpen ? (JSON.parse(rawOpen) as StoredOpen) : null;
   await touchProfile(deps, user);
   return { ok: true, value: {
     type: 'today', date, headline, rev: loaded.rev, park: loaded.state,
     open: opened ? { snapshot: opened.snapshot, date } : null,
-    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, streak,
+    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes,
     community: { opens: Number(community.opens ?? 0), locks: Number(community.locks ?? 0) },
   } };
 }

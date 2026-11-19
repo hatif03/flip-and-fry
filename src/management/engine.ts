@@ -7,7 +7,7 @@ import type { CashReceipt } from './cash-feedback';
 import type { Action } from './actions';
 import type { CoopListing } from './coop';
 import type { NeighborhoodView, VisitResult } from './social';
-import type { LockResponse, TodayResponse } from '../shared/api';
+import type { BoardView, LockResponse, TodayResponse } from '../shared/api';
 
 export const GOALS = [
   { id: 'first-service', title: 'A warm welcome', text: 'Serve your first 5 guests', target: 5, reward: 180, value: (s: RestaurantState) => s.lifetimeServed },
@@ -60,6 +60,8 @@ export interface RemoteSession {
   /** A neighbor's Reddit avatar URL, if Reddit has one. The page falls back to the pixel face when it is null or will not load. */
   avatar?(name: string): Promise<string | null>;
   follow?(): Promise<string | null>;
+  /** Today's board: official results on this subreddit, from the server's replays. Optional and read-only. */
+  board?(): Promise<BoardView | { error: string }>;
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };

@@ -4,7 +4,7 @@ import { DAY_LENGTH } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
 import { houseStyle, type NeighborhoodView, type VisitResult } from '../management/social';
-import type { ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse } from '../shared/api';
+import type { BoardView, ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse } from '../shared/api';
 
 /** One round trip to /api. Injected so the session is tested against the real server rules without a network. */
 export type Http = (method: 'GET' | 'POST', path: string, body?: unknown, headers?: Record<string, string>) => Promise<{ status: number; body: unknown }>;
@@ -183,6 +183,10 @@ export class Session implements RemoteSession {
     this.social = { ...this.social, followed: true }; this.engine.notify(); return null;
   }
 
+  async board(): Promise<BoardView | { error: string }> {
+    const r = await this.http('GET', `/api/board?date=${encodeURIComponent(this.today?.date ?? '')}`);
+    return r.status === 200 && !isError(r.body) ? (r.body as BoardView) : { error: message(r) };
+  }
   async avatar(name: string): Promise<string | null> {
     const r = await this.http('GET', `/api/avatar?name=${encodeURIComponent(name)}`);
     return r.status === 200 && !isError(r.body) ? ((r.body as { url: string | null }).url ?? null) : null;

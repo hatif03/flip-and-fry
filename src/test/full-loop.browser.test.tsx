@@ -5,10 +5,11 @@ import { Toaster } from '@/components/ui/sonner';
 import { Session, type Http } from '@/client/session';
 import { actionLogSchema } from '@/management/actions';
 import { restaurant } from '@/management/engine';
+import { getBoard } from '@/server/core/board';
 import ManagementGame from '@/management/ManagementGame';
 import { DISHES } from '@/management/types';
 import { rollDay, type PostApi } from '@/server/core/daily-post';
-import { getToday, lockService, openService, savePark, type Deps, type Player } from '@/server/core/game';
+import { getToday, lockService, openService, savePark, utcDate, type Deps, type Player } from '@/server/core/game';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '@/server/core/doors';
 import { commentPreview, postResult, wearFlair, follow, type SocialApi } from '@/server/core/social';
 import { FakeStore } from './fake-store';
@@ -33,6 +34,7 @@ function network(): Http {
     const out = (r: { ok: true; value: unknown } | { ok: false; status: number; error: string; conflict?: boolean }) => 'error' in r ? { status: r.status, body: { type: 'error', error: r.error, conflict: r.conflict } } : { status: 200, body: JSON.parse(JSON.stringify(r.value)) };
     if (method === 'GET' && path === '/api/today') return out(await getToday(deps, alice));
     if (method === 'GET' && path === '/api/doors') return { status: 200, body: { type: 'doors', doors: await listDoors(deps, alice), mine: await isDoorOpen(deps, alice), allowed: true, bulletin: await readBulletin(deps, alice) } };
+    if (method === 'GET' && path.startsWith('/api/board')) return out(await getBoard(deps, alice, utcDate(store.now)));
     if (path === '/api/comment/preview') return out(await commentPreview(deps, alice, body?.note ?? ''));
     if (path === '/api/comment') return out(await postResult(deps, social, alice, body?.note ?? ''));
     if (path === '/api/flair') return out(await wearFlair(deps, social, alice));
@@ -83,6 +85,9 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   const card = screen.getByRole('dialog'); await expect.element(card).toBeVisible();
   expect(session.result?.official).toBe(true); expect(session.result?.hash).toBeTruthy(); expect(cooked).toBeGreaterThan(0);
   await expect.element(card).toHaveTextContent('Kitchen card'); await expect.element(card).toHaveTextContent('Served');
+
+  // Today's board: the player's own official result, ranked, from the server.
+  await expect.element(card.getByLabelText("Today's board")).toHaveTextContent('You are 1st of 1');
 
   // Post the result as the player, after seeing the exact text.
   await card.getByRole('button', { name: 'Post this result' }).click();

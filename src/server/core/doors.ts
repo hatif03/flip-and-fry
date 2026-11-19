@@ -15,7 +15,8 @@ import { withinRate } from './store';
  */
 
 type StoredDoor = { host: string | null; kitchen: string; style: string; blurb: string; state: RestaurantState };
-const doorKey = (uid: string): string => `door:${uid}`, bulletinKey = (uid: string): string => `bulletin:${uid}`;
+export const doorKey = (uid: string): string => `door:${uid}`;
+const bulletinKey = (uid: string): string => `bulletin:${uid}`;
 export const DOORS_KEY = 'doors', VISITED_KEY = (date: string): string => `visited:${date}`;
 const DOOR_TTL = 7 * 86400, BULLETIN_TTL = 30 * 86400, BULLETIN_KEEP = 20, MAX_VISITS_PER_DAY = 3, LIST_MAX = 8;
 const fail = (status: Fail['status'], error: string): Fail => ({ ok: false, status, error });

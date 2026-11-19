@@ -14,6 +14,7 @@ import { arcadePreview, commentPreview, follow, postArcadeResult, postResult, we
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
 import { commitAction, endCoop, joinCoop, listCoop, publishSync, relayRequest, startCoop } from '../core/coop';
+import { getBoard } from '../core/board';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
 import { kitchenOfPost, postKitchen } from '../core/kitchen-post';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
@@ -138,6 +139,12 @@ api.post('/presence', async c => {
   const body = z.object({ dish: z.string().max(20) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await recordPresence(deps, user, body.data.dish);
   return 'error' in r ? failure(c, r) : c.json({ type: 'presence', ...r.value });
+});
+
+api.get('/board', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const r = await getBoard(deps, user, c.req.query('date') ?? utcDate(Date.now()));
+  return 'error' in r ? failure(c, r) : c.json(r.value);
 });
 
 // ---- open doors, visits and the bulletin ----------------------------------------------------------------------------------------

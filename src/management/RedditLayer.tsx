@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Award, ChefHat, Coins, Flame, Heart, Moon, Route, Sparkles, Star, Trash2 } from 'lucide-react';
 import type { AwardId } from './awards';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { restaurant } from './engine';
 import { money } from './format';
 import { createDailyHeadline, formatDate, shiftDate } from './daily-headline';
 import { RESEARCH, researched, type RestaurantState } from './types';
+import type { BoardView } from '../shared/api';
 import { NOTE_MAX, flairForStreak, neighborLine } from './social';
 import { GOALS as STAR_GOALS } from './stars';
 
@@ -76,18 +77,50 @@ function ResultCard() {
         <Meter label="Speed" value={night.card.speed} hint="How long guests waited against their patience" />
         <Meter label="Value" value={night.card.value} hint="How your prices sit against fair" />
       </section>
+      <TodaysBoard />
       {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
       <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-white/40 p-3 text-center">
         <Stat label="Served" value={String(report.served)} /><Stat label="Missed" value={String(report.missed)} /><Stat label="Rating" value={report.rating.toFixed(1)} />
         <Stat label="Sales" value={money(report.revenue)} /><Stat label="Tips" value={money(report.tips)} /><Stat label="Profit" value={money(report.profit)} strong />
       </dl>
+      <section aria-label="The till" className="space-y-0.5 rounded-2xl bg-white/40 p-3 text-xs">
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">The till</p>
+        <p className="flex justify-between"><span>Sales and tips</span><span className="tabular-nums">{money(report.revenue + report.tips)}</span></p>
+        <p className="flex justify-between text-ink/70"><span>Ingredients</span><span className="tabular-nums">−{money(report.ingredients)}</span></p>
+        <p className="flex justify-between text-ink/70"><span>Wages and rent</span><span className="tabular-nums">−{money(report.wages + report.rent)}</span></p>
+        {report.debtPayment > 0 && <p className="flex justify-between text-ink/70"><span>Loan instalment</span><span className="tabular-nums">−{money(report.debtPayment)}</span></p>}
+        <p className={cn('flex justify-between border-t border-ink/10 pt-1 font-extrabold', report.profit >= 0 ? 'text-teal' : 'text-tomato')}><span>{report.profit >= 0 ? 'Profit' : 'Loss'}</span><span className="tabular-nums">{report.profit >= 0 ? '' : '−'}{money(Math.abs(report.profit))}</span></p>
+        <p className="pt-1 text-ink/70" aria-label="Reputation">{reputationLine(today.park.reputation, result.park.reputation)}</p>
+      </section>
       <p className="text-xs text-ink/70">Company value <b>{money(night.companyValue)}</b>{night.newBest ? ' · a new best!' : ` · best ${money(night.best.value)}`}.</p>
-      <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'} </p>
+      <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'}{result.freezes ? ` ${result.freezes} streak freeze${result.freezes > 1 ? 's' : ''} saved: a missed day will not break it.` : result.streak > 0 ? ` A freeze is earned every 7 days (${7 - result.streak % 7} to go).` : ''}</p>
       <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
       {remote!.postResult && <ShareActions streak={result.streak} />}
       <button className="game-button game-button-primary min-h-12 w-full" onClick={() => remote!.dismissResult()}>Continue</button>
     </DialogContent>
   </Dialog>;
+}
+
+/** What the night did to the street's opinion of the place. Reputation sets how often guests arrive, so it is the stake of a bad night. */
+export function reputationLine(before: number, after: number): string {
+  const d = Math.round((after - before) * 100) / 100;
+  if (d > 0.04) return `Reputation ${before.toFixed(1)} → ${after.toFixed(1)}. Word is getting round: more guests tomorrow.`;
+  if (d < -0.04) return `Reputation ${before.toFixed(1)} → ${after.toFixed(1)}. Fewer guests tomorrow. A better night turns it round.`;
+  return `Reputation holds at ${after.toFixed(1)}. Guests keep coming at the same pace.`;
+}
+
+const ordinal = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
+
+/** Today's board in a few lines: your place first, then the top three. It loads after the card opens and says nothing if it cannot. */
+export function TodaysBoard() {
+  const remote = restaurant.remote, [view, setView] = useState<BoardView | null>(null);
+  useEffect(() => { let live = true; void remote?.board?.().then(r => { if (live && !('error' in r)) setView(r); }); return () => { live = false; }; }, [remote]);
+  if (!view || view.entries.length === 0) return null;
+  return <section aria-label="Today's board" className="space-y-1 rounded-2xl bg-white/40 p-3">
+    <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Today's board</p>
+    {view.you && <p className="text-sm font-extrabold text-teal">You are {ordinal(view.you.rank)} of {view.total}{view.total >= 200 ? '+' : ''} tonight.</p>}
+    <ol className="space-y-0.5 text-xs">{view.entries.slice(0, 3).map(e => <li key={e.rank} className={cn('flex items-center justify-between gap-2', e.you && 'font-extrabold text-teal')}><span className="truncate">{e.rank}. {e.you ? 'You' : e.name}</span><span className="shrink-0 tabular-nums">{'★'.repeat(e.stars) || '–'} · {e.rating.toFixed(1)}</span></li>)}</ol>
+  </section>;
 }
 
 /** One small icon per award, so the banner reads at a glance. */

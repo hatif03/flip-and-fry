@@ -22,6 +22,8 @@ export type TodayResponse = {
   /** The official (locked) service for today, if any. */
   run: StoredRun | null;
   streak: number;
+  /** Missed days the streak can absorb: one is earned per seven played days in a row, up to two. */
+  freezes?: number;
   community: { opens: number; locks: number };
   /** The name a moderator gave the neighborhood in the subreddit settings, already checked. */
   neighborhood?: string | null;
@@ -48,8 +50,13 @@ export type LockResponse = {
   official: boolean;
   replaced: boolean;
   streak: number;
+  freezes?: number;
   rev: number;
   park: RestaurantState;
 };
 
 export type ErrorResponse = { type: 'error'; error: string; conflict?: boolean };
+
+/** Today's board: official results on this subreddit, best first. Names appear only for players who left their door open, and for the viewer. */
+export type BoardEntry = { rank: number; name: string; stars: number; rating: number; profit: number; you: boolean };
+export type BoardView = { type: 'board'; date: string; total: number; entries: BoardEntry[]; you: { rank: number; stars: number; profit: number } | null };
