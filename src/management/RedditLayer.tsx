@@ -7,10 +7,10 @@ import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
 import { createDailyHeadline, formatDate, shiftDate } from './daily-headline';
-import { CATALOG, RESEARCH, researched, type RestaurantState } from './types';
+import { CATALOG, RESEARCH, SHIFTS, SHIFT_NAMES, researched, type RestaurantState } from './types';
 import type { BoardView } from '../shared/api';
 import { NOTE_MAX, flairForStreak, neighborLine } from './social';
-import { goalText } from './stars';
+import { goalText, LUNCH_STARS } from './stars';
 
 /** 'Wed 9 Dec' from a 'YYYY-MM-DD' UTC date. */
 export const prettyDate = formatDate;
@@ -26,14 +26,35 @@ export function coachLine(phase: 'planning' | 'service' | 'report', hasResultTod
 export function hintLine(phase: 'planning' | 'service' | 'report', firstNight: boolean, hasResultToday: boolean): string | null {
   if (phase !== 'planning') return null;
   if (hasResultToday) return 'Your result is saved. Only your best night of the day counts.';
-  return firstNight ? 'You are the head chef. Tap Open, then cook the orders yourself.' : 'Spend your cash, then tap Open. Then run the pass.';
+  return firstNight ? 'You are the head chef. Tap Open for a quick lunch, then cook the orders yourself.' : 'Spend your cash, then tap Open. Then run the pass.';
+}
+
+/**
+ * Lunch or dinner, tonight. Each is its own official service with its own stars and board; a star in either keeps the streak. The first
+ * service is always lunch, so a new owner is playing within a minute. Shown only on Reddit, only while planning.
+ */
+export function ShiftPicker() {
+  const remote = restaurant.remote, state = restaurant.state;
+  if (!remote?.today || state.phase !== 'planning' || state.history.length === 0) return null;
+  const { run, lunchRun } = remote.today, done = { lunch: lunchRun, dinner: run };
+  return <div role="group" aria-label="Choose the service" className="pointer-events-none absolute inset-x-3 bottom-[104px] z-[6] flex justify-center sm:bottom-[112px]">
+    <div className="pointer-events-auto flex gap-1 rounded-xl border-2 border-teal/80 bg-paper/95 p-1 shadow-md">
+      {SHIFTS.map(shift => {
+        const got = done[shift]?.stars.stars, on = state.shift === shift;
+        return <button key={shift} type="button" aria-pressed={on} onClick={() => restaurant.setShift(shift)} className={cn('flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-extrabold', on ? 'bg-teal text-paper' : 'text-teal')}>
+          <span>{SHIFT_NAMES[shift]}</span><span className={cn('font-normal', on ? 'text-paper/80' : 'text-ink/55')}>{shift === 'lunch' ? '1 min' : '2½ min'}</span>
+          {got !== undefined && <span aria-label={`${got} of ${shift === 'lunch' ? 3 : 3} stars today`} className="text-gold">{'★'.repeat(got) || '·'}</span>}
+        </button>;
+      })}
+    </div>
+  </div>;
 }
 
 /** Today's date, headline and goal, in two short lines. It sits in the header's flow so it can never cover the stats on a narrow phone. */
 export function DailyBar() {
   const remote = restaurant.remote;
   if (!remote?.today) return null;
-  const { today, result } = remote, streak = result?.streak ?? today.streak, goal = goalText(today.headline.id, restaurant.state.history.length + (result ? 0 : 1));
+  const { today, result } = remote, streak = result?.streak ?? today.streak, goal = goalText(today.headline.id, restaurant.state.history.length + (result ? 0 : 1), restaurant.state.shift);
   return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-1.5 max-w-[1600px] rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] sm:mt-2 sm:rounded-2xl sm:px-4">
     <div className="flex items-center gap-x-2">
       <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
@@ -65,7 +86,7 @@ function ResultCard() {
   const result = remote?.result, today = remote?.today;
   if (!result || !today) return null;
   const { report, stars, night } = result, tomorrow = shiftDate(today.date, 1);
-  const verdict = stars.stars === 0 ? 'Not quite tonight' : stars.stars === 1 ? 'A good night' : stars.stars === 2 ? 'A great night' : 'A perfect night';
+  const verdict = result.shift === 'lunch' ? ['Lunch is over', 'A good lunch', 'A great lunch', 'A perfect lunch'][stars.stars] : stars.stars === 0 ? 'Not quite tonight' : stars.stars === 1 ? 'A good night' : stars.stars === 2 ? 'A great night' : 'A perfect night';
   return <Dialog open onOpenChange={open => { if (!open) remote!.dismissResult(); }}>
     <DialogContent className="max-h-[90svh] w-[calc(100%-24px)] max-w-md space-y-3 overflow-y-auto rounded-3xl border-paper bg-paper p-5 text-ink">
       <div>
@@ -78,12 +99,14 @@ function ResultCard() {
       <p className={cn('text-center font-display text-2xl', report.profit >= 0 ? 'text-teal' : 'text-tomato')} aria-label="Profit">{report.profit >= 0 ? 'Profit ' : 'Loss '}{money(Math.abs(report.profit))}</p>
       <YourHands />
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
-      <ul className="space-y-1 text-sm">
-        <li className={cn('flex gap-2', stars.goal ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.goal ? '★' : '☆'}</span><span><b>Tonight's goal:</b> {stars.goalText}</span></li>
-        <li className={cn('flex gap-2', stars.challenges >= 2 ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.challenges >= 2 ? '★' : '☆'}</span><span><b>Two of three challenges:</b> {stars.challenges} done</span></li>
-        <li className={cn('flex gap-2', stars.beatPrevious ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.beatPrevious ? '★' : '☆'}</span><span><b>A better night than before</b></span></li>
-      </ul>
-      <TodaysBoard />
+      {result.shift === 'lunch' ? <ul className="space-y-1 text-sm" aria-label="Lunch goals">
+        {[stars.goal, stars.challenges >= 2, stars.beatPrevious].map((met, i) => <li key={i} className={cn('flex gap-2', met ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{met ? '★' : '☆'}</span><span>{i === 0 && <b>Lunch goal: </b>}{LUNCH_STARS[i]}</span></li>)}
+      </ul> : <ul className="space-y-1 text-sm">
+          <li className={cn('flex gap-2', stars.goal ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.goal ? '★' : '☆'}</span><span><b>Tonight's goal:</b> {stars.goalText}</span></li>
+          <li className={cn('flex gap-2', stars.challenges >= 2 ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.challenges >= 2 ? '★' : '☆'}</span><span><b>Two of three challenges:</b> {stars.challenges} done</span></li>
+          <li className={cn('flex gap-2', stars.beatPrevious ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.beatPrevious ? '★' : '☆'}</span><span><b>A better night than before</b></span></li>
+        </ul>}
+      <TodaysBoard shift={result.shift} />
       {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
       <details className="group rounded-2xl bg-white/30 px-3 py-2"><summary className="min-h-[44px] cursor-pointer list-none py-2.5 text-sm font-extrabold text-teal marker:hidden">The night in detail</summary><div className="space-y-3 pb-2">
       <section aria-label="Kitchen card" className="space-y-1.5 rounded-2xl bg-white/40 p-3">
@@ -110,7 +133,7 @@ function ResultCard() {
       <p className="text-xs text-ink/70">{result.official ? (result.replaced ? 'This beat your earlier result and is now today’s official one.' : 'This is today’s official result.') : 'Practice night. Your earlier result today still counts.'} {result.streak > 0 ? `${result.streak}-day streak.` : 'Earn a star to start a streak.'}{result.freezes ? ` ${result.freezes} streak freeze${result.freezes > 1 ? 's' : ''} saved: a missed day will not break it.` : result.streak > 0 ? ` A freeze is earned every 7 days (${7 - result.streak % 7} to go).` : ''}</p>
       {result.week && <p className="text-xs text-ink/70" aria-label="This week"><b>This week:</b> {result.week.stars} ★{result.week.tier ? ` · ${result.week.tier}` : ''}{result.week.next ? ` · ${result.week.next.at - result.week.stars} more for ${result.week.next.name}` : ' · the top tier'}.</p>}
       <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
-      {remote!.postResult && <ShareActions streak={result.streak} />}
+      {remote!.postResult && result.shift !== 'lunch' && <ShareActions streak={result.streak} />}
       <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => { const first = restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price; remote!.dismissResult(); if (first) { restaurant.nextPanel = 'build'; restaurant.notify(); } }}>{restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price ? `Spend your ${money(restaurant.state.cash)}` : 'Continue'}</button></div>
     </DialogContent>
   </Dialog>;
@@ -127,12 +150,12 @@ export function reputationLine(before: number, after: number): string {
 const ordinal = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
 
 /** Today's board in a few lines: your place first, then the top three. It loads after the card opens and says nothing if it cannot. */
-export function TodaysBoard() {
+export function TodaysBoard({ shift = 'dinner' }: { shift?: 'lunch' | 'dinner' } = {}) {
   const remote = restaurant.remote, [view, setView] = useState<BoardView | null>(null);
-  useEffect(() => { let live = true; void remote?.board?.().then(r => { if (live && !('error' in r)) setView(r); }); return () => { live = false; }; }, [remote]);
+  useEffect(() => { let live = true; void remote?.board?.(shift).then(r => { if (live && !('error' in r)) setView(r); }); return () => { live = false; }; }, [remote, shift]);
   if (!view || view.entries.length === 0) return null;
   return <section aria-label="Today's board" className="space-y-1 rounded-2xl bg-white/40 p-3">
-    <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Today's board</p>
+    <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">{shift === 'lunch' ? 'Lunch board' : "Today's board"}</p>
     {view.you && <p className="text-sm font-extrabold text-teal">You are {ordinal(view.you.rank)} of {view.total}{view.total >= 200 ? '+' : ''} tonight.</p>}
     <ol className="space-y-0.5 text-xs">{view.entries.slice(0, 3).map(e => <li key={e.rank} className={cn('flex items-center justify-between gap-2', e.you && 'font-extrabold text-teal')}><span className="truncate">{e.rank}. {e.you ? 'You' : e.name}</span><span className="shrink-0 tabular-nums">{'★'.repeat(e.stars) || '–'} · {e.rating.toFixed(1)}</span></li>)}</ol>
   </section>;

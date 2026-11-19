@@ -34,7 +34,7 @@ function network(): Http {
     const out = (r: { ok: true; value: unknown } | { ok: false; status: number; error: string; conflict?: boolean }) => 'error' in r ? { status: r.status, body: { type: 'error', error: r.error, conflict: r.conflict } } : { status: 200, body: JSON.parse(JSON.stringify(r.value)) };
     if (method === 'GET' && path === '/api/today') return out(await getToday(deps, alice));
     if (method === 'GET' && path === '/api/doors') return { status: 200, body: { type: 'doors', doors: await listDoors(deps, alice), mine: await isDoorOpen(deps, alice), allowed: true, bulletin: await readBulletin(deps, alice) } };
-    if (method === 'GET' && path.startsWith('/api/board')) return out(await getBoard(deps, alice, utcDate(store.now)));
+    if (method === 'GET' && path.startsWith('/api/board')) return out(await getBoard(deps, alice, utcDate(store.now), path.includes('shift=lunch') ? 'lunch' : 'dinner'));
     if (path === '/api/comment/preview') return out(await commentPreview(deps, alice, body?.note ?? ''));
     if (path === '/api/comment') return out(await postResult(deps, social, alice, body?.note ?? ''));
     if (path === '/api/flair') return out(await wearFlair(deps, social, alice));
@@ -44,7 +44,7 @@ function network(): Http {
     const log = actionLogSchema.safeParse(body?.actions); if (!log.success) return { status: 400, body: { type: 'error', error: 'Invalid request.' } };
     if (path === '/api/save') return out(await savePark(deps, alice, body!.rev, log.data));
     if (path === '/api/open') return out(await openService(deps, alice, body!.rev, log.data));
-    if (path === '/api/lock') return out(await lockService(deps, alice, body!.date, log.data));
+    if (path === '/api/lock') return out(await lockService(deps, alice, body!.date, log.data, (body as { shift?: 'lunch' | 'dinner' }).shift ?? 'dinner'));
     return { status: 404, body: null };
   };
 }
@@ -66,20 +66,35 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   restaurant.hire('server'); await session.flush(); await session.idle();
   expect((await getToday({ store, now: () => store.now }, alice) as { value: { park: { staff: unknown[] } } }).value.park.staff).toHaveLength(3);
 
-  // Open the doors through the real button. The dock collapses and the pass appears.
-  await screen.getByRole('button', { name: /^Open restaurant/ }).click();
-  await expect.element(screen.getByRole('region', { name: 'The pass' })).toBeVisible();
-  expect(restaurant.state.phase).toBe('service');
+  // The first service is lunch: a minute, its own card and board, and no posting from it.
+  const runNight = async (): Promise<number> => {
+    await screen.getByRole('button', { name: /^Open restaurant/ }).click();
+    await expect.element(screen.getByRole('region', { name: 'The pass' })).toBeVisible();
+    expect(restaurant.state.phase).toBe('service');
+    // Run the night, taking a cook at the pass the moment a ticket is waiting and no chef is free.
+    let cooked = 0;
+    for (let i = 0; i < 2600 && restaurant.state.phase === 'service'; i++) {
+      const waiting = restaurant.state.guests.find(g => g.stage === 'waiting');
+      if (waiting && !restaurant.state.guests.some(g => g.owner) && restaurant.claimTicket(waiting.id) === null) cooked++;
+      const mine = restaurant.state.guests.find(g => g.owner); if (mine && mine.cook >= DISHES[mine.dish].seconds) restaurant.plate(mine.id);
+      restaurant.tick();
+    }
+    await session.idle(); restaurant.notify();
+    return cooked;
+  };
+  expect(restaurant.state.shift).toBe('lunch');
+  await runNight();
+  const lunchCard = screen.getByRole('dialog'); await expect.element(lunchCard).toBeVisible();
+  expect(session.result?.shift).toBe('lunch'); expect(session.result?.official).toBe(true);
+  await expect.element(lunchCard.getByLabelText('Lunch goals')).toBeVisible();
+  await expect.element(lunchCard.getByRole('button', { name: 'Post this result' })).not.toBeInTheDocument();
+  await lunchCard.getByRole('button', { name: /^(Continue|Spend your)/ }).click();
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
 
-  // Run the night, taking a cook at the pass the moment a ticket is waiting and no chef is free.
-  let cooked = 0;
-  for (let i = 0; i < 2600 && restaurant.state.phase === 'service'; i++) {
-    const waiting = restaurant.state.guests.find(g => g.stage === 'waiting');
-    if (waiting && !restaurant.state.guests.some(g => g.owner) && restaurant.claimTicket(waiting.id) === null) cooked++;
-    const mine = restaurant.state.guests.find(g => g.owner); if (mine && mine.cook >= DISHES[mine.dish].seconds) restaurant.plate(mine.id);
-    restaurant.tick();
-  }
-  await session.idle(); restaurant.notify();
+  // Then dinner, picked from the lunch/dinner choice: the card the rest of this test is about.
+  await screen.getByRole('button', { name: 'Close panel' }).click(); // "Spend your $X" opened the shop
+  await screen.getByRole('button', { name: /^Dinner/ }).click(); expect(restaurant.state.shift).toBe('dinner');
+  const cooked = await runNight();
 
   // The card is the server's replay: the same hash the preview ended on, and an official result.
   const card = screen.getByRole('dialog'); await expect.element(card).toBeVisible();

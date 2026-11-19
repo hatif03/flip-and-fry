@@ -1,4 +1,4 @@
-import type { RestaurantState } from './types';
+import { billsShare, type RestaurantState } from './types';
 
 /** A read-only cash safety signal; pending sales and unearned rewards are never counted. */
 export interface CapitalWarning {
@@ -11,7 +11,7 @@ export interface CapitalWarning {
 
 /** Uses the engine's daily operating cost plus the existing loan payment and ingredient buffer. */
 export function getCapitalWarning(state: RestaurantState, operatingCost: number): CapitalWarning | null {
-  const debtPayment = Math.min(30, state.debt);
+  const debtPayment = Math.min(Math.round(30 * billsShare(state)), state.debt);
   const bills = operatingCost + debtPayment, reserve = bills + 30;
   const closing = state.phase === 'service' && state.renovation;
   if (state.cash > reserve && !closing) return null;

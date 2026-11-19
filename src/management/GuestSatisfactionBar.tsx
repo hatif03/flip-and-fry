@@ -6,7 +6,7 @@ import type { GuestMood, Thought } from './satisfaction';
 import type { Guest } from './types';
 
 const stages: Record<Guest['stage'], string> = {
-  arriving: 'Arriving', waiting: 'Waiting to order', cooking: 'Meal being prepared',
+  queued: 'Waiting at the door', arriving: 'Walking to the table', seated: 'Ready to order', waiting: 'Waiting to order', cooking: 'Meal being prepared',
   ready: 'Waiting for delivery', delivering: 'Meal on the way', eating: 'Enjoying their meal', leaving: 'Leaving',
 };
 const moods: Record<GuestMood, string> = { content: 'Comfortable', uneasy: 'Getting impatient', unhappy: 'Unhappy', served: 'Happily served' };

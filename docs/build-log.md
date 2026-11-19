@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Plan v3, phase 1a: lunch is a shorter night (the short first service, built)
+
+**What:** the service length is now a property of the saved state: `shift` is `lunch` (60 s) or `dinner` (150 s, the default, so every existing night is unchanged). `shiftLength(state)` replaced the constant in the engine, the screens, the bills bar, the session and the replay limit. A new planning action `shift` chooses it; it is replayed like every other action. Wages, rent and the loan instalment are charged by the share of the day (a lunch pays 36 of 90), and a lunch has no daily challenges.
+
+**Server:** a lunch has its own keys (`opens:<date>:lunch`, `runs:<date>:lunch`, `lb:<date>:lunch`), so the two services of a day never touch each other. A star in either keeps the streak and both count in the week. `getToday` returns `lunchRun`, `lockService` and `GET /api/board` take the shift. Posting, flair and the kitchen post stay dinner-only (they read the dinner result), so the lunch card does not offer them.
+
+**Screens:** the first service is always lunch (the screen chooses it; the server does not enforce it, so a scripted client can still open a dinner). After that a Lunch / Dinner picker shows each service's stars for the day. The lunch card has its own three star lines: serve 5 and finish in profit; a rating of 4.0; a chain of 4 good moves at the pass (the hustle meter, built next).
+
+**Golden hashes refreshed** because the saved state gained a field. The reports did not change (the same tests pass).
+
+Devvit or third party: none (Redis keys only).
+Code: `src/management/types.ts` (`SHIFT_SECONDS`, `shiftLength`, `billsShare`), `src/management/engine.ts` (`setShift`, `len`), `src/management/stars.ts`, `src/server/core/game.ts`, `src/management/RedditLayer.tsx` (`ShiftPicker`), `src/test/shifts.test.ts`.
+
 ## 2026-11-19 — Plan v3: more to play, and two refusals turned into designs
 
 **Why:** after the 0.0.19 phone test the author said much of the game is still simulated and asked for the activity loops of Clash of Clans and FarmVille 2, plus the two items refused earlier.

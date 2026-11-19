@@ -3,7 +3,7 @@ import { applyPlanning, actionLogSchema, isServiceAction, MAX_SERVICE_ACTIONS, o
 import { nightSummary } from '../../management/awards';
 import { houseStyle } from '../../management/social';
 import { evaluateStars, packScore } from '../../management/stars';
-import { createRestaurant, restaurantSchema, type RestaurantState } from '../../management/types';
+import { createRestaurant, restaurantSchema, type RestaurantState, type Shift } from '../../management/types';
 import type { LockResponse, OpenResponse, SaveResponse, StoredRun, TodayResponse, WeekView } from '../../shared/api';
 import { pendingBonus, spendBonus } from './arcade';
 import { pickVisitors } from './presence';
@@ -26,11 +26,13 @@ async function recordActivity(store: Store, uid: string, date: string): Promise<
   await store.hSet(activeKey(date), { [uid]: '1' }); await store.expire(activeKey(date), ACTIVE_TTL);
 }
 
+/** Dinner keeps the keys it always had; a lunch has its own, so the two services of a day never touch each other's open, result or board. */
+const slot = (date: string, shift: Shift): string => shift === 'lunch' ? `${date}:lunch` : date;
 export const keys = {
   park: (uid: string) => `park:${uid}`,
-  opens: (date: string) => `opens:${date}`,
-  runs: (date: string) => `runs:${date}`,
-  board: (date: string) => `lb:${date}`,
+  opens: (date: string, shift: Shift = 'dinner') => `opens:${slot(date, shift)}`,
+  runs: (date: string, shift: Shift = 'dinner') => `runs:${slot(date, shift)}`,
+  board: (date: string, shift: Shift = 'dinner') => `lb:${slot(date, shift)}`,
   community: (date: string) => `community:${date}`,
   streak: (uid: string, year: number) => `streak:${uid}:${year}`,
   profile: (uid: string) => `profile:${uid}`,
@@ -120,8 +122,9 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
   // Neighbors who have the post open come over. They live only in this service's snapshot: the park itself never holds them.
   snapshot = { ...(snapshot as RestaurantState), visitors: await pickVisitors(deps, user.id) };
   const entry: StoredOpen = { snapshot, parkRev: result.value.rev, openedAt: deps.now() };
-  await deps.store.hSet(keys.opens(date), { [user.id]: JSON.stringify(entry) });
-  await deps.store.expire(keys.opens(date), TTL.run);
+  const shift = snapshot.shift;
+  await deps.store.hSet(keys.opens(date, shift), { [user.id]: JSON.stringify(entry) });
+  await deps.store.expire(keys.opens(date, shift), TTL.run);
   await deps.store.hIncrBy(keys.community(date), 'opens', 1);
   await deps.store.expire(keys.community(date), TTL.board);
   await touchProfile(deps, user);
@@ -133,7 +136,7 @@ export async function openService(deps: Deps, user: Player, rev: number, actions
 const better = (a: StoredRun, b: StoredRun): boolean => a.stars.stars > b.stars.stars || (a.stars.stars === b.stars.stars && a.report.profit > b.report.profit);
 
 /** Replay the opened service on the server. Its receipt is the only one that counts; the client's run is a preview. */
-export async function lockService(deps: Deps, user: Player, date: string, actions: Action[]): Promise<{ ok: true; value: LockResponse } | Fail> {
+export async function lockService(deps: Deps, user: Player, date: string, actions: Action[], shift: Shift = 'dinner'): Promise<{ ok: true; value: LockResponse } | Fail> {
   const limited = await guard(deps, user.id, 'lock', 10); if (limited) return limited;
   const today = utcDate(deps.now());
   if (!dateAllowed(date, today)) return fail(400, 'That service is too old to close.');
@@ -141,7 +144,7 @@ export async function lockService(deps: Deps, user: Player, date: string, action
   // Planning changes were applied when the doors opened. What arrives now is only what the owner did at the pass.
   if (log.data.some(a => !isServiceAction(a))) return fail(400, 'Planning changes belong to /api/save and /api/open.');
   if (log.data.length > MAX_SERVICE_ACTIONS) return fail(400, 'Too many owner actions for one service.');
-  const rawOpen = await deps.store.hGet(keys.opens(date), user.id);
+  const rawOpen = await deps.store.hGet(keys.opens(date, shift), user.id);
   if (!rawOpen) return fail(409, 'There is no open service to close. Open the doors first.');
   const opened = JSON.parse(rawOpen) as StoredOpen;
   const headline = createDailyHeadline(date), replay = runService(opened.snapshot, log.data, headline);
@@ -153,27 +156,27 @@ export async function lockService(deps: Deps, user: Player, date: string, action
   }, { ttlSeconds: TTL.park, now: deps.now });
   if ('error' in parkResult) {
     // The park moved on (another tab). This service can never be applied, so drop it: otherwise every reload re-enters a service that cannot close.
-    await deps.store.hDel(keys.opens(date), [user.id]);
+    await deps.store.hDel(keys.opens(date, shift), [user.id]);
     return fail(409, parkResult.error, { conflict: true });
   }
-  await deps.store.hDel(keys.opens(date), [user.id]); // one open, one close: the same replay can never be submitted twice
+  await deps.store.hDel(keys.opens(date, shift), [user.id]); // one open, one close: the same replay can never be submitted twice
 
   const history = replay.state.history, previousProfit = history.length >= 2 ? history[history.length - 2].profit : null;
-  const stars = evaluateStars(replay.report, replay.state.headline!, previousProfit, history.length);
+  const stars = evaluateStars(replay.report, replay.state.headline!, previousProfit, history.length, shift);
   const night = nightSummary(replay.state, replay.report);
-  const run: StoredRun = { report: replay.report, stars, hash: replay.hash, headline: headline.id, submittedAt: deps.now(), username: user.name, night, name: replay.state.name, style: houseStyle(replay.state) };
-  const existingRaw = await deps.store.hGet(keys.runs(date), user.id), existing = existingRaw ? (JSON.parse(existingRaw) as StoredRun) : null;
+  const run: StoredRun = { report: replay.report, stars, hash: replay.hash, headline: headline.id, submittedAt: deps.now(), username: user.name, night, name: replay.state.name, style: houseStyle(replay.state), shift };
+  const existingRaw = await deps.store.hGet(keys.runs(date, shift), user.id), existing = existingRaw ? (JSON.parse(existingRaw) as StoredRun) : null;
   const official = !existing || better(run, existing), replaced = !!existing && official;
   if (official) {
-    await deps.store.hSet(keys.runs(date), { [user.id]: JSON.stringify(run) });
-    await deps.store.expire(keys.runs(date), TTL.run);
-    await deps.store.zAdd(keys.board(date), { member: user.id, score: packScore(stars.stars, run.report.rating) });
-    await deps.store.expire(keys.board(date), TTL.board);
-    if (!existing) { await deps.store.hIncrBy(keys.community(date), 'locks', 1); await deps.store.expire(keys.community(date), TTL.board); }
+    await deps.store.hSet(keys.runs(date, shift), { [user.id]: JSON.stringify(run) });
+    await deps.store.expire(keys.runs(date, shift), TTL.run);
+    await deps.store.zAdd(keys.board(date, shift), { member: user.id, score: packScore(stars.stars, run.report.rating) });
+    await deps.store.expire(keys.board(date, shift), TTL.board);
+    if (!existing && shift === 'dinner') { await deps.store.hIncrBy(keys.community(date), 'locks', 1); await deps.store.expire(keys.community(date), TTL.board); }
     if (stars.stars >= 1) await markPlayed(deps.store, user.id, date);
   }
   await touchProfile(deps, user);
-  return { ok: true, value: { type: 'lock', hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), week: await weekStars(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
+  return { ok: true, value: { type: 'lock', shift, hash: replay.hash, report: replay.report, stars, night, official, replaced, ...(await streakState(deps.store, user.id, today)), week: await weekStars(deps.store, user.id, today), rev: parkResult.value.rev, park: replay.state } };
 }
 
 // ---- streak -----------------------------------------------------------------------------------------------------
@@ -200,7 +203,7 @@ export const WEEK_TIERS = [{ name: 'Bronze', at: 1 }, { name: 'Silver', at: 6 },
 /** Stars earned in the official results of this UTC week (Monday to Sunday), read from the day's stored runs. Nothing extra is stored. */
 export async function weekStars(store: Store, uid: string, date: string): Promise<WeekView> {
   const back = (weekday(date) + 6) % 7; let stars = 0;
-  for (let i = 0; i <= back; i++) { const raw = await store.hGet(keys.runs(shiftDate(date, -i)), uid); if (raw) stars += (JSON.parse(raw) as StoredRun).stars.stars; }
+  for (let i = 0; i <= back; i++) for (const shift of ['dinner', 'lunch'] as const) { const raw = await store.hGet(keys.runs(shiftDate(date, -i), shift), uid); if (raw) stars += (JSON.parse(raw) as StoredRun).stars.stars; }
   const earned = WEEK_TIERS.filter(t => stars >= t.at), next = WEEK_TIERS.find(t => stars < t.at) ?? null;
   return { stars, tier: earned.length ? earned[earned.length - 1].name : null, next: next ? { name: next.name, at: next.at } : null };
 }
@@ -234,16 +237,16 @@ export async function getToday(deps: Deps, user: Player): Promise<{ ok: true; va
   const limited = await guard(deps, user.id, 'today', 120); if (limited) return limited;
   const date = utcDate(deps.now()), headline = createDailyHeadline(date);
   const loaded = await loadPark(deps, user); if ('status' in loaded) return loaded;
-  const [rawRun, rawOpen, community, streak] = await Promise.all([
-    deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
+  const [rawRun, rawOpen, rawLunchRun, rawLunchOpen, community, streak] = await Promise.all([
+    deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGet(keys.runs(date, 'lunch'), user.id), deps.store.hGet(keys.opens(date, 'lunch'), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
   ]);
   const week = await weekStars(deps.store, user.id, date);
-  const opened = rawOpen ? (JSON.parse(rawOpen) as StoredOpen) : null;
+  const opened = rawOpen ? (JSON.parse(rawOpen) as StoredOpen) : rawLunchOpen ? (JSON.parse(rawLunchOpen) as StoredOpen) : null;
   await touchProfile(deps, user);
   return { ok: true, value: {
     type: 'today', date, headline, rev: loaded.rev, park: loaded.state,
     open: opened ? { snapshot: opened.snapshot, date } : null,
-    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes, week,
+    run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, lunchRun: rawLunchRun ? (JSON.parse(rawLunchRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes, week,
     community: { opens: Number(community.opens ?? 0), locks: Number(community.locks ?? 0) },
   } };
 }

@@ -1,5 +1,5 @@
 import type { HeadlineId } from './daily-headline';
-import type { HeadlineState, Report } from './types';
+import type { HeadlineState, Report, Shift } from './types';
 
 /**
  * Stars read the receipt; they never replace profit, wages or the ledger. 1★ is tonight's headline goal, 2★ adds two of
@@ -26,7 +26,13 @@ export const GOALS: Record<HeadlineId, Goal> = {
 export const FIRST_NIGHTS = 3;
 const WELCOME: Goal = { text: 'Serve 8 guests and finish in profit', met: r => r.served >= 8 && r.profit > 0, stretch: 0 };
 /** The goal line to show for a headline on the player's `night`th service (1 is the first ever). */
-export const goalText = (id: HeadlineId, night: number): string => night <= FIRST_NIGHTS ? WELCOME.text : GOALS[id].text;
+export const goalText = (id: HeadlineId, night: number, shift: Shift = 'dinner'): string => shift === 'lunch' ? LUNCH_STARS[0] : night <= FIRST_NIGHTS ? WELCOME.text : GOALS[id].text;
+/**
+ * A lunch is a short service with no daily challenges, so it has its own three lines, the same on every headline: 1 serve five and finish
+ * in profit, 2 a rating of 4 or better, 3 a chain of four good actions at the pass (the hustle meter), which only hands can build.
+ */
+export const LUNCH_STARS = ['Serve 5 guests and finish in profit', 'Finish with a rating of 4.0 or better', 'Chain 4 good moves at the pass'] as const;
+export const LUNCH_CHAIN = 4;
 
 export interface Stars {
   stars: 0 | 1 | 2 | 3;
@@ -36,7 +42,11 @@ export interface Stars {
   goalText: string;
 }
 
-export function evaluateStars(report: Report, headline: HeadlineState, previousProfit: number | null, night: number = FIRST_NIGHTS + 1): Stars {
+export function evaluateStars(report: Report, headline: HeadlineState, previousProfit: number | null, night: number = FIRST_NIGHTS + 1, shift: Shift = 'dinner', chain = 0): Stars {
+  if (shift === 'lunch') {
+    const goal = report.served >= 5 && report.profit > 0, good = report.rating >= 4, chained = chain >= LUNCH_CHAIN;
+    return { stars: !goal ? 0 : !good ? 1 : !chained ? 2 : 3, goal, challenges: good ? 2 : 0, beatPrevious: chained, goalText: LUNCH_STARS[0] };
+  }
   const g = GOALS[headline.id], welcome = night <= FIRST_NIGHTS, goal = welcome ? WELCOME.met(report, headline) || g.met(report, headline) : g.met(report, headline);
   const challenges = report.challenges.filter(c => c.rewarded).length;
   const beatPrevious = previousProfit === null ? report.profit >= g.stretch : report.profit > previousProfit;

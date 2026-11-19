@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
-import { COMPS_PER_NIGHT, COOK_BURN, DAY_LENGTH, DISHES, cookQuality, guestPatienceSeconds, idealPrep, type Guest } from './types';
+import { COMPS_PER_NIGHT, COOK_BURN, shiftLength, DISHES, cookQuality, guestPatienceSeconds, idealPrep, type Guest } from './types';
 
 /** Where the dish is in its cooking, as a share of its normal time. Uses the engine's own bands, so the bar can never disagree with the plate. */
 export type CookZone = 'raw' | 'early' | 'perfect' | 'over' | 'burnt';
@@ -31,7 +31,7 @@ export function Pass() {
   const line = [...waiting, ...takeable].slice(0, 3);
   return <section aria-label="The pass" className="mx-auto mb-2 max-w-[1100px] space-y-2 rounded-2xl border border-paper/80 bg-paper/95 p-2 shadow-[0_4px_0_#73513d30]">
     <ChallengePips />
-    {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= DAY_LENGTH ? 'Last orders are out. Your team finishes the service.' : 'The next order lands here. You run the pass: tap Cook, prep, plate it in the green.'}</p>}
+    {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= shiftLength(s) ? 'Last orders are out. Your team finishes the service.' : 'The next order lands here. You run the pass: tap Cook, prep, plate it in the green.'}</p>}
   </section>;
 }
 

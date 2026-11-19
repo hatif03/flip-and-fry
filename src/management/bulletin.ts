@@ -1,4 +1,4 @@
-import { DAY_LENGTH, DISHES, type Dish, type RestaurantState } from './types';
+import { shiftLength, DISHES, type Dish, type RestaurantState } from './types';
 
 /** Cosmetic street furniture; outside the road, park paths and editable terrace. */
 export const BULLETIN = { x: -3.1, z: 23.6, ground: -1.04, width: 3.8, pageSeconds: 8 } as const;
@@ -10,7 +10,7 @@ export interface BulletinReadout {
 
 /** A read-only view of actual guests and achieved events. Never fabricates promotions or scheduled events. */
 export function readBulletin(state: RestaurantState, paused: boolean): BulletinReadout {
-  const closing = state.phase === 'service' && state.elapsed >= DAY_LENGTH;
+  const closing = state.phase === 'service' && state.elapsed >= shiftLength(state);
   const status = state.phase === 'report' ? 'CLOSED' : state.phase === 'planning' ? 'BEFORE SERVICE' : paused ? 'PAUSED' : closing ? 'LAST ORDERS' : 'OPEN NOW';
   const notices: BulletinNotice[] = [];
   if (closing) notices.push({ id: 'closing', label: 'SERVICE UPDATE', title: 'Last orders', detail: 'Finishing meals for our remaining guests.' });

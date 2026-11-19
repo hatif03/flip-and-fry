@@ -29,7 +29,7 @@ const deps: Deps = { store: redis, now: () => Date.now() };
 
 const saveBody = z.object({ rev: z.number().int().nonnegative(), actions: actionLogSchema });
 const noteBody = z.object({ note: z.string().max(200).optional() });
-const lockBody = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), actions: actionLogSchema });
+const lockBody = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), actions: actionLogSchema, shift: z.enum(['lunch', 'dinner']).optional() });
 
 // A 400-action log is about 40 KB. Anything near the 4 MB platform limit is not a game request.
 api.use('*', bodyLimit({ maxSize: 256 * 1024, onError: c => c.json<ErrorResponse>({ type: 'error', error: 'Request too large.' }, 413) }));
@@ -89,7 +89,7 @@ api.post('/lock', async c => {
   if (!user) return c.json(needLogin, 401);
   const body = lockBody.safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
-  const r = await lockService(deps, user, body.data.date, body.data.actions);
+  const r = await lockService(deps, user, body.data.date, body.data.actions, body.data.shift ?? 'dinner');
   if ('error' in r) return failure(c, r);
   // The official end of the journey carries the replayed score, never a client claim. Optional: a dropped event changes nothing the player sees.
   const journeyId = c.req.header('x-devvit-journey-id');
@@ -143,7 +143,7 @@ api.post('/presence', async c => {
 
 api.get('/board', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
-  const r = await getBoard(deps, user, c.req.query('date') ?? utcDate(Date.now()));
+  const r = await getBoard(deps, user, c.req.query('date') ?? utcDate(Date.now()), c.req.query('shift') === 'lunch' ? 'lunch' : 'dinner');
   return 'error' in r ? failure(c, r) : c.json(r.value);
 });
 

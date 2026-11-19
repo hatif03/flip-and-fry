@@ -1,6 +1,6 @@
 import type { Action } from '../management/actions';
 import { noJourneys, interactionName, type Journeys } from './journeys';
-import { DAY_LENGTH } from '../management/types';
+import { shiftLength } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
 import { houseStyle, type NeighborhoodView, type VisitResult } from '../management/social';
@@ -11,6 +11,7 @@ export type Http = (method: 'GET' | 'POST', path: string, body?: unknown, header
 export type Scheduler = { set: (fn: () => void, ms: number) => unknown; clear: (handle: unknown) => void };
 
 const FLUSH_MS = 600;
+const stored = (lock: LockResponse): NonNullable<TodayResponse['run']> => ({ report: lock.report, stars: lock.stars, hash: lock.hash, headline: lock.report.headline!, submittedAt: 0, username: '', night: lock.night, name: lock.park.name, style: houseStyle(lock.park), shift: lock.shift });
 const isError = (b: unknown): b is ErrorResponse => !!b && typeof b === 'object' && (b as { type?: unknown }).type === 'error';
 const message = (r: { status: number; body: unknown }): string => isError(r.body) ? r.body.error : r.status === 401 ? 'Log in to Reddit to run your restaurant.' : 'Could not reach the restaurant. Check your connection.';
 
@@ -37,6 +38,7 @@ export class Session implements RemoteSession {
   private chain: Promise<unknown> = Promise.resolve();
   private timer: unknown = null;
   private openDate: string | null = null;
+  private openShift: 'lunch' | 'dinner' = 'dinner';
   private watching = false;
   private wasService = false;
   private sentFirstGuest = false;
@@ -61,7 +63,7 @@ export class Session implements RemoteSession {
       // A service was opened and never closed (a reload mid-service). It replays from its first tick, which is the same night.
       this.engine.adopt(today.open.snapshot);
       const error = this.engine.open(today.headline);
-      if (!error) { this.openDate = today.open.date; return null; }
+      if (!error) { this.openDate = today.open.date; this.openShift = today.open.snapshot.shift; return null; }
     }
     this.engine.adopt(today.park);
     return null;
@@ -112,7 +114,7 @@ export class Session implements RemoteSession {
       this.rev = opened.rev; this.result = null;
       this.engine.adopt(opened.snapshot);
       const error = this.engine.open(opened.headline);
-      if (!error) { this.openDate = opened.date; this.sentFirstGuest = false; this.sentHalfway = false; this.serviceLog = []; void this.onOpened?.(); } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
+      if (!error) { this.openDate = opened.date; this.openShift = opened.snapshot.shift; this.sentFirstGuest = false; this.sentHalfway = false; this.serviceLog = []; void this.onOpened?.(); } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
       return error;
     });
   }
@@ -127,18 +129,18 @@ export class Session implements RemoteSession {
   private onEngineChange(): void {
     const state = this.engine.state, phase = state.phase;
     if (this.openDate && phase === 'service') {
-      if (!this.sentFirstGuest && state.guests.some(g => g.stage !== 'arriving' && g.stage !== 'leaving')) { this.sentFirstGuest = true; this.journeys.progress(.3, 'first_guest'); }
-      if (!this.sentHalfway && state.elapsed >= DAY_LENGTH / 2) { this.sentHalfway = true; this.journeys.progress(.6, 'mid_service'); }
+      if (!this.sentFirstGuest && state.guests.some(g => g.stage !== 'arriving' && g.stage !== 'leaving' && g.stage !== 'queued')) { this.sentFirstGuest = true; this.journeys.progress(.3, 'first_guest'); }
+      if (!this.sentHalfway && state.elapsed >= shiftLength(state) / 2) { this.sentHalfway = true; this.journeys.progress(.6, 'mid_service'); }
     }
     if (this.guest) { this.wasService = phase === 'service'; return; }
-    if (this.openDate && this.wasService && phase === 'planning') { const date = this.openDate; this.openDate = null; this.journeys.progress(.9, 'receipt'); void this.close(date); }
+    if (this.openDate && this.wasService && phase === 'planning') { const date = this.openDate, shift = this.openShift; this.openDate = null; this.journeys.progress(.9, 'receipt'); void this.close(date, shift); }
     this.wasService = phase === 'service';
   }
 
-  private async close(date: string): Promise<void> {
+  private async close(date: string, shift: 'lunch' | 'dinner'): Promise<void> {
     await this.enqueue(async () => {
       await Promise.resolve(this.onClosing?.()).catch(() => undefined); // withdraw a hosted night before it is locked
-      const journeyId = this.journeys.id(), r = await this.http('POST', '/api/lock', { date, actions: this.serviceLog }, journeyId ? { 'x-devvit-journey-id': journeyId } : undefined);
+      const journeyId = this.journeys.id(), r = await this.http('POST', '/api/lock', { date, actions: this.serviceLog, shift }, journeyId ? { 'x-devvit-journey-id': journeyId } : undefined);
       if (r.status !== 200 || isError(r.body)) {
         this.notice = isError(r.body) && r.body.conflict ? 'Your restaurant changed in another tab, so it was reloaded.' : message(r);
         await this.load(); this.engine.notify(); return;
@@ -147,7 +149,7 @@ export class Session implements RemoteSession {
       this.rev = lock.rev; this.result = lock; this.serviceLog = []; this.journeys.clear(); // the server wrote the official end with the replayed score
       // The server's replay is the only receipt that counts. If this preview disagrees, the server's park wins.
       if (stateHash(this.engine.state) !== lock.hash) this.engine.adopt(lock.park);
-      if (this.today) this.today = { ...this.today, rev: lock.rev, park: lock.park, streak: lock.streak, run: lock.official ? { report: lock.report, stars: lock.stars, hash: lock.hash, headline: lock.report.headline!, submittedAt: 0, username: '', night: lock.night, name: lock.park.name, style: houseStyle(lock.park) } : this.today.run, community: { opens: this.today.community.opens, locks: this.today.community.locks + (lock.official && !lock.replaced && !this.today.run ? 1 : 0) } };
+      if (this.today) this.today = { ...this.today, rev: lock.rev, park: lock.park, streak: lock.streak, ...(lock.shift === 'lunch' ? { lunchRun: lock.official ? stored(lock) : this.today.lunchRun } : { run: lock.official ? stored(lock) : this.today.run, community: { opens: this.today.community.opens, locks: this.today.community.locks + (lock.official && !lock.replaced && !this.today.run ? 1 : 0) } }) };
       this.engine.notify();
     });
   }
@@ -183,8 +185,8 @@ export class Session implements RemoteSession {
     this.social = { ...this.social, followed: true }; this.engine.notify(); return null;
   }
 
-  async board(): Promise<BoardView | { error: string }> {
-    const r = await this.http('GET', `/api/board?date=${encodeURIComponent(this.today?.date ?? '')}`);
+  async board(shift: 'lunch' | 'dinner' = 'dinner'): Promise<BoardView | { error: string }> {
+    const r = await this.http('GET', `/api/board?date=${encodeURIComponent(this.today?.date ?? '')}&shift=${shift}`);
     return r.status === 200 && !isError(r.body) ? (r.body as BoardView) : { error: message(r) };
   }
   async avatar(name: string): Promise<string | null> {

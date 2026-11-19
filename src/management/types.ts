@@ -4,6 +4,9 @@ import { headlineEffects, headlineId } from './daily-headline';
 // Zod validates required fields at runtime; preserve them in the legacy non-strict TS project too.
 type Validated<T> = T extends (infer U)[] ? Validated<U>[] : T extends object ? { [K in keyof T]-?: Validated<T[K]> } : T;
 
+/** The two services of a day (see SHIFT_SECONDS). */
+export const SHIFTS = ['lunch', 'dinner'] as const;
+export type Shift = typeof SHIFTS[number];
 export const furnitureKind = z.enum(['table', 'prep', 'grill', 'pot', 'wok', 'oven', 'plant', 'divider', 'lamp', 'bench']);
 export type FurnitureKind = z.infer<typeof furnitureKind>;
 /** Every dish the kitchen can cook. The schemas, the menu, the guest orders and the challenges all derive from this one list. */
@@ -40,7 +43,7 @@ const agentSchema = pointSchema.extend({ yaw: z.number().finite(), route: z.arra
 const staffSchema = agentSchema.extend({ id: z.number().int(), name: z.string().max(30), role: roleSchema, level: z.number().int().min(1).max(3), task: z.enum(['idle', 'toKitchen', 'cooking', 'collect', 'deliver', 'clean']), guestId: z.number().int().nullable(), stationId: z.number().int().nullable(), timer: z.number().finite().nonnegative() });
 export type Staff = Validated<z.infer<typeof staffSchema>>;
 export const SPECIES = ['mouse', 'crocodile', 'rabbit', 'bear'] as const;
-const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(SPECIES), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['arriving', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false), regular: z.string().max(20).nullable().default(null), visitor: z.string().max(20).nullable().default(null) });
+const guestSchema = agentSchema.extend({ id: z.number().int(), species: z.enum(SPECIES), tableId: z.number().int(), seat: z.number().int().min(0).max(1), dish: z.enum(DISH_IDS), price: z.number().min(0).max(PRICE_MAX), stage: z.enum(['queued', 'arriving', 'seated', 'waiting', 'cooking', 'ready', 'delivering', 'eating', 'leaving']), waiting: z.number().nonnegative(), timer: z.number().nonnegative(), happy: z.boolean(), stationId: z.number().int().nullable(), paid: z.boolean(), special: z.boolean().default(false), owner: z.boolean().default(false), cook: z.number().nonnegative().default(0), quality: z.number().int().min(0).max(3).default(0), priority: z.boolean().default(false), regular: z.string().max(20).nullable().default(null), visitor: z.string().max(20).nullable().default(null) });
 export type Guest = Validated<z.infer<typeof guestSchema>>;
 const totalsSchema = z.object({ revenue: z.number().nonnegative(), ingredients: z.number().nonnegative(), served: z.number().int().nonnegative(), missed: z.number().int().nonnegative(), tips: z.number().nonnegative() });
 export type Totals = Validated<z.infer<typeof totalsSchema>>;
@@ -120,6 +123,7 @@ export const restaurantSchema = z.object({
   version: z.literal(1), name: z.string().min(1).max(28), day: z.number().int().min(1), cash: z.number().finite(), reputation: z.number().min(1).max(5), debt: z.number().nonnegative(), expanded: z.boolean(),
   furniture: z.array(furnitureSchema).min(1).max(100), staff: z.array(staffSchema).min(2).max(6), guests: z.array(guestSchema).max(24), dirty: z.array(z.string().max(30)).max(40),
   menu: menuSchema,
+  shift: z.enum(SHIFTS).default('dinner'),
   phase: z.enum(['planning', 'service', 'report']), elapsed: z.number().finite().nonnegative(), nextArrival: z.number().finite().nonnegative(), clock: z.number().finite().nonnegative(), nextId: z.number().int().positive(), seed: z.number().finite(),
   headline: headlineStateSchema.nullable().default(null), comps: z.number().int().nonnegative().default(0), night: nightSchema.default(freshNight()), best: bestSchema.default({ value: 0, day: 0 }), streaks: streaksSchema.default(freshStreaks()), regulars: z.array(regularSchema).max(MAX_REGULARS).default([]), visitors: z.array(visitorSchema).max(MAX_VISITORS).default([]), research: researchSchema.default({ budget: 0, points: 0 }), hands: z.preprocess(v => v ?? [], z.array(handsSchema).max(2)).default([]), outfit: outfitSchema.default({ hat: 'cream', apron: 'tomato' }), lastActiveAt: z.number().finite().nonnegative().default(0), isPaused: z.boolean().default(false), renovation: z.boolean().default(false),
   dailyChallenges: challengesSchema, lifetimeChallengeBonus: z.number().int().nonnegative().default(0),
@@ -142,6 +146,15 @@ export const CATALOG: Record<FurnitureKind, CatalogItem> = {
 export const researched = (state: Pick<RestaurantState, 'research'>, id: ResearchId): boolean => state.research.points >= RESEARCH.find(r => r.id === id)!.at;
 export const stationName = (kind: FurnitureKind): string => CATALOG[kind].name.toLowerCase();
 export const DAY_LENGTH = 150;
+/**
+ * A service is a lunch (a short shift: the first night, and a second official service each day) or a dinner (the full one). The shift is
+ * stored in the saved state, so the replay reads the length from the opening snapshot and every consumer asks shiftLength(), never the constant.
+ */
+export const SHIFT_SECONDS: Record<Shift, number> = { lunch: 60, dinner: DAY_LENGTH };
+export const SHIFT_NAMES: Record<Shift, string> = { lunch: 'Lunch', dinner: 'Dinner' };
+export const shiftLength = (state: { shift: Shift }): number => SHIFT_SECONDS[state.shift];
+/** Wages, rent and the loan instalment are daily: a lunch pays its share (60 of 150 seconds), a dinner the whole. Whole dollars, so a dinner is exactly as it was. */
+export const billsShare = (state: { shift: Shift }): number => SHIFT_SECONDS[state.shift] / DAY_LENGTH;
 /** Tables the owner may comp in one service. A comp trades the sale for a guest who would have walked out. */
 export const COMPS_PER_NIGHT = 2;
 /** A dish the owner is cooking burns, by itself, after this many times its normal cooking time. */
@@ -194,6 +207,6 @@ export function createRestaurant(): RestaurantState {
       { id: 11, name: 'Pip', role: 'server', level: 1, x: 4, z: 7, yaw: 0, route: [], task: 'idle', guestId: null, stationId: null, timer: 0 },
     ], guests: [], dirty: [], menu: { ...Object.fromEntries(DISH_IDS.map(id => [id, { enabled: false, price: DISHES[id].fair }])) as Record<Dish, MenuItem>, salad: { enabled: true, price: 24 }, burger: { enabled: true, price: 38 } },
     headline: null, comps: 0, night: freshNight(), best: { value: 0, day: 0 }, lastActiveAt: 0, isPaused: false, renovation: false, dailyChallenges: [], lifetimeChallengeBonus: 0,
-    phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
+    shift: 'dinner', phase: 'planning', elapsed: 0, nextArrival: 1, clock: 0, nextId: 20, seed: 91273, totals: freshTotals(), history: [], lifetimeServed: 0, claimed: [], music: false, welcomed: false,
   };
 }

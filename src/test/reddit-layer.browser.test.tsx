@@ -15,7 +15,7 @@ const headline = createDailyHeadline('2026-12-09');
 const today: TodayResponse = { type: 'today', date: '2026-12-09', headline, rev: 3, park: createRestaurant(), open: null, run: null, streak: 4, community: { opens: 5, locks: 2 } };
 const NIGHT = { neighbors: [], card: { welcome: 72, speed: 64, value: 88 }, award: { id: 'warm' as const, title: 'Warmest room', text: 'A cozy room and almost nobody walked out.' }, companyValue: 2400, best: { value: 2400, day: 1 }, newBest: true, avgWait: 12, pathLength: 9 };
 const lock = (stars: 0 | 1 | 2 | 3): LockResponse => ({
-  type: 'lock', night: NIGHT, hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
+  type: 'lock', shift: 'dinner', night: NIGHT, hash: 'abc', official: true, replaced: false, streak: 4, rev: 4, park: createRestaurant(),
   report: { ...createRestaurant().totals, served: 17, missed: 2, revenue: 400, tips: 38, ingredients: 150, headline: 'rain', challenges: [], day: 1, wages: 60, rent: 30, debtPayment: 0, research: 0, profit: 198, rating: 4.2 },
   stars: { stars, goal: stars >= 1, challenges: stars >= 2 ? 3 : 1, beatPrevious: stars >= 3, goalText: 'Finish with a rating of 4.0 or better' },
 });
@@ -50,8 +50,8 @@ it('puts the moderators’ neighborhood name in front of the date, and leaves it
 it('tells the player the goal and what to do before opening', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
-  await expect.element(bar).toHaveTextContent('Goal: Serve 8 guests and finish in profit');
-  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('You are the head chef. Tap Open, then cook the orders yourself.');
+  await expect.element(bar).toHaveTextContent('Goal: Serve 5 guests and finish in profit');
+  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('You are the head chef. Tap Open for a quick lunch, then cook the orders yourself.');
 });
 
 it('shows the pass, not a paragraph, while the doors are open', async () => {
