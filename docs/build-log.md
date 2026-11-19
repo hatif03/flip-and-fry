@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Listing for the developer portal, privacy and terms, provenance answered
+
+**Why:** the author sent the developer-portal screens (Developer Settings, In-app catalog) and asked exactly what to do while staying unpublished, as the organisers prefer. Filling the listing fields does not publish the app; they were blank.
+
+**What:** `docs/listing.md` holds the value for every field (display name, 15 to 200 character description, terms and privacy URLs, NSFW off, category, tile tagline, featuring description). `docs/listing/` holds the images, composed from this game's own screenshots and icon by `tools/art/catalog-images.mjs` (tile 560 by 256, fallback 1500 by 1000, the 1024 icon) and a 12 second placeholder MP4 from `tools/art/catalog-video.mjs` (ffmpeg-static, already a dev dependency); every file is under the portal's 800 KB limit. `docs/privacy.md` and `docs/terms.md` say only what the code does (Redis only, no outside requests, user actions only on a button press, TTLs as in the code); they link from GitHub, so the repository must be public and pushed. Provenance: the author states the props, audio and original icon were made by them with free, partly AI-assisted tools; recorded as the author's statement in `docs/assets-provenance.md` and the README credits (no tool names were given, none invented).
+
+**Refused:** `devvit publish`; an invented list of tool names; a video made to look like real gameplay (the placeholder is stills and is labelled as such).
+
+**Devvit pieces:** none added; no new permission. **Third party:** none new.
+
+**Code or plan:** `docs/listing.md`, `docs/privacy.md`, `docs/terms.md`, `tools/art/catalog-*.mjs`.
+
 ## 2026-11-19 — Documentation for the whole project
 
 **Why:** the author asked for documentation that covers everything: how the game was built from the ground up, every design and engineering decision and why, how problems were solved, and how Reddit and Devvit are used.

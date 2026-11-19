@@ -1,6 +1,6 @@
 # Asset provenance
 
-What is in `public/` and where it came from, as far as this repository records. Anything marked **to confirm** is something only the project's author can answer; it is listed so it is checked before the submission, not because it is known to be a problem.
+What is in `public/` and where it came from, as far as this repository records. Where the repository cannot show an origin, this page records what the author has said, and marks it as the author's statement.
 
 ## Authored in this repository
 
@@ -14,17 +14,19 @@ What is in `public/` and where it came from, as far as this repository records. 
 
 ## What the files themselves say
 
-Inspected on 19 November: every GLB carries only `generator: glTF-Transform v4.4.0` (so it was post-processed and the original tool is not recorded), every MP3 carries only an `Lavf60` (ffmpeg) encoder tag, and the icon PNG has no text chunks. Git shows the files first entered the repository on 16 November (commits `b454cef` and `3a84ec0`). **The origin cannot be recovered from the files.** One sentence from the author (tool, account, date) would settle it; until then they are listed as "origin unconfirmed" and the MIT licence does not cover them. The shipped copies were recompressed on 19 November (`tools/compress-models.mjs`, `tools/compress-audio.mjs`); the originals are in `tools/source/`.
+Inspected on 19 November: every GLB carries only `generator: glTF-Transform v4.4.0` (so it was post-processed and the original tool is not recorded), every MP3 carries only an `Lavf60` (ffmpeg) encoder tag, and the icon PNG has no text chunks. Git shows the files first entered the repository on 16 November (commits `b454cef` and `3a84ec0`). **The origin cannot be recovered from the files.**
+
+**Author's statement (19 November 2026):** the 3D props, the music and sound effects and the original icon were all made by the author, by hand, using free tools, some of them AI-assisted. No tool names or account names were given, so none are recorded here, and the files carry no tag that could confirm it. This page repeats the statement; it does not verify it. The author keeps the right to use the output of those free tools under whatever terms each tool published; the MIT licence in this repository still does not cover them, so they are credited separately. The shipped copies were recompressed on 19 November (`tools/compress-models.mjs`, `tools/compress-audio.mjs`); the originals are in `tools/source/`.
 
 ## Files in `public/assets/`
 
 | File | Used for | Origin recorded in the repository | To confirm |
 |---|---|---|---|
-| `models/grill.glb`, `burger.glb`, `salad.glb`, `tomato.glb`, `lettuce.glb`, `knife.glb` | Kitchen props and dishes | Imported in commit `b454cef` ("import glTF props"). The original README states some 3D models were AI-generated and hosted by the original project | Tool, account and the terms that apply to the output |
-| `models/bench.glb`, `bulletin.glb`, `car.glb` | City street life | Same | Same |
-| `audio/music.mp3`, `served.mp3`, `chop.mp3`, `engine.mp3`, `horn.mp3` | Test Kitchen music and effects, city traffic. The restaurant view no longer plays `music.mp3`: its soundtrack is generated in code (`src/audio/`) | Imported in commit `3a84ec0`. The original README states the audio was AI-generated | Same |
+| `models/grill.glb`, `burger.glb`, `salad.glb`, `tomato.glb`, `lettuce.glb`, `knife.glb` | Kitchen props and dishes | Imported in commit `b454cef` ("import glTF props"). The original README states some 3D models were AI-generated and hosted by the original project | Author's statement: made by the author with free, partly AI-assisted tools (tools not named) |
+| `models/bench.glb`, `bulletin.glb`, `car.glb` | City street life | Same | Author's statement: same |
+| `audio/music.mp3`, `served.mp3`, `chop.mp3`, `engine.mp3`, `horn.mp3` | Test Kitchen music and effects, city traffic. The restaurant view no longer plays `music.mp3`: its soundtrack is generated in code (`src/audio/`) | Imported in commit `3a84ec0`. The original README states the audio was AI-generated | Author's statement: made by the author with free, partly AI-assisted tools (tools not named) |
 
-All of these files were once loaded from remote URLs and were copied into `public/` so the game makes no outside requests on Reddit. If any of them cannot be shown to be ours to use, replace it before the final upload; the dishes and the soundtrack are the only places the player would notice.
+All of these files were once loaded from remote URLs and were copied into `public/` so the game makes no outside requests on Reddit. If a tool's terms turn out to forbid this use, replace the file before the final upload; the dishes and the soundtrack are the only places the player would notice. The author has said the work is theirs, so no replacement is planned.
 
 ## Third-party packages that ship with the game
 
@@ -40,5 +42,5 @@ No payments, no outside HTTP, no blob storage, no remote fonts or images, no use
 
 | File | What | Origin | To confirm |
 |---|---|---|---|
-| `public/icon-pixel.png` | App icon and apple-touch icon | **Drawn in code** by `tools/art/draw-icon.mjs` (shapes and a row-by-row flame); the earlier reduction of the original icon is gone | Nothing: original work. The earlier icon (`tools/source/icon-original.png`, not shipped) has unconfirmed origin |
+| `public/icon-pixel.png` | App icon and apple-touch icon | **Drawn in code** by `tools/art/draw-icon.mjs` (shapes and a row-by-row flame); the earlier reduction of the original icon is gone | Nothing: original work. The earlier icon (`tools/source/icon-original.png`, not shipped) was made by the author with free tools (author's statement) |
 | Species portraits | Regulars list | Drawn in code (`src/management/portraits.ts`) | Nothing: original work |

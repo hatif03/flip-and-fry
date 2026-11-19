@@ -13,6 +13,7 @@ Start here. Everything about how Flip and Fry was built and why.
 | [`build-log.md`](build-log.md) | The dated record of every decision, with evidence (newest first) |
 | [`perf-log.md`](perf-log.md) | Size and speed measurements, budgets and what was done |
 | [`assets-provenance.md`](assets-provenance.md) | Where each shipped asset came from |
+| [`listing.md`](listing.md), [`privacy.md`](privacy.md), [`terms.md`](terms.md) | The exact values for the developer portal's listing fields, and the two policy pages it links to |
 | [`devvit-feedback.md`](devvit-feedback.md) | Platform issues met, for the developer survey |
 | [`submission.md`](submission.md) | The Devpost text, the demo shot list and the author's checklist |
 | [`hackathon-plan.md`](hackathon-plan.md), [`plan-review.md`](plan-review.md) | The original plan and its review against the code |

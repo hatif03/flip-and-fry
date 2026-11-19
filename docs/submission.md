@@ -50,9 +50,11 @@ Done by me: the MIT licence; the demo subreddit already has the Devvit Admin Hel
 ### Needs you (a few minutes each)
 - [ ] **Confirm the demo subreddit** is public with under 200 members (r/flip_and_fry_dev, created by `devvit upload`). Reddit does not let me read it from here.
 - [ ] **Moderator rights for the app** on that subreddit (Mod Tools, Moderators, the app account) so it can set user flair and highlight the post. After one daily post, check the post is highlighted and try "Wear flair" once. If either is refused the game still works; note it in `docs/devvit-feedback.md`.
-- [ ] **One sentence of provenance:** where the AI-generated 3D props, the music and sound effects, and the original icon came from (tool and account). The files carry no record of it (see `docs/assets-provenance.md`). If you cannot say, replace them.
+- [x] **Provenance:** answered on 19 November: the props, the music and sound effects and the original icon were made by the author with free, partly AI-assisted tools (recorded in `assets-provenance.md` as the author's statement).
 - [ ] **Push notifications:** apply for the beta at the link on the Devvit docs page. Nothing depends on it; the reminder switch says "not available" until Reddit enables it.
 - [ ] **Developer survey** before 8 December 6 pm PT (the Feedback prize), using `docs/devvit-feedback.md`.
+
+- [ ] **Developer portal listing** (does not publish): fill Developer Settings and the In-app catalog from [`listing.md`](listing.md), using the images in `docs/listing/`. Push the repository first so the privacy and terms links work.
 
 ### Phone checks (each is listed under "Needs a phone to confirm" in the build log)
 - [ ] Open the post on your Android phone: the inline card shows today's headline; the game loads; the pixel interface and the soundtrack are pleasant at phone volume and come back after the app returns from the background.
