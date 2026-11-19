@@ -58,6 +58,7 @@ export class Session implements RemoteSession {
     const r = await this.http('GET', '/api/today');
     if (r.status !== 200 || isError(r.body)) return message(r);
     const today = r.body as TodayResponse;
+    void this.world.load();
     this.today = today; this.rev = today.rev; this.social = { posted: Boolean(today.run?.commentId), flair: null, followed: false }; this.pending = []; this.cancelTimer(); this.openDate = null;
     if (today.open) {
       // A service was opened and never closed (a reload mid-service). It replays from its first tick, which is the same night.
@@ -190,10 +191,13 @@ export class Session implements RemoteSession {
     return r.status === 200 && !isError(r.body) ? (r.body as BoardView) : { error: message(r) };
   }
   /** The garden and order board. A change first sends any planning actions waiting in the queue, so the restaurant's revision is current. */
+  private worldSeen: { view: WorldView; offset: number } | null = null;
   readonly world = {
+    peek: (): { view: WorldView; offset: number } | null => this.worldSeen,
     load: async (): Promise<WorldView | { error: string }> => {
       const r = await this.http('GET', '/api/world');
-      return r.status === 200 && !isError(r.body) ? (r.body as WorldView) : { error: message(r) };
+      if (r.status !== 200 || isError(r.body)) return { error: message(r) };
+      const view = r.body as WorldView; this.worldSeen = { view, offset: view.now - Date.now() }; this.engine.notify(); return view;
     },
     act: async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> => {
       if (this.engine.state.phase !== 'planning') return { error: 'The garden waits until the doors are shut.' };
@@ -203,6 +207,7 @@ export class Session implements RemoteSession {
       if (r.status !== 200 || isError(r.body)) return { error: message(r) };
       const { rev, park, ...view } = r.body as WorldResponse;
       this.rev = rev; if (this.today) this.today = { ...this.today, rev, park }; this.engine.adopt(park);
+      this.worldSeen = { view: view as WorldView, offset: (view as WorldView).now - Date.now() };
       return view as WorldView;
     },
   };

@@ -63,6 +63,16 @@ describe('the garden tab', () => {
     await expect.element(screen.getByRole('region', { name: 'Pantry' })).toHaveTextContent('Tomatoes ×3'); expect(restaurant.state.pantry.tomato).toBe(3);
   });
 
+  it('the between-nights strip says what needs you and opens the garden', async () => {
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const screen = await render(<ManagementGame />), strip = screen.getByRole('navigation', { name: 'Between nights' });
+    await expect.element(strip).toHaveTextContent('Plant something'); await expect.element(strip).toHaveTextContent('orders waiting');
+    for (const b of strip.element().querySelectorAll('button')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    await strip.getByRole('button', { name: /Plant something/ }).click(); await expect.element(screen.getByRole('region', { name: 'The garden' })).toBeVisible();
+    await screen.getByRole('button', { name: /^Plant tomatoes/ }).first().click(); await screen.getByRole('button', { name: 'Close panel' }).click();
+    await expect.element(screen.getByRole('navigation', { name: 'Between nights' })).toHaveTextContent('Harvest in 20m');
+  });
+
   it('shows the order board and delivers an order once the pantry covers it', async () => {
     const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
     const screen = await render(<ManagementGame />);
