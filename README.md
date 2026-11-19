@@ -8,7 +8,7 @@ A rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a 
 
 1. Open today's post. The headline (for example *Rain on the roof*) and a goal for the night are at the top.
 2. **Build:** place tables, planters, lanterns and kitchen equipment. **Team:** hire and train. **Menu:** switch dishes on and set prices.
-3. Tap **Open restaurant**. Your team cooks, serves and cleans. When a ticket is waiting, tap **Cook** at the pass and plate it in the green zone.
+3. Tap **Open restaurant**. Your team cooks, serves and cleans. When a ticket is waiting, tap **Cook** at the pass, optionally hold **Prep** and let go when the bar is green, then plate it in the green zone. A neighbor can help at your pass (**Cook together**).
 4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night.
 5. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
 
@@ -34,6 +34,8 @@ The weekday picks the headline. The date only jitters the numbers inside it.
 - **Your restaurant is saved on Reddit** (Redis), per player, so it follows you across devices and survives app updates. The Test Kitchen's scores and outfits are saved the same way.
 - **A streak** of days with at least one star, and flair that goes with it (tiers at 1, 3, 7, 14 and 30 days). Flair is a reward for a real streak, never for a comment or a vote.
 - **Post this result**, **Wear flair** and **Follow this community** are three separate, optional buttons. Each shows exactly what it will do first ("This posts as you"), runs only when you tap it, and nothing in the game waits for any of them.
+- **Cook together:** invite one neighbor to help at your pass for the night, or help in someone else's. Two devices run the same deterministic engine in lockstep over realtime, and the server replays the host's log, helper included.
+- **Reminders and badge:** an optional, opt-in reminder when a streak is at risk (Reddit's push beta), and the game badge linking to today's post.
 - **The neighborhood:** neighbors who have the post open come over as guests while you serve; you can leave your door open for visits, visit one of four sample kitchens (always labelled as samples), read a bulletin of notes from visitors, and post your kitchen as its own post.
 - **The thread is the street:** each day's post is highlighted and carries a stickied results comment; the app comments a short report on the day that just ended.
 - **Journeys** instrument the whole loop; the final event is written by the server from the replayed result.
@@ -77,6 +79,10 @@ The decisions behind each of these, including the ones we refused, are in [`docs
 - `src/server/` is a Hono app on Devvit Web. `core/` holds the rules behind a small `Store` interface, so they run unchanged in tests against an in-memory Redis.
 - `src/client/` is the Reddit entry: a static splash (no 3D) that opens the expanded game on tap.
 - Calibration bots (a bare, a cozy and a greedy menu) run the engine in tests over many dates, so a change that breaks the daily goals fails the build.
+
+## Documentation
+
+Everything about how this was built and why is in [`docs/`](docs/README.md): the story from the browser game to the Reddit game, the architecture, every design and engineering decision, how the game uses Reddit and Devvit, the testing approach and the dated build log.
 
 ## Develop
 

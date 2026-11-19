@@ -6,13 +6,14 @@ Copy-ready text for the Devpost form, a shot list for the demo video, and the ch
 
 **Flip and Fry** is a rooftop restaurant tycoon that lives inside a Reddit post. Every day brings a new neighborhood headline (a rainy night, a critic in town, payday). You build the room, hire a crew of animals, set the menu, and open the doors for one night. Reddit's server replays your service with the same deterministic engine the game runs on and locks the result, so the stars you earn are real.
 
-**How it plays.** Open today's post and tap *Open for service*. Build tables, planters and kitchen equipment, hire and train, set your prices (a fair price, a bargain or greedy: guests notice). When the night runs, step in at the pass and cook a ticket yourself when your chefs are busy: plate it in the green zone for a perfect dish and a better tip. At closing you get up to three stars for the headline goal, the daily challenges and beating your last night, plus a kitchen card (Welcome, Speed, Value) and one award. Come back tomorrow: a new headline, a growing streak, and a neighborhood that has been busy without you.
+**How it plays.** Open today's post and tap *Open for service*. Build tables, planters and kitchen equipment, hire and train, set your prices (a fair price, a bargain or greedy: guests notice). When the night runs, step in at the pass and cook a ticket yourself when your chefs are busy: hold Prep until the bar is green, then plate it in the green zone for a perfect dish and a better tip. At closing you get up to three stars for the headline goal, the daily challenges and beating your last night, plus a kitchen card (Welcome, Speed, Value) and one award. Come back tomorrow: a new headline, a growing streak, and a neighborhood that has been busy without you.
 
 **What makes it a Reddit game.**
 - One official, server-verified service a day, shared headline and shared goals, and a streak with flair.
 - Neighbors who have the post open come over as guests while you serve. Leave your door open and neighbors can visit your kitchen; four sample kitchens are always there to visit. A bulletin collects their notes, and a live toast tells you when someone stops by.
 - You can post your kitchen as its own post, post your result as a comment, wear streak flair and follow the community. Each is its own button, shows exactly what it will do first, and nothing in the game waits for any of them.
 - Moderators name the neighborhood and switch open doors on or off in the subreddit settings; each day's post is highlighted, stickied with a results comment, and followed by a short report on the night before.
+- A neighbor can help at your pass for a night (two devices in lockstep over realtime, replayed by the server), and an opt-in reminder protects a streak.
 - Journeys instrument the whole loop, and the final event is written by the server from the replayed result.
 
 **Also in the game.** Twelve dishes in three menu styles, five appliances, contracts, named regulars, a research budget that unlocks new equipment, guest thoughts over the tables, a pixel-art presentation of the 3D city, a generated soundtrack that follows the weather, and the Test Kitchen: the original hands-on arcade (three shifts, solo or two chefs, touch controls), with its scores saved on Reddit.
@@ -44,13 +45,22 @@ The decisions behind each, and the ones we refused, are in `docs/build-log.md` i
 
 ## Checklist for the author
 
-These need your account, your decision or a real device. Everything else is built and tested.
+Done by me: the MIT licence; the demo subreddit already has the Devvit Admin Helper (`dr-admin-approve`) installed next to the app; models and audio compressed; the icon redrawn; every feature built and tested against fakes. What is left needs your account, a real device or an answer only you have.
 
-- [ ] **Demo subreddit:** public, under 200 members, with `dr-admin-approve` installed. `r/flip_and_fry_dev` exists; confirm it meets the size and visibility rules or make a separate one.
-- [ ] **Moderator rights:** the app needs moderator permission there to highlight the post and set user flair. Try both once and note the result in `docs/devvit-feedback.md`.
-- [ ] **Phone checks that cannot be automated** (each is listed under "Needs a phone to confirm" in `docs/build-log.md`): the generated soundtrack on a phone speaker and after the app returns from the background; the inline card on a real feed (`context.postData`); whether Reddit's CDN images load in the webview (the pixel faces stand in until then); realtime delivery on a phone.
-- [ ] **License:** none is chosen. Pick one (for example MIT) before making the repository public. The Devpost repository link is optional.
-- [ ] **Asset provenance:** confirm the origin and terms of the AI-generated models, audio and the original icon (`docs/assets-provenance.md`). Replace anything that is not ours to use.
-- [ ] **Optional:** apply for the push-notification beta; submit the developer survey before 8 December 6 pm PT for the Feedback prize; help in Discord and r/devvit for the Helper prize. Do not run `devvit publish` during the hackathon.
-- [ ] **Look at the pixel icon and the pixel UI** and say if you want the icon redrawn by hand (`tools/make-icon.mjs` is a mechanical stand-in).
-- [ ] **Model and audio compression** (`docs/perf-log.md`, "Not done yet") needs your go-ahead to install `gltf-transform`, an image library and `ffmpeg`.
+### Needs you (a few minutes each)
+- [ ] **Confirm the demo subreddit** is public with under 200 members (r/flip_and_fry_dev, created by `devvit upload`). Reddit does not let me read it from here.
+- [ ] **Moderator rights for the app** on that subreddit (Mod Tools, Moderators, the app account) so it can set user flair and highlight the post. After one daily post, check the post is highlighted and try "Wear flair" once. If either is refused the game still works; note it in `docs/devvit-feedback.md`.
+- [ ] **One sentence of provenance:** where the AI-generated 3D props, the music and sound effects, and the original icon came from (tool and account). The files carry no record of it (see `docs/assets-provenance.md`). If you cannot say, replace them.
+- [ ] **Push notifications:** apply for the beta at the link on the Devvit docs page. Nothing depends on it; the reminder switch says "not available" until Reddit enables it.
+- [ ] **Developer survey** before 8 December 6 pm PT (the Feedback prize), using `docs/devvit-feedback.md`.
+
+### Phone checks (each is listed under "Needs a phone to confirm" in the build log)
+- [ ] Open the post on your Android phone: the inline card shows today's headline; the game loads; the pixel interface and the soundtrack are pleasant at phone volume and come back after the app returns from the background.
+- [ ] **Hosted service needs two Reddit accounts.** Account A (the owner, on your phone): Ledger, switch on "Invite a neighbor to help tonight", then Open. Account B (a second account on a laptop or second phone, in the same subreddit, with the same daily post open): Ledger, Cook together, tap Help. Both should see the same room; B's taps should appear on A within about two seconds. Watch for a "Catching up" notice (it means a message arrived late, and it recovers by itself).
+- [ ] Visit a sample kitchen; leave your door open and visit it from the second account; check the toast and the bulletin note.
+- [ ] Try "Post my kitchen" (does the picture attach?) and a neighbor's avatar on their tag (does the image load, or does the pixel face stay?).
+
+### Optional
+- [ ] Record the under-one-minute video from the shot list above.
+- [ ] Look at the pixel interface and the redrawn icon, and say if anything should change.
+- [ ] Do not run `devvit publish` during the hackathon.

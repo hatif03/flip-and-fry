@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Documentation for the whole project
+
+**Why:** the author asked for documentation that covers everything: how the game was built from the ground up, every design and engineering decision and why, how problems were solved, and how Reddit and Devvit are used.
+
+**What:** `docs/README.md` is the index. New: `how-it-was-built.md` (the story in twelve steps, with a problems-and-solutions table), `architecture.md` (the pure-engine idea, layers, the life of a night, Redis keys, routes, rendering, hosted service), `design-decisions.md` (game, look and sound, Reddit, engineering and process decisions, each with what was refused), `devvit-and-reddit.md` (every capability used, the limits, what is unconfirmed on a device and how it fails), `testing.md`, and `plan-status.md` (the hackathon plan section by section against what exists). The README links to all of it. `submission.md`'s checklist was rewritten into what only the author can do (including how to test hosted service with two Reddit accounts), and `assets-provenance.md` records what the files' metadata does and does not say.
+
+**Note on this log:** entries are history. Early entries describe intentions that later changed (for example the 18 November note that the pass would mount `KitchenEngine` per ticket; it became a deterministic timing bar with optional hold-to-prep, see the 19 November entry). The documents above describe the final state.
+
+**Code or plan:** `docs/*`, `README.md`.
+
 ## 2026-11-19 — Hosted service: a neighbor helps at your pass (lockstep over realtime)
 
 **The author's question:** can two phones be provided, or can I configure it myself? Everything that can be proven without phones is built and tested here with two simulated devices, a pretend network and the real server rules; what remains for real hardware is the latency feel and Reddit's realtime delivery (see the checklist). To try it for real you need **two Reddit accounts**, for example the owner account on a phone and a second account on a laptop or another phone, both in the demo subreddit.
