@@ -111,15 +111,15 @@ describe('prepping by hand at the pass', () => {
     const button = screen.getByRole('button', { name: /Hold to prep/ }); await expect.element(button).toBeVisible();
     expect(button.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
     const el = button.element(); el.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, bubbles: true }));
-    expect(restaurant.state.hands?.holding).toBe(true); await expect.element(screen.getByRole('button', { name: /Release when the bar is in the green/ })).toBeVisible();
+    expect(restaurant.state.hands[0]?.holding).toBe(true); await expect.element(screen.getByRole('button', { name: /Release when the bar is in the green/ })).toBeVisible();
     advance(idealPrepFor(g.dish)); el.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9, bubbles: true }));
-    expect(restaurant.state.hands).toMatchObject({ holding: false, quality: 3 }); restaurant.notify();
+    expect(restaurant.state.hands[0]).toMatchObject({ holding: false, quality: 3 }); restaurant.notify();
     await expect.element(screen.getByRole('status').filter({ hasText: 'A clean, even prep' })).toBeVisible();
   });
   it('works from the keyboard too: Space holds, and letting go releases', async () => {
     openKitchen(1); const screen = await render(<ManagementGame />); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!; restaurant.claimTicket(g.id); restaurant.notify();
     await expect.element(screen.getByRole('button', { name: /Hold to prep/ })).toBeVisible(); const el = screen.getByRole('button', { name: /Hold to prep/ }).element() as HTMLButtonElement; el.focus();
-    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })); expect(restaurant.state.hands?.holding).toBe(true);
-    el.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true })); expect(restaurant.state.hands?.holding).toBe(false);
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })); expect(restaurant.state.hands[0]?.holding).toBe(true);
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true })); expect(restaurant.state.hands[0]?.holding).toBe(false);
   });
 });

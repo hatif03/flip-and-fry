@@ -13,6 +13,7 @@ import { reminderStatus, setReminder } from '../core/notify';
 import { arcadePreview, commentPreview, follow, postArcadeResult, postResult, wearFlair } from '../core/social';
 import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
+import { commitAction, endCoop, joinCoop, listCoop, publishSync, relayRequest, startCoop } from '../core/coop';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
 import { kitchenOfPost, postKitchen } from '../core/kitchen-post';
 import { neighborhoodName, postNightReport } from '../core/neighborhood';
@@ -192,4 +193,30 @@ api.post('/reminder', async c => {
   const body = z.object({ on: z.boolean() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
   const r = await setReminder(deps, notifyApi, user, body.data.on);
   return 'error' in r ? failure(c, r) : c.json({ type: 'reminder', ...r.value });
+});
+
+// ---- hosted service: a neighbor helps at the pass ------------------------------------------------------------------------------------
+const coopSend = (channel: string, message: unknown): Promise<void> => realtime.send(channel, message as never);
+api.post('/coop/start', async c => { const user = await player(); if (!user) return c.json(needLogin, 401); const r = await startCoop(deps, user); return 'error' in r ? failure(c, r) : c.json({ type: 'coop', ...r.value }); });
+api.get('/coop/list', async c => { const user = await player(); if (!user) return c.json(needLogin, 401); return c.json({ type: 'coop-list', sessions: await listCoop(deps, user) }); });
+api.get('/coop/join', async c => { const user = await player(); if (!user) return c.json(needLogin, 401); const r = await joinCoop(deps, user, c.req.query('id') ?? ''); return 'error' in r ? failure(c, r) : c.json({ type: 'coop-join', ...r.value }); });
+api.post('/coop/act', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ id: z.string().max(40), action: z.unknown() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await relayRequest(deps, user, body.data.id, body.data.action, coopSend); return 'error' in r ? failure(c, r) : c.json({ type: 'coop-act', ...r.value });
+});
+api.post('/coop/commit', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ action: z.unknown() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await commitAction(deps, user, body.data.action, coopSend); return 'error' in r ? failure(c, r) : c.json({ type: 'coop-commit', ...r.value });
+});
+api.post('/coop/sync', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ tick: z.unknown(), hash: z.unknown() }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await publishSync(deps, user, body.data.tick, body.data.hash, coopSend); return 'error' in r ? failure(c, r) : c.json({ type: 'coop-sync', ...r.value });
+});
+api.post('/coop/end', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ helperOf: z.string().max(40).optional() }).safeParse(await c.req.json().catch(() => ({})));
+  const r = await endCoop(deps, user, coopSend, body.success ? body.data.helperOf : undefined); return 'error' in r ? failure(c, r) : c.json({ type: 'coop-end', ...r.value });
 });

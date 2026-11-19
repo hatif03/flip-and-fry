@@ -102,6 +102,6 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   await screen.getByRole('button', { name: 'Ledger', exact: true }).click();
   const door = screen.getByRole('switch', { name: 'Leave my door open' });
   await expect.element(door).toBeVisible();
-  await door.click({ timeout: 10_000 });
+  door.element().scrollIntoView({ block: 'center' }); (door.element() as HTMLElement).click(); // a direct click: under load the panel's settling animation can keep the element from ever looking "stable"
   await vi.waitFor(async () => expect(await isDoorOpen({ store, now: () => store.now }, alice)).toBe(true));
 }, 60_000);

@@ -25,6 +25,11 @@ export class Session implements RemoteSession {
   social = { posted: false, flair: null as string | null, followed: false };
   /** The last problem worth showing the player (a lost connection, a conflict that forced a reload). */
   notice = '';
+  /** True while helping in someone else's kitchen: the engine holds their night, so nothing of it may be saved or locked as ours. */
+  guest = false;
+  /** Called once the doors really are open (the host's chance to invite a helper), and just before the night is locked. */
+  onOpened: (() => void | Promise<void>) | null = null;
+  onClosing: (() => Promise<void>) | null = null;
   private rev = 0;
   private pending: Action[] = [];
   /** What the owner did at the pass this service, stamped with ticks. Sent with the lock, never saved on its own. */
@@ -75,7 +80,7 @@ export class Session implements RemoteSession {
 
   /** Send queued planning actions now. Serialised, so a second flush never races the first. */
   flush(): Promise<void> {
-    this.cancelTimer();
+    this.cancelTimer(); if (this.guest) return Promise.resolve();
     const run = this.chain.then(async () => {
       if (!this.pending.length) return;
       const actions = this.pending; this.pending = [];
@@ -107,7 +112,7 @@ export class Session implements RemoteSession {
       this.rev = opened.rev; this.result = null;
       this.engine.adopt(opened.snapshot);
       const error = this.engine.open(opened.headline);
-      if (!error) { this.openDate = opened.date; this.sentFirstGuest = false; this.sentHalfway = false; this.serviceLog = []; } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
+      if (!error) { this.openDate = opened.date; this.sentFirstGuest = false; this.sentHalfway = false; this.serviceLog = []; void this.onOpened?.(); } // only once the doors are really open: adopting a closed snapshot must not look like a finished service
       return error;
     });
   }
@@ -125,12 +130,14 @@ export class Session implements RemoteSession {
       if (!this.sentFirstGuest && state.guests.some(g => g.stage !== 'arriving' && g.stage !== 'leaving')) { this.sentFirstGuest = true; this.journeys.progress(.3, 'first_guest'); }
       if (!this.sentHalfway && state.elapsed >= DAY_LENGTH / 2) { this.sentHalfway = true; this.journeys.progress(.6, 'mid_service'); }
     }
+    if (this.guest) { this.wasService = phase === 'service'; return; }
     if (this.openDate && this.wasService && phase === 'planning') { const date = this.openDate; this.openDate = null; this.journeys.progress(.9, 'receipt'); void this.close(date); }
     this.wasService = phase === 'service';
   }
 
   private async close(date: string): Promise<void> {
     await this.enqueue(async () => {
+      await Promise.resolve(this.onClosing?.()).catch(() => undefined); // withdraw a hosted night before it is locked
       const journeyId = this.journeys.id(), r = await this.http('POST', '/api/lock', { date, actions: this.serviceLog }, journeyId ? { 'x-devvit-journey-id': journeyId } : undefined);
       if (r.status !== 200 || isError(r.body)) {
         this.notice = isError(r.body) && r.body.conflict ? 'Your restaurant changed in another tab, so it was reloaded.' : message(r);
@@ -144,6 +151,11 @@ export class Session implements RemoteSession {
       this.engine.notify();
     });
   }
+
+  /** Start helping in a neighbor's kitchen. The restaurant on screen is theirs; ours is untouched on the server. */
+  beginGuest(): void { this.guest = true; this.cancelTimer(); this.pending = []; this.openDate = null; this.serviceLog = []; this.engine.onAction = () => undefined; this.engine.speed = 1; }
+  /** Back to our own restaurant, reloaded from the server. */
+  async endGuest(): Promise<string | null> { this.guest = false; this.engine.coop = null; this.engine.afterStep = null; this.engine.clearScheduled(); this.engine.holdForHost(false); return this.start(); }
 
   /** Resolves when every queued request has finished (used by tests and by the page before it unloads). */
   idle(): Promise<unknown> { return this.chain; }

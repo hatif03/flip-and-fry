@@ -30,12 +30,12 @@ function apply(engine: RestaurantEngine, a: Action): string | null {
     case 'music': engine.setMusic(a.on); return null;
     case 'research': return engine.setResearch(a.budget);
     case 'outfit': return engine.setOutfit(a.part, a.color);
-    case 'claimTicket': return engine.claimTicket(a.guestId);
-    case 'cook': return engine.plate(a.guestId);
-    case 'abandon': return engine.abandonCook(a.guestId);
+    case 'claimTicket': return engine.claimTicket(a.guestId, a.by ?? 0);
+    case 'cook': return engine.plate(a.guestId, a.by);
+    case 'abandon': return engine.abandonCook(a.guestId, a.by);
     case 'priority': return engine.rush(a.guestId);
-    case 'hold': return engine.holdPrep(a.guestId);
-    case 'release': return engine.releasePrep(a.guestId);
+    case 'hold': return engine.holdPrep(a.guestId, a.by);
+    case 'release': return engine.releasePrep(a.guestId, a.by);
     case 'comp': return engine.comp(a.guestId);
   }
 }

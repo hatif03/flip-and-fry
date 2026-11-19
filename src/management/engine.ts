@@ -1,10 +1,11 @@
 import { accessPoints, findPath, layoutError, placementError, seatPoint } from './layout';
-import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, plateQuality, prepQuality, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
+import { HONEST_BAND, RESEARCH, RESEARCH_GATE, researched, MAX_REGULARS, REGULAR_NAMES, SPECIES, DISH_IDS, PRICE_MAX, PRICE_MIN, stationName, COMPS_PER_NIGHT, COOK_BURN, plateQuality, prepQuality, type Hands, companyValue, cookQuality, freshNight, CATALOG, COMFORT_GAP, COMFORT_GAP_MAX, DAY_LENGTH, DISHES, PRICE_SLOPE, SAVE_KEY, capacity, comfort, createRestaurant, discountLift, dishCost, entrance, freshTotals, guestPatienceSeconds, restaurantSchema, staffWage, width, type Dish, type OutfitId, type Furniture, type Guest, type Point, type RestaurantState, type Role, type Staff } from './types';
 import { headlineEffects, mixSeed, type DailyHeadline, type HeadlineEffects } from './daily-headline';
 
 import { advanceDailyChallenges, createDailyChallenges, isSpecialGuest, challengeTitles } from './daily-challenges';
 import type { CashReceipt } from './cash-feedback';
 import type { Action } from './actions';
+import type { CoopListing } from './coop';
 import type { NeighborhoodView, VisitResult } from './social';
 import type { LockResponse, TodayResponse } from '../shared/api';
 
@@ -36,6 +37,16 @@ export interface RemoteSession {
   previewComment?(note: string): Promise<{ text: string; reply: boolean } | { error: string }>;
   postResult?(note: string): Promise<string | null>;
   wearFlair?(): Promise<string | null>;
+  /** Hosted service: invite a neighbor to help during the night, or help in someone else's. */
+  coop?: {
+    invite: boolean;
+    setInvite(on: boolean): void;
+    /** The host's name while this device is helping in their kitchen, else null. */
+    helpingAt(): string | null;
+    list(): Promise<CoopListing[]>;
+    join(hostId: string): Promise<string | null>;
+    leave(): Promise<void>;
+  };
   /** The neighborhood: look around, leave the door open, visit a kitchen. Each is its own explicit button. */
   neighborhood?: {
     load(): Promise<NeighborhoodView | { error: string }>;
@@ -136,8 +147,10 @@ export class RestaurantEngine {
     this.incomeReceipts = [...this.incomeReceipts.slice(-11), { id: ++this.incomeSequence, amount, source, guestId, tip, clock: this.state.clock }];
   }
   private changed(message?: string): void { if (message) this.event = message; if (this.catchingUp) return; if (!this.loadWarning) this.save(); this.notify(); }
-  pause(value: boolean): void { if (this.catchingUp) { this.pauseAfterCatchUp = value; return; } this.paused = value; this.accumulator = 0; this.changed(); }
-  setSpeed(value: 1 | 2 | 3): void { if (this.catchingUp) return; this.speed = value; this.paused = false; this.changed(); }
+  /** A hosted service cannot be paused by one side: the other would run on without it. A helper waits for a missing host with holdForHost. */
+  holdForHost(value: boolean): void { this.paused = value; this.accumulator = 0; this.notify(); }
+  pause(value: boolean): void { if (this.coop && value) return; if (this.catchingUp) { this.pauseAfterCatchUp = value; return; } this.paused = value; this.accumulator = 0; this.changed(); }
+  setSpeed(value: 1 | 2 | 3): void { if (this.catchingUp || this.coop) return; this.speed = value; this.paused = false; this.changed(); }
   /** Save once when leaving; subsequent pagehide/unmount events must not move the offline checkpoint. */
   suspend(): void { if (!this.backgrounded) this.save(); this.backgrounded = true; this.accumulator = 0; }
   dismissAway(): void { this.awaySummary = null; this.notify(); }
@@ -302,7 +315,7 @@ export class RestaurantEngine {
       this.state.seed = mixSeed(this.state.seed ^ headline.seed);
       this.state.headline = { id: headline.id, date: headline.date, seed: headline.seed, walkouts: 0, dirtyAtClose: 0, closed: false };
     } else this.state.headline = null;
-    this.state.hands = null;
+    this.state.hands = [];
     Object.assign(this.state, { phase: 'service', renovation: false, elapsed: 0, nextArrival: 1, totals: freshTotals(), guests: [], dirty: [], comps: 0, night: freshNight() });
     this.startChallenges(); this.relocateStaff(); this.paused = false; this.accumulator = 0; this.changed('Doors open. Your team has it from here.'); return null;
   }
@@ -324,64 +337,118 @@ export class RestaurantEngine {
   nextDay(): void { if (this.state.phase === 'report') { this.beginNextDay(); this.changed(); } }
   closeEarly(): void { if (this.remote) { this.event = 'The daily service runs its full length.'; this.notify(); return; } if (this.state.phase === 'service') { this.state.renovation = true; this.state.elapsed = Math.max(DAY_LENGTH, this.state.elapsed); this.changed('Last orders, then renovation. Your team will finish serving before closing.'); } }
   // ---- the pass: what the owner can do while the doors are open ----------------------------------------------------------
+  // ---- hosted service: inputs that arrive stamped with the tick they take effect on ----------------------------------------------
+  /**
+   * Set while this device is part of a hosted service. The pass methods hand their action to it instead of applying it, and it gets
+   * the action back, stamped with a tick a little in the future, through `schedule`, the same on every device.
+   */
+  coop: { submit(action: Action): void } | null = null;
+  /** Whose hands this device's pass controls are: 0 for the owner, 1 for a neighbor helping in a hosted service. */
+  handsBy = 0;
+  /** Called after every step of the simulation. A hosted service uses it to publish and compare checksums. */
+  afterStep: (() => void) | null = null;
+  private scheduled: Action[] = [];
+  private applying = false;
+  /** Queue an action to take effect on its own tick, before that tick's step. Equal ticks keep the order they arrived in. */
+  schedule(action: Action): void { let i = this.scheduled.length; while (i > 0 && this.scheduled[i - 1].tick > action.tick) i--; this.scheduled.splice(i, 0, action); }
+  /** Forget everything queued (a resync starts from a fresh snapshot). */
+  clearScheduled(): void { this.scheduled = []; }
+  private applyScheduled(): void {
+    while (this.scheduled.length && this.scheduled[0].tick <= this.tickCount()) { const a = this.scheduled.shift()!; this.applying = true; try { this.applyService(a); } finally { this.applying = false; } }
+  }
+  /** Apply one service action with the same methods a player's tap uses. Returns the refusal, if any. */
+  applyService(a: Action): string | null {
+    switch (a.kind) {
+      case 'claimTicket': return this.claimTicket(a.guestId, a.by ?? 0);
+      case 'cook': return this.plate(a.guestId, a.by);
+      case 'abandon': return this.abandonCook(a.guestId, a.by);
+      case 'priority': return this.rush(a.guestId);
+      case 'comp': return this.comp(a.guestId);
+      case 'hold': return this.holdPrep(a.guestId, a.by);
+      case 'release': return this.releasePrep(a.guestId, a.by);
+      default: return 'Not a service action.';
+    }
+  }
+  /** In a hosted service a tap becomes a stamped action instead of an immediate change. */
+  private intercept(kind: 'claimTicket' | 'cook' | 'abandon' | 'priority' | 'comp' | 'hold' | 'release', guestId: number, by?: number): boolean {
+    if (!this.coop || this.applying) return false;
+    this.coop.submit({ tick: this.tickCount(), kind, guestId, ...(by ? { by } : {}) } as Action); return true;
+  }
+  /** The ticket this device's own hands are cooking, if any. */
+  myDish(): Guest | undefined { const h = this.state.hands.find(x => x.by === this.handsBy); return h ? this.state.guests.find(g => g.id === h.guestId) : undefined; }
   /** The tick the engine is on: how many 0.1 s steps this service has run. Service actions are stamped with it. */
   tickCount(): number { return Math.round(this.state.elapsed * 10); }
   private stationBusy(id: number): boolean { return this.state.staff.some(w => w.stationId === id && w.role === 'chef' && w.task !== 'idle') || this.state.guests.some(g => g.owner && g.stationId === id); }
   private failCook(guest: Guest, message: string): void {
-    guest.owner = false; guest.cook = 0; guest.stage = 'waiting'; guest.stationId = null; this.state.hands = null; this.event = message; this.changed();
+    guest.owner = false; guest.cook = 0; guest.stage = 'waiting'; guest.stationId = null; this.state.hands = this.state.hands.filter(h => h.guestId !== guest.id); this.event = message; this.changed();
   }
-  /** Take a waiting ticket and cook it yourself. You have one pair of hands: one dish at a time. */
-  claimTicket(guestId: number): string | null {
+  /** The service action to record: the `by` field only appears for a neighbor's hands, so a solo log is exactly as it always was. */
+  private stamp<K extends 'claimTicket' | 'cook' | 'abandon' | 'hold' | 'release'>(kind: K, guestId: number, by: number): Action { return { tick: this.tickCount(), kind, guestId, ...(by > 0 ? { by } : {}) } as Action; }
+  private handsOf(guestId: number): Hands | undefined { return this.state.hands.find(h => h.guestId === guestId); }
+  /** Take a waiting ticket and cook it yourself. Each pair of hands cooks one dish at a time. */
+  claimTicket(guestId: number, by = 0): string | null {
+    if (this.intercept('claimTicket', guestId, by)) return null;
     const s = this.state; if (s.phase !== 'service') return 'The doors are closed.';
     const guest = s.guests.find(g => g.id === guestId); if (!guest || guest.stage !== 'waiting') return 'That ticket is already being cooked.';
-    if (s.guests.some(g => g.owner)) return 'Finish the dish you are cooking first.';
+    if (s.hands.some(h => h.by === by)) return 'Finish the dish you are cooking first.';
     const station = s.furniture.find(f => f.kind === DISHES[guest.dish].station && !this.stationBusy(f.id)); if (!station) return 'Every ' + stationName(DISHES[guest.dish].station) + ' is busy.';
     const cost = dishCost(s, guest.dish); if (s.cash < cost) return 'Not enough cash for ingredients.';
-    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; s.hands = { guestId, holding: false, prep: 0, quality: 0 };
-    this.record({ tick: this.tickCount(), kind: 'claimTicket', guestId }); this.changed(`You are cooking ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
+    guest.stage = 'cooking'; guest.owner = true; guest.cook = 0; guest.stationId = station.id; s.cash -= cost; s.totals.ingredients += cost; s.hands.push({ guestId, by, holding: false, prep: 0, quality: 0 });
+    this.record(this.stamp('claimTicket', guestId, by)); this.changed(`${by ? 'A neighbor is' : 'You are'} cooking ${DISHES[guest.dish].name.toLowerCase()}. Plate it when the bar is green.`); return null;
   }
   private settlePrep(guest: Guest): void {
-    const h = this.state.hands; if (!h || h.guestId !== guest.id) return;
+    const h = this.handsOf(guest.id); if (!h) return;
     h.holding = false; if (h.prep > 0) h.quality = prepQuality(h.prep, guest.dish);
   }
+  /** Whose dish this is, if `by` is given and does not match. */
+  private notYours(h: Hands | undefined, by?: number): boolean { return by !== undefined && !!h && h.by !== by; }
   /** Start prepping the dish in your hands: chopping, trimming, seasoning. It counts for as long as you hold. */
-  holdPrep(guestId: number): string | null {
-    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.state.hands;
-    if (!guest || !h || h.guestId !== guestId) return 'There is nothing in your hands to prepare.';
+  holdPrep(guestId: number, by?: number): string | null {
+    if (this.intercept('hold', guestId, by)) return null;
+    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.handsOf(guestId);
+    if (!guest || !h) return 'There is nothing in your hands to prepare.';
+    if (this.notYours(h, by)) return 'That is not your dish.';
     if (h.holding) return 'You are already preparing it.';
-    h.holding = true; this.record({ tick: this.tickCount(), kind: 'hold', guestId }); this.changed(); return null;
+    h.holding = true; this.record(this.stamp('hold', guestId, h.by)); this.changed(); return null;
   }
   /** Stop prepping. How good it was depends only on how long you held, against the dish's ideal. */
-  releasePrep(guestId: number): string | null {
-    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.state.hands;
-    if (!guest || !h || h.guestId !== guestId || !h.holding) return 'You are not preparing anything.';
-    this.settlePrep(guest); this.record({ tick: this.tickCount(), kind: 'release', guestId });
+  releasePrep(guestId: number, by?: number): string | null {
+    if (this.intercept('release', guestId, by)) return null;
+    const guest = this.state.guests.find(g => g.id === guestId && g.owner), h = this.handsOf(guestId);
+    if (!guest || !h || !h.holding) return 'You are not preparing anything.';
+    if (this.notYours(h, by)) return 'That is not your dish.';
+    this.settlePrep(guest); this.record(this.stamp('release', guestId, h.by));
     this.changed(h.quality === 3 ? 'A clean, even prep.' : h.quality === 2 ? 'A decent prep.' : 'A rough prep. It will cost you at the plate.'); return null;
   }
-  /** Plate the dish you are cooking. How well it went depends only on how long it cooked. */
-  plate(guestId: number): string | null {
+  /** Plate the dish you are cooking. How well it went depends on how long it cooked and how it was prepped. */
+  plate(guestId: number, by?: number): string | null {
+    if (this.intercept('cook', guestId, by)) return null;
     const guest = this.state.guests.find(g => g.id === guestId && g.owner); if (!guest) return 'There is nothing to plate.';
-    const hands = this.state.hands;
-    if (hands?.guestId === guestId && hands.holding) this.settlePrep(guest); // plating lets go of whatever is in your hands
-    const quality = plateQuality(cookQuality(guest.cook / DISHES[guest.dish].seconds), this.state.hands?.guestId === guestId ? this.state.hands.quality as 0 | 1 | 2 | 3 : 0);
-    this.record({ tick: this.tickCount(), kind: 'cook', guestId });
+    const hands = this.handsOf(guestId); if (this.notYours(hands, by)) return 'That is not your dish.';
+    if (hands?.holding) this.settlePrep(guest); // plating lets go of whatever is in your hands
+    const quality = plateQuality(cookQuality(guest.cook / DISHES[guest.dish].seconds), (hands?.quality ?? 0) as 0 | 1 | 2 | 3);
+    this.record(this.stamp('cook', guestId, hands?.by ?? 0));
     if (quality === 0) { this.failCook(guest, guest.cook < DISHES[guest.dish].seconds * .6 ? 'Too early: the dish is still raw. The ingredients are lost.' : 'Too late: the dish burnt. The ingredients are lost.'); return null; }
-    guest.owner = false; guest.cook = 0; guest.quality = quality; guest.stage = 'ready'; this.state.hands = null;
+    guest.owner = false; guest.cook = 0; guest.quality = quality; guest.stage = 'ready'; this.state.hands = this.state.hands.filter(h => h.guestId !== guestId);
     this.changed(quality === 3 ? 'Perfect plate! The guest will tip more.' : quality === 2 ? 'Slightly over, but it goes out.' : 'Plated. A little early, but it goes out.'); return null;
   }
   /** Walk away from the dish. The ingredients are spent and the ticket goes back to the line. */
-  abandonCook(guestId: number): string | null {
+  abandonCook(guestId: number, by?: number): string | null {
+    if (this.intercept('abandon', guestId, by)) return null;
     const guest = this.state.guests.find(g => g.id === guestId && g.owner); if (!guest) return 'There is nothing to put down.';
-    this.record({ tick: this.tickCount(), kind: 'abandon', guestId }); this.failCook(guest, 'You put the dish down. The ingredients are lost.'); return null;
+    const h = this.handsOf(guestId); if (this.notYours(h, by)) return 'That is not your dish.';
+    this.record(this.stamp('abandon', guestId, h?.by ?? 0)); this.failCook(guest, 'The dish was put down. The ingredients are lost.'); return null;
   }
   /** Move a waiting ticket to the front of the line: the next free chef takes it first. */
   rush(guestId: number): string | null {
+    if (this.intercept('priority', guestId)) return null;
     const guest = this.state.guests.find(g => g.id === guestId); if (this.state.phase !== 'service' || !guest || guest.stage !== 'waiting') return 'Only a ticket that is still waiting can be rushed.';
     if (guest.priority) return 'That ticket is already first in line.';
     guest.priority = true; this.record({ tick: this.tickCount(), kind: 'priority', guestId }); this.changed('Rushed to the front of the line.'); return null;
   }
   /** Comp a table: the meal is free, the guest stays happy and their patience starts over. Two a night. */
   comp(guestId: number): string | null {
+    if (this.intercept('comp', guestId)) return null;
     const s = this.state, guest = s.guests.find(g => g.id === guestId);
     if (s.phase !== 'service' || !guest || !['waiting', 'cooking', 'ready', 'delivering'].includes(guest.stage)) return 'Only a guest still waiting for food can be comped.';
     if (guest.price === 0) return 'That table is already on the house.';
@@ -454,7 +521,7 @@ export class RestaurantEngine {
   private leave(guest: Guest, happy: boolean): void {
     const table = this.state.furniture.find(f => f.id === guest.tableId); if (!table) return;
     const access = accessPoints(table)[guest.seat];
-    guest.owner = false; guest.cook = 0; guest.stage = 'leaving'; guest.happy = happy; guest.timer = Math.max(0, guest.timer);
+    guest.owner = false; guest.cook = 0; guest.stage = 'leaving'; guest.happy = happy; guest.timer = Math.max(0, guest.timer); this.state.hands = this.state.hands.filter(h => h.guestId !== guest.id);
     guest.route = [access, ...(this.route(access, entrance) ?? []), { x: entrance.x, z: entrance.z + 1 }];
     if (!happy) {
       this.state.totals.missed++; this.event = 'A guest waited too long. Another chef or server could help.';
@@ -493,6 +560,7 @@ export class RestaurantEngine {
     }
   }
   private step(dt: number): void {
+    this.applyScheduled();
     const s = this.state; s.clock += dt; s.elapsed += dt;
     const fx = this.fx;
     if (s.elapsed < DAY_LENGTH && s.elapsed >= s.nextArrival) { this.arrive(); s.nextArrival = s.elapsed + (Math.max(5.5 + Math.min(0, fx.gapDelta), 9.5 - s.reputation * .6 - Math.min(s.day, 10) * .12 - Math.min(COMFORT_GAP_MAX, Math.max(0, comfort(s) - 20) * COMFORT_GAP) + fx.gapDelta) + this.random() * 2) * (1 - discountLift(s)); }
@@ -508,7 +576,7 @@ export class RestaurantEngine {
         if (guest.timer <= 0) { s.dirty.push(seatKey(guest)); this.leave(guest, true); }
       } else if (['waiting', 'cooking', 'ready', 'delivering'].includes(guest.stage)) {
         guest.waiting += dt;
-        if (guest.owner) { if (this.state.hands?.holding && this.state.hands.guestId === guest.id) this.state.hands.prep += dt; guest.cook += dt; if (guest.cook > DISHES[guest.dish].seconds * COOK_BURN) { this.failCook(guest, 'The dish burnt while you were away from it.'); continue; } }
+        if (guest.owner) { const hands = this.handsOf(guest.id); if (hands?.holding) hands.prep += dt; guest.cook += dt; if (guest.cook > DISHES[guest.dish].seconds * COOK_BURN) { this.failCook(guest, 'The dish burnt while you were away from it.'); continue; } }
         if (guest.waiting > guestPatienceSeconds(s)) this.leave(guest, false);
       }
     }
@@ -550,6 +618,7 @@ export class RestaurantEngine {
       }
     }
     if (s.elapsed >= DAY_LENGTH && (s.guests.length === 0 && s.dirty.length === 0 || s.elapsed >= DAY_LENGTH + 90)) this.finish();
+    this.afterStep?.();
   }
   private finish(): void {
     const s = this.state;

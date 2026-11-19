@@ -30,9 +30,9 @@ describe('the numbers', () => {
 describe('prepping by hand', () => {
   it('counts only while the button is held, and a clean hold followed by a good plate is a perfect dish', () => {
     const { e, ticket } = live(), g = ticket(); expect(e.claimTicket(g.id)).toBeNull(); const dish = DISHES[g.dish], ideal = idealPrep(g.dish);
-    expect(e.holdPrep(g.id)).toBeNull(); run(e, ideal); expect(e.releasePrep(g.id)).toBeNull(); expect(e.state.hands).toMatchObject({ guestId: g.id, holding: false, quality: 3 });
-    const prep = e.state.hands!.prep; run(e, 1); expect(e.state.hands!.prep).toBe(prep); // time passing without a hold adds nothing
-    run(e, dish.seconds - ideal - 1 + .1); expect(e.plate(g.id)).toBeNull(); expect(e.state.guests.find(x => x.id === g.id)!.quality).toBe(3); expect(e.state.hands).toBeNull();
+    expect(e.holdPrep(g.id)).toBeNull(); run(e, ideal); expect(e.releasePrep(g.id)).toBeNull(); expect(e.state.hands[0]).toMatchObject({ guestId: g.id, holding: false, quality: 3 });
+    const prep = e.state.hands[0].prep; run(e, 1); expect(e.state.hands[0].prep).toBe(prep); // time passing without a hold adds nothing
+    run(e, dish.seconds - ideal - 1 + .1); expect(e.plate(g.id)).toBeNull(); expect(e.state.guests.find(x => x.id === g.id)!.quality).toBe(3); expect(e.state.hands).toEqual([]);
   });
   it('a messy prep costs the perfect plate, and a clean one saves a slightly late plate', () => {
     const a = live(), ga = a.ticket(); a.e.claimTicket(ga.id); a.e.holdPrep(ga.id); run(a.e, 0.5); a.e.releasePrep(ga.id); run(a.e, DISHES[ga.dish].seconds - .5 + .1);
@@ -42,19 +42,19 @@ describe('prepping by hand', () => {
   });
   it('plating lets go of a button still held, and counts it', () => {
     const { e, ticket } = live(), g = ticket(); e.claimTicket(g.id); e.holdPrep(g.id); run(e, DISHES[g.dish].seconds + .1); expect(e.plate(g.id)).toBeNull();
-    expect(e.state.guests.find(x => x.id === g.id)!.quality).toBeGreaterThan(0); expect(e.state.hands).toBeNull();
+    expect(e.state.guests.find(x => x.id === g.id)!.quality).toBeGreaterThan(0); expect(e.state.hands).toEqual([]);
   });
   it('refuses prep with nothing in your hands, a second hold, a release without a hold, and another dish', () => {
     const { e, ticket } = live(), g = ticket(); expect(e.holdPrep(g.id)).toBe('There is nothing in your hands to prepare.'); expect(e.releasePrep(g.id)).toBe('You are not preparing anything.');
     e.claimTicket(g.id); expect(e.releasePrep(g.id)).toBe('You are not preparing anything.'); e.holdPrep(g.id); expect(e.holdPrep(g.id)).toBe('You are already preparing it.'); expect(e.holdPrep(g.id + 99)).toBe('There is nothing in your hands to prepare.');
   });
   it('clears the hands when a dish is put down or burns, and when the next night opens', () => {
-    const { e, ticket } = live(), g = ticket(); e.claimTicket(g.id); e.holdPrep(g.id); e.abandonCook(g.id); expect(e.state.hands).toBeNull();
-    e.claimTicket(g.id); e.holdPrep(g.id); run(e, DISHES[g.dish].seconds * 2.2); expect(e.state.hands).toBeNull();
+    const { e, ticket } = live(), g = ticket(); e.claimTicket(g.id); e.holdPrep(g.id); e.abandonCook(g.id); expect(e.state.hands).toEqual([]);
+    e.claimTicket(g.id); e.holdPrep(g.id); run(e, DISHES[g.dish].seconds * 2.2); expect(e.state.hands).toEqual([]);
   });
   it('stays valid in a save, and a save from before prep loads with empty hands', () => {
     const { e, ticket } = live(), g = ticket(); e.claimTicket(g.id); e.holdPrep(g.id); run(e, 1); expect(restaurantSchema.safeParse(JSON.parse(JSON.stringify(e.state))).success).toBe(true);
-    const old = JSON.parse(JSON.stringify(createRestaurant())); delete old.hands; expect(restaurantSchema.parse(old).hands).toBeNull();
+    const old = JSON.parse(JSON.stringify(createRestaurant())); delete old.hands; expect(restaurantSchema.parse(old).hands).toEqual([]);
   });
 });
 

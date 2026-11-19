@@ -3,7 +3,8 @@ import { redditJourneys } from './journeys.reddit';
 import { connectArcade } from './arcade-sync';
 import { startPresence } from './presence';
 import { listenForVisits } from './visits-live';
-import { connectRealtime, context } from '@devvit/web/client';
+import { connectRealtime, context, disconnectRealtime } from '@devvit/web/client';
+import { coopControls } from './coop-controls';
 import { houseDish } from '../management/social';
 import { Session, type Http } from './session';
 
@@ -41,6 +42,8 @@ async function boot(): Promise<void> {
     window.addEventListener('pagehide', () => { void session.flush(); void arcade.flush(); });
     // The dish a visiting neighbor would order: the most expensive one on this menu.
     startPresence(http, () => houseDish(restaurant.state));
+    // Hosted service: invite a neighbor to help at the pass, or help in theirs.
+    restaurant.remote!.coop = coopControls(restaurant, http, session, options => connectRealtime(options), channel => disconnectRealtime(channel), text => { void import('sonner').then(({ toast }) => toast(text)); });
     // A live heads-up when a neighbor stops by. The toast library loads only if one arrives.
     listenForVisits(options => connectRealtime(options), context.userId, line => { void import('sonner').then(({ toast }) => toast(line)); });
     await import('../main');

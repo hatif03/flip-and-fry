@@ -10,7 +10,7 @@ import { DAY_LENGTH, DISH_IDS, OUTFIT_IDS, PRICE_MAX, PRICE_MIN, furnitureKind }
 export const MAX_SERVICE_TICKS = Math.round((DAY_LENGTH + 90) * 10) + 20;
 const planning = { tick: z.literal(0) };
 /** Service actions are stamped with the tick they happen on: how many 0.1 s steps the service had run. */
-const service = { tick: z.number().int().min(1).max(MAX_SERVICE_TICKS) };
+const service = { tick: z.number().int().min(1).max(MAX_SERVICE_TICKS), /** Whose hands, in a hosted service: 0 (the owner, the default) or 1 (a neighbor helping). */ by: z.number().int().min(0).max(1).optional() };
 /** The restaurant name is the only free text in the game: letters, numbers, spaces and apostrophes, 28 characters. */
 export const restaurantName = z.string().min(1).max(28).regex(/^[\p{L}\p{N} ']+$/u);
 export const actionSchema = z.discriminatedUnion('kind', [

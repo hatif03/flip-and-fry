@@ -4,6 +4,25 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Hosted service: a neighbor helps at your pass (lockstep over realtime)
+
+**The author's question:** can two phones be provided, or can I configure it myself? Everything that can be proven without phones is built and tested here with two simulated devices, a pretend network and the real server rules; what remains for real hardware is the latency feel and Reddit's realtime delivery (see the checklist). To try it for real you need **two Reddit accounts**, for example the owner account on a phone and a second account on a laptop or another phone, both in the demo subreddit.
+
+**Design (plan section 12, built as written).** Each device runs the same deterministic engine; only actions cross the wire.
+1. **Two pairs of hands.** The pass used to allow one dish at a time. State now holds `hands` (a list of up to two), each with `by` 0 (the owner) or 1 (a neighbor), and the pass actions carry an optional `by`. A solo log is unchanged (no `by` field), so every calibrated night, bot and golden receipt is as before. Each person cooks one dish at a time, cannot touch the other's dish, and a forged action for hands that are not there is ignored by the replay.
+2. **Stamped inputs** (`src/management/coop.ts`, transport-free). In a hosted service a tap becomes an action that the **host** stamps 15 ticks (1.5 s) ahead of its own clock and announces; every device applies it on that tick, before that tick's step. The helper's tap goes to the host first. The host's own taps take the same path, so the host sees the same 1.5 s delay while sharing a night. The host's log of stamped actions is exactly what the server replays at the lock, helper actions included.
+3. **Staying in step.** Every 5 seconds the host publishes a checksum of its state; the helper compares it with its own at that tick. A mismatch (a message that arrived too late) makes the helper start over from a fresh snapshot and the committed log, and say so. A helper that joins late takes the opening snapshot, the committed log and the host's last tick, then runs on to the present at the next checksum.
+4. **The server relays and checks, and simulates nothing** (`src/server/core/coop.ts`). It keeps the opening snapshot and the committed actions for late joiners, allows **one helper a night**, accepts a helper's request only from that helper and only if it is a pass action (never a planning change), drops any tick the helper claims (the host decides), accepts commits and checksums only from the host, caps the log at 140 actions, rate limits everything, and treats a host silent for 60 seconds as gone. Realtime channel `coop_<hostId>` (no colon, as required); messages are a few per minute.
+5. **Pause and speed are locked** while hosted, because one side pausing would let the other run on without it. A helper waits ("The host is away") if no checksum arrives for 20 seconds.
+
+**Screens.** Ledger, "Cook together": a switch to invite a neighbor (takes effect when you open the doors), and the kitchens open for help with a **Help** button. While helping, a banner says so and has **Leave**; the restaurant on screen is the host's and none of it is saved or locked as the helper's (`Session.beginGuest`), and Leave reloads their own park.
+
+**Tested:** the lockstep core with two engines and a pretend network (latency, lag, out-of-order messages, a deliberately late message caught by the checksum, late joining), the server rules (who may say what), and a whole hosted night end to end through the real server: both people cook, and the server's lock of the host's log gives the host's hash. 40-odd new tests; the cross-engine hash test still passes.
+
+**Honest limits:** a helper whose connection is slower than about a second behind the host will drift and resync; nothing here measures real realtime latency (spike S7). The helper's score does not count (they get no stars); only the host's night is locked. There is one helper, not two.
+
+**Code:** `src/management/{coop,CoopPanel,engine,types,actions,replay,Pass}`, `src/server/core/coop.ts`, `src/server/routes/api.ts`, `src/client/{coop,coop-controls,session,game}`; tests `coop.test.ts`, `coop-hands.test.ts`, `coop-server.test.ts`, `coop-client.test.ts`, `coop-panel.browser.test.tsx`.
+
 ## 2026-11-19 — Hands-on cooking inside the night: prep by hand (the author's approval used, and not needed)
 
 **The author's question:** "I can approve whatever is needed, just tell me how to." The hands-on kitchen inside the night would normally mean letting the browser report a result ("I cooked it perfectly") and having the server accept it within bounds. That is the trade the author offered to approve.

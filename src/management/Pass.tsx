@@ -22,7 +22,7 @@ const tell = (error: string | null) => { if (error) toast.error(error); };
 export function Pass() {
   const s = restaurant.state;
   if (!restaurant.remote || s.phase !== 'service') return null;
-  const cooking = s.guests.find(g => g.owner), line = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting).slice(0, 3);
+  const cooking = restaurant.myDish(), line = s.guests.filter(g => g.stage === 'waiting').sort((a, b) => b.waiting - a.waiting).slice(0, 3);
   return <section aria-label="The pass" className="mx-auto mb-2 max-w-[1100px] space-y-2 rounded-2xl border border-paper/80 bg-paper/95 p-2 shadow-[0_4px_0_#73513d30]">
     <ChallengePips />
     {cooking ? <CookCard guest={cooking} /> : line.length ? <Tickets guests={line} /> : <p className="px-2 py-1 text-xs text-ink/65">No ticket is waiting. Your team has it. Stay close: when a chef is busy, a ticket will appear here.</p>}
@@ -65,9 +65,9 @@ function Tickets({ guests }: { guests: Guest[] }) {
  */
 const PREP_TEXT = ['', 'A rough prep: it will cost you at the plate', 'A decent prep', 'A clean, even prep'] as const;
 function Prep({ guest }: { guest: Guest }) {
-  const hands = restaurant.state.hands, mine = hands?.guestId === guest.id ? hands : null, ideal = idealPrep(guest.dish), span = ideal * 1.6;
+  const mine = restaurant.state.hands.find(h => h.guestId === guest.id) ?? null, ideal = idealPrep(guest.dish), span = ideal * 1.6;
   const held = mine?.prep ?? 0, holding = mine?.holding ?? false, quality = mine?.quality ?? 0;
-  const start = (): void => { tell(restaurant.holdPrep(guest.id)); }, stop = (): void => { if (restaurant.state.hands?.holding) tell(restaurant.releasePrep(guest.id)); };
+  const start = (): void => { tell(restaurant.holdPrep(guest.id)); }, stop = (): void => { if (restaurant.state.hands.find(h => h.guestId === guest.id)?.holding) tell(restaurant.releasePrep(guest.id)); };
   return <div className="mt-2">
     <div role="progressbar" aria-label="Prep" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, held / span) * 100)} aria-valuetext={holding ? 'Preparing' : quality ? PREP_TEXT[quality] : 'Not started'} className="relative h-3 rounded-full bg-ink/10">
       <div className="absolute inset-y-0 rounded-full bg-teal/30" style={{ left: `${.8 * ideal / span * 100}%`, width: `${.4 * ideal / span * 100}%` }} aria-hidden />
