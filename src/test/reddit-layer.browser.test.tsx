@@ -51,25 +51,25 @@ it('tells the player the goal and what to do before opening', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />), bar = screen.getByRole('complementary', { name: 'Today' });
   await expect.element(bar).toHaveTextContent('Goal: Finish with a rating of 4.0 or better');
-  await expect.element(bar).toHaveTextContent('Set up first: build tables and decor, hire a team, set prices. Then tap Open');
+  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('Tap Open to run your first night.');
 });
 
-it('says what is happening while the doors are open', async () => {
+it('shows the pass, not a paragraph, while the doors are open', async () => {
   restaurant.remote = remote(null); restaurant.open();
   const screen = await render(<ManagementGame />);
-  await expect.element(screen.getByRole('complementary', { name: 'Today' })).toHaveTextContent('Your team is cooking, serving and cleaning');
+  await expect.element(screen.getByRole('region', { name: 'The pass' })).toBeVisible();
 });
 
 it('explains that only the best night of the day counts once a result is saved', async () => {
   const saved = lock(2); restaurant.remote = remote(null, { report: saved.report, stars: saved.stars, hash: saved.hash, headline: 'rain', submittedAt: 0, username: 'a', night: NIGHT, name: 'Little Rooftop', style: 'Garden & Grill' });
   const screen = await render(<ManagementGame />);
-  await expect.element(screen.getByRole('complementary', { name: 'Today' })).toHaveTextContent('only your best night of the day counts');
+  await expect.element(screen.getByRole('status', { name: 'Hint' })).toHaveTextContent('Only your best night of the day counts');
 });
 
 it('never covers the cash and reputation stats on a narrow phone', async () => {
   restaurant.remote = remote(null);
   const screen = await render(<ManagementGame />);
-  const bar = (await screen.getByRole('complementary', { name: 'Today' }).element()).getBoundingClientRect(), stats = (await screen.getByText('Reputation').element()).getBoundingClientRect();
+  const bar = (await screen.getByRole('complementary', { name: 'Today' }).element()).getBoundingClientRect(), stats = (await screen.getByTestId('cash').element()).getBoundingClientRect();
   expect(bar.top).toBeGreaterThanOrEqual(stats.bottom); expect(bar.left).toBeGreaterThanOrEqual(0); expect(bar.right).toBeLessThanOrEqual(360);
 });
 

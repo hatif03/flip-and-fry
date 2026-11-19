@@ -97,7 +97,7 @@ describe('the pass panel', () => {
 
   it('never overlaps the daily bar with the camera buttons, and stays inside the phone screen', async () => {
     openKitchen(); const screen = await render(<><ManagementGame /><Toaster /></>);
-    const bar = (await screen.getByRole('complementary', { name: 'Today' }).element()).getBoundingClientRect(), zoom = (await screen.getByRole('button', { name: 'Zoom in' }).element()).getBoundingClientRect();
+    const bar = (await screen.getByRole('complementary', { name: 'Today' }).element()).getBoundingClientRect(), zoom = (await screen.getByRole('button', { name: 'Camera controls' }).element()).getBoundingClientRect();
     expect(zoom.top >= bar.bottom || zoom.bottom <= bar.top || zoom.left >= bar.right || zoom.right <= bar.left).toBe(true);
     const pass = (await screen.getByRole('region', { name: 'The pass' }).element()).getBoundingClientRect();
     expect(pass.left).toBeGreaterThanOrEqual(0); expect(pass.right).toBeLessThanOrEqual(360); expect(pass.bottom).toBeLessThanOrEqual(760);

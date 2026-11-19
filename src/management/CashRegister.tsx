@@ -43,9 +43,9 @@ export const CashRegister = memo(function CashRegister({ engine = restaurant }: 
     frame = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(frame); document.removeEventListener('visibilitychange', visibility); };
   }, [view.notice, engine, reduced]);
-  return <div className="pointer-events-none relative flex items-center gap-1.5 sm:gap-2" data-testid="cash-register">
+  return <div className={cn('pointer-events-none relative flex items-center gap-1.5 sm:gap-2', view.notice && 'max-sm:min-w-[112px]')} data-testid="cash-register">
     <span key={`bill-${view.notice?.id ?? 'idle'}`} className={cn('inline-flex', view.notice && 'animate-cash-pulse motion-reduce:animate-none', frozen && '[animation-play-state:paused]')}><DollarBill /></span>
-    <div><p className={cn('text-[9px] font-extrabold uppercase tracking-wider text-ink/50', view.notice && 'invisible sm:visible')}>Cash</p><p className={cn('whitespace-nowrap font-display text-xl tabular-nums', view.notice && 'text-teal')} data-testid="cash" aria-label={`Cash ${money(cash)}`}><span aria-hidden="true">{money(view.displayed)}</span></p></div>
+    <div><p className={cn('hidden text-[9px] font-extrabold uppercase tracking-wider text-ink/50 sm:block', view.notice && 'invisible sm:visible')}>Cash</p><p className={cn('whitespace-nowrap font-display text-base tabular-nums sm:text-xl', view.notice && 'text-teal')} data-testid="cash" aria-label={`Cash ${money(cash)}`}><span aria-hidden="true">{money(view.displayed)}</span></p></div>
     {view.notice && <div key={`income-${view.notice.id}`} data-testid="cash-income" aria-hidden="true" className={cn('absolute left-[34px] top-0 flex w-max max-w-[145px] flex-row-reverse items-center gap-1 rounded bg-teal px-1 text-paper sm:left-1/2 sm:top-full sm:mt-3 sm:-translate-x-1/2 sm:flex-col sm:gap-0 sm:rounded-xl sm:border-2 sm:border-paper sm:px-3 sm:py-1.5 sm:shadow-md sm:motion-safe:animate-cash-arrive', frozen && '[animation-play-state:paused]')}>
       <span className="absolute -top-1.5 hidden size-2 rotate-45 sm:block border-l-2 border-t-2 border-paper bg-teal" />
       <span className="font-body text-[9px] font-extrabold leading-[12px] tabular-nums text-gold sm:font-display sm:text-xl sm:font-normal sm:leading-none">+{money(view.notice.amount)}</span>

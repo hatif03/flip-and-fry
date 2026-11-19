@@ -4,6 +4,28 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-20 — Plan v2, phase A: a screen that reads as a game
+
+**Why:** the author's phone and desktop screenshots showed a header card, a banner with a paragraph of instructions, a welcome card, five camera buttons, a status line, a challenges card and a two-row dock all on one 360 px screen ("so cluttered", "not a game, a SaaS app").
+
+**What changed (`ManagementGame.tsx`, `RedditLayer.tsx`, `BusinessUpdates.tsx`, `CashRegister.tsx`):**
+- The header is one row on every width: name, day, cash, reputation, settings. Captions and the clock only appear from the `sm` breakpoint up.
+- The daily bar is two lines (neighborhood and date, headline, streak; the goal). The coach paragraph is gone; `hintLine` gives one short sentence at the bottom, only while planning ("Tap Open to run your first night."), and the pass explains service itself.
+- The welcome card is gone. The milestone card stays on wide screens only.
+- Camera: one button on a phone that opens zoom, rotate, reset and neighborhood; the full column on wider screens.
+- The dock is one row on a phone (four icon tabs and a large Open button). The Test Kitchen moved into the Ledger panel on a phone and stays beside Open on wider screens.
+- The weather and event text in the status line are wide-screen only; "Saved on Reddit" stays.
+- Toasts are lifted above the dock (`offset` and `mobileOffset` in the Toaster).
+- Panels, the placement bar and the scene use new offsets for the one-row dock; a wrapped dock (the plain browser game during service) pushes panels up.
+
+**Kept:** every accessible name the tests use ("Open restaurant" is now an `aria-label` over the visible word "Open").
+
+**Refused:** rewriting every panel's insides in this phase (the Build and Menu panels keep their contents; the sheet container comes first), a new component library.
+
+**Tests:** 230 browser tests and 960 unit tests pass; six browser tests were updated for the new structure (camera toggle, the hint line instead of the coach paragraph, the Test Kitchen reached through the Ledger on a phone, the cash register as the stats anchor).
+
+**Code or plan:** `docs/plan-v2.md` phase A; `tools/look-shot.mjs` takes the screenshots.
+
 ## 2026-11-19 — Scene pixel size is always 1; plan v2 written
 
 **Why:** the author's desktop and phone screenshots showed the scene drawn in 3-pixel blocks ("too pixelated"), a crowded interface that did not read as a game, and no visible stakes. They asked for a fix (or a return to the non-pixel view if it could not be fixed) and for a new plan covering onboarding, visual craft, daily content, focus, end states, Journeys and the retention and engagement metrics.

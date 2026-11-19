@@ -53,7 +53,7 @@ it('ignores the global pause shortcut while recovering offline progress', async 
 });
 it('offers all city districts on a narrow phone without overflowing the page', async () => {
   await page.viewport(320, 740); const screen = await render(<ManagementGame />);
-  await screen.getByRole('button', { name: 'Neighborhood view' }).click();
+  await screen.getByRole('button', { name: 'Camera controls' }).click(); await screen.getByRole('button', { name: 'Neighborhood view' }).click();
   for (const name of ['Whole city', 'Rooftop', 'Market', 'Gardens']) { await screen.getByRole('button', { name, exact: true }).click(); await expect.element(screen.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'true'); }
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
   await screen.getByRole('button', { name: 'Reset view' }).click();

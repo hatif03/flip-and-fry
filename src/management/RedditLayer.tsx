@@ -21,20 +21,25 @@ export function coachLine(phase: 'planning' | 'service' | 'report', hasResultTod
   return 'Set up first: build tables and decor, hire a team, set prices. Then tap Open to run tonight’s service.';
 }
 
-/** Today's date, headline, goal and next step. It sits in the header's flow so it can never cover the stats on a narrow phone. */
+/** One short line for the first nights, shown at the bottom of the screen. The pass explains service itself, so it says nothing then. */
+export function hintLine(phase: 'planning' | 'service' | 'report', firstNight: boolean, hasResultToday: boolean): string | null {
+  if (phase !== 'planning') return null;
+  if (hasResultToday) return 'Your result is saved. Only your best night of the day counts.';
+  return firstNight ? 'Tap Open to run your first night.' : 'Spend your cash, then tap Open.';
+}
+
+/** Today's date, headline and goal, in two short lines. It sits in the header's flow so it can never cover the stats on a narrow phone. */
 export function DailyBar() {
   const remote = restaurant.remote;
   if (!remote?.today) return null;
   const { today, result } = remote, streak = result?.streak ?? today.streak, goal = STAR_GOALS[today.headline.id].text;
-  const hasResult = Boolean(today.run || result);
-  return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-2 max-w-[1600px] rounded-2xl border border-paper/70 bg-teal/95 px-4 py-2 text-paper shadow-[0_3px_0_#0e2a2766]">
-    <div className="flex items-center gap-x-3">
-      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
+  return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-1.5 max-w-[1600px] rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] sm:mt-2 sm:rounded-2xl sm:px-4">
+    <div className="flex items-center gap-x-2">
+      <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
       <span className="min-w-0 flex-1 truncate font-display text-sm leading-tight">{today.headline.title}</span>
       <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold" title="Days in a row with at least one star"><Flame size={14} className={cn(streak > 0 ? 'text-gold' : 'text-paper/40')} />{streak}</span>
     </div>
-    <p className="mt-0.5 flex items-start gap-1.5 text-xs leading-snug text-paper/90"><Star size={13} className="mt-px shrink-0 fill-gold text-gold" aria-hidden /><span><b>Goal:</b> {goal}</span></p>
-    <p className="mt-0.5 text-[11px] leading-snug text-paper/70">{coachLine(restaurant.state.phase, hasResult)}</p>
+    <p className="mt-0.5 flex items-center gap-1.5 text-xs leading-snug text-paper/90"><Star size={12} className="shrink-0 fill-gold text-gold" aria-hidden /><span className="truncate"><b>Goal:</b> {goal}</span></p>
   </aside>;
 }
 
