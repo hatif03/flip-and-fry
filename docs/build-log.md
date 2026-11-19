@@ -4,6 +4,16 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-19 — Repository renamed to flip-and-fry; listing text no longer leads with Reddit
+
+**Why:** the author asked that the GitHub repository carry the same name as the game and the app (`too-many-cooks` was taken on Reddit, see the earlier entry), and that the store description sell the game itself, not the platform it happens to run on.
+
+**What:** the GitHub repository is now `hatif03/flip-and-fry` (GitHub redirects the old address; the local folder and the `pre-devvit` tag are unchanged, and the local `origin` points at the new address). The listing description in `docs/listing.md` no longer says "in a Reddit post", and the policy pages link to the new address and name the author's Reddit account for contact. The privacy policy still says Reddit where it is describing where data lives, because that is true.
+
+**Refused:** rewriting history entries that mention the old name; they record what was true then. No new Devvit permission.
+
+**Code or plan:** `docs/listing.md`, `docs/privacy.md`, `docs/terms.md`.
+
 ## 2026-11-19 — Listing for the developer portal, privacy and terms, provenance answered
 
 **Why:** the author sent the developer-portal screens (Developer Settings, In-app catalog) and asked exactly what to do while staying unpublished, as the organisers prefer. Filling the listing fields does not publish the app; they were blank.

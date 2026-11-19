@@ -9,4 +9,4 @@ Last updated 19 November 2026. By playing Flip and Fry you agree to these terms 
 5. **Availability.** The game is provided as is, with no promise it will always be available or that saved progress will never be lost. Moderators of a subreddit may remove it at any time.
 6. **Code and art.** The game's code is MIT licensed (see the repository). Some art and audio are credited separately in `docs/assets-provenance.md`.
 7. **Privacy.** See the [privacy policy](privacy.md).
-8. **Changes and contact.** These terms may change; the date above shows the latest version. Contact: u/hatif03 on Reddit, or an issue at https://github.com/hatif03/too-many-cooks.
+8. **Changes and contact.** These terms may change; the date above shows the latest version. Contact: u/ho1505 on Reddit, or an issue at https://github.com/hatif03/flip-and-fry.

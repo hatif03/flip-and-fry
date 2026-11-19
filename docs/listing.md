@@ -5,9 +5,9 @@ For the Reddit developer portal (Developer Settings, Directory listing and In-ap
 | Field | Value |
 |---|---|
 | Display name | `Flip and Fry` |
-| Description (15 to 200 characters) | `A rooftop restaurant tycoon in a Reddit post. A new headline every night, a crew of animals, and neighbors who drop by. One verified service a day.` (147) |
-| Terms and conditions URL | `https://github.com/hatif03/too-many-cooks/blob/master/docs/terms.md` |
-| Privacy policy URL | `https://github.com/hatif03/too-many-cooks/blob/master/docs/privacy.md` |
+| Description (15 to 200 characters) | `A rooftop restaurant tycoon. A new headline every night, a crew of animals, and neighbors who drop by. One verified service a day.` (130) |
+| Terms and conditions URL | `https://github.com/hatif03/flip-and-fry/blob/master/docs/terms.md` |
+| Privacy policy URL | `https://github.com/hatif03/flip-and-fry/blob/master/docs/privacy.md` |
 | NSFW | Off |
 | App category | Games (or the nearest "Games" option the list offers) |
 | Promotional icon | [`listing/icon-1024.png`](listing/icon-1024.png) (1024 by 1024, 6 KB) |

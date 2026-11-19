@@ -27,6 +27,6 @@ No advertising, no analytics beyond Devvit's own, no selling or sharing of data,
 
 ## Your choices
 
-Switch your door or reminders off in the game at any time. To have your data deleted, message the author through Reddit (u/hatif03) or open an issue at https://github.com/hatif03/too-many-cooks and say which Reddit username to remove.
+Switch your door or reminders off in the game at any time. To have your data deleted, message the author through Reddit (u/ho1505) or open an issue at https://github.com/hatif03/flip-and-fry and say which Reddit username to remove.
 
 Reddit's own privacy policy applies to everything you do on Reddit, including this game.
