@@ -10,6 +10,7 @@ import type { Action } from './actions';
 import type { CoopListing } from './coop';
 import type { NeighborhoodView, VisitResult } from './social';
 import type { BoardView, LockResponse, TodayResponse, TourId, WorldView } from '../shared/api';
+import { nightRating } from './rating';
 
 export const GOALS = [
   { id: 'first-service', title: 'A warm welcome', text: 'Serve your first 5 guests', target: 5, reward: 180, value: (s: RestaurantState) => s.lifetimeServed },
@@ -375,7 +376,8 @@ export class RestaurantEngine {
   coop: { submit(action: Action): void } | null = null;
   /** Whose hands this device's pass controls are: 0 for the owner, 1 for a neighbor helping in a hosted service. */
   /** A panel the next screen should open on (set when a result card is closed). The game screen takes it and clears it. */
-  nextPanel: 'build' | null = null;
+  /** A panel another screen asks the main screen to open (the result card, a tip): taken once, while planning. */
+  nextPanel: 'build' | 'menu' | 'team' | 'goals' | null = null;
   handsBy = 0;
   /** What this device's own hands did tonight. Memory only, not part of the saved state or the replay: it feeds the result card. */
   cooked: { plated: number; perfect: number; tookOver: number } = { plated: 0, perfect: 0, tookOver: 0 };
@@ -851,8 +853,7 @@ export class RestaurantEngine {
     const research = s.research.budget > 0 && s.cash - (wages + rent + debtPayment) >= s.research.budget ? s.research.budget : 0; s.research.points += research;
     const owed = s.debt; s.cash -= wages + rent + debtPayment + research; s.debt -= debtPayment; if (owed > 0 && s.debt === 0) s.streaks.loanCleared = 1;
     const fx = this.fx, h = s.headline;
-    let rating = Math.max(1, Math.min(5, 3 + (s.totals.served / Math.max(1, s.totals.served + s.totals.missed)) * 1.5 + comfort(s) * .005 - s.totals.missed * .06 - (h ? h.dirtyAtClose * fx.dirtyPenalty : 0)));
-    if (fx.criticCap && h && h.walkouts > 0) rating = Math.min(rating, 2);
+    const rating = nightRating(s, fx, h ? h.dirtyAtClose : 0, h ? h.walkouts : 0);
     s.reputation = Math.round((s.reputation * .65 + rating * .35) * 100) / 100;
     const value = companyValue(s); if (value > s.best.value) s.best = { value, day: s.day };
     const profit = s.totals.revenue + s.totals.tips - s.totals.ingredients - wages - rent - debtPayment - research;

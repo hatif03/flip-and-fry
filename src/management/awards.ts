@@ -60,3 +60,19 @@ export function cardThought(card: KitchenCard): string {
   const worst = (Object.entries(card) as Array<[keyof KitchenCard, number]>).sort((a, b) => a[1] - b[1])[0];
   return worst[0] === 'speed' ? 'Long wait' : worst[0] === 'welcome' ? 'A bit bare' : 'Pricey menu';
 }
+
+/**
+ * One thing to try next, from tonight's receipt, with the panel that does it (plan v5, 4.6). The first matching row wins, in this order:
+ * seats, layout, prices, tidiness, the second star and money. A good night gets no advice. A night with no cooking is already named by
+ * the card's "Your hands" line, so it is not repeated here.
+ */
+export type TryNext = { text: string; panel?: 'build' | 'menu' | 'team' };
+export function tryNext(r: Pick<Report, 'missed' | 'profit'>, n: Pick<NightSummary, 'award' | 'card'>, stars: { goal: boolean; challenges: number }, ctx: { seats: number; lunch: boolean }): TryNext | null {
+  if (r.missed > 3 && ctx.seats < 8) return { text: 'Guests left without a seat. Add a table.', panel: 'build' };
+  if (n.award.id === 'confusing') return { text: 'Move tables nearer the entrance: guests walked a long way to sit down.', panel: 'build' };
+  if (n.card.value < 50) return { text: 'Your prices turned guests away. Bring them toward fair.', panel: 'menu' };
+  if (n.award.id === 'untidy') return { text: 'Clear the last tables before closing: dirty seats at the end cost rating.' };
+  if (!ctx.lunch && stars.goal && stars.challenges < 2) return { text: 'Two of the three daily challenges earn the second star. They sit at the top of the pass.' };
+  if (r.profit < 0) return { text: 'Wages and rent were bigger than sales. Fewer staff, or more seats.', panel: 'team' };
+  return null;
+}

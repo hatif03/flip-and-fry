@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
 import { tableNumber as tableAt } from './layout';
-import { unlocked } from './ladder';
+import { ladderOn, unlocked } from './ladder';
 import { ladderCtx } from './Coach';
 import { COMPS_PER_NIGHT, COOK_BURN, DEAL_COST, INCIDENT_TTL, MOVE_AT, MOVE_PERFECT, STATION_MOVE, SWAP_COST, HOST_DELAY, ORDER_DELAY, shiftLength, DISHES, guestPatienceSeconds, idealPrep, isCozy, type Guest } from './types';
 
@@ -28,16 +28,19 @@ export function Pass() {
   if (!restaurant.remote || s.phase !== 'service') return null;
   const cooking = restaurant.myDish(), patience = guestPatienceSeconds(s), left = (g: Guest): number => Math.max(0, 1 - g.waiting / patience);
   // One short list, most urgent first: floor jobs and tickets together. While your hands are full only the floor is listed.
-  const rows: { key: string; left: number; node: React.ReactNode }[] = floorJobs().map(j => ({ key: j.key, left: j.left, node: <FloorRow job={j} /> }));
-  if (!cooking) for (const g of s.guests) if (g.stage === 'waiting' || restaurant.canTakeOver(g)) rows.push({ key: `t${g.id}`, left: left(g), node: <TicketRow guest={g} /> });
+  const rows: { key: string; left: number; step: Step; node: React.ReactNode }[] = floorJobs().map(j => ({ key: j.key, left: j.left, step: j.kind, node: <FloorRow job={j} /> }));
+  if (!cooking) for (const g of s.guests) if (g.stage === 'waiting' || restaurant.canTakeOver(g)) rows.push({ key: `t${g.id}`, left: left(g), step: 'cook', node: <TicketRow guest={g} /> });
   rows.sort((x, y) => x.left - y.left);
   const shown = rows.slice(0, cooking ? 2 : 3);
+  // For the first three nights, while the ladder is on: the five jobs in order, with the one in front of you lit.
+  const learning = s.history.length < 3 && ladderOn(ladderCtx());
   return <section aria-label="The pass" data-cover="pass" className="mx-auto mb-2 max-w-[1100px] space-y-1.5 rounded-2xl border border-paper/80 bg-paper/95 p-1.5 shadow-[0_4px_0_#73513d30]">
+    {learning && <FlowStrip now={cooking ? 'cook' : rows[0]?.step} />}
     <ChallengePips />
     <IncidentCard />
     {cooking && <CookCard guest={cooking} />}
     {shown.length > 0 ? <div aria-label="Your move">
-      <ul className="space-y-1">{shown.map(r => <li key={r.key} className="list-none">{r.node}</li>)}</ul>
+      <ul className="space-y-1">{shown.map((r, i) => <li key={r.key} className="relative list-none">{i === 0 && shown.length > 1 && <span className="absolute -top-1.5 left-2 z-[1] rounded bg-gold px-1 text-[9px] font-extrabold uppercase leading-3 text-ink">Next</span>}{r.node}</li>)}</ul>
       {rows.length > shown.length && <p className="px-2 pt-0.5 text-[10px] font-bold text-ink/55">{rows.length - shown.length} more waiting</p>}
     </div> : cooking ? null : <p className="px-2 py-1 text-xs font-bold text-ink/70">{s.elapsed >= shiftLength(s) ? 'Last orders are out. Your team finishes the service.' : 'Your move: seat, take orders, cook, serve. The next job lands here.'}</p>}
   </section>;
@@ -174,4 +177,13 @@ function CookCard({ guest }: { guest: Guest }) {
       <button className="min-h-14 rounded-xl bg-ink/8 px-3 text-xs font-extrabold" aria-label="Put the dish down; the ingredients are lost" onClick={() => tell(restaurant.abandonCook(guest.id))}>Put down</button>
     </div>
   </div>;
+}
+
+type Step = 'seat' | 'order' | 'cook' | 'serve' | 'clear';
+const STEPS: Step[] = ['seat', 'order', 'cook', 'serve', 'clear'];
+/** Seat › Order › Cook › Serve › Clear: the whole job in one line, so a new owner sees where each row fits. */
+function FlowStrip({ now }: { now?: Step }) {
+  return <ol aria-label="The five jobs" className="flex items-center justify-center gap-0.5 px-1 text-[10px] font-extrabold uppercase tracking-wide">
+    {STEPS.map((step, i) => <li key={step} className="flex items-center gap-0.5"><span aria-current={step === now ? 'step' : undefined} className={cn('rounded px-1', step === now ? 'bg-teal text-paper' : 'text-ink/45')}>{step}</span>{i < STEPS.length - 1 && <span aria-hidden className="text-ink/30">›</span>}</li>)}
+  </ol>;
 }

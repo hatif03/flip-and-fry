@@ -1,5 +1,8 @@
 import type { HeadlineId } from './daily-headline';
-import type { HeadlineState, Report, Shift } from './types';
+import type { HeadlineState, Report, RestaurantState, Shift } from './types';
+import { headlineEffects } from './daily-headline';
+import { nightRating } from './rating';
+import { tonight } from './bills';
 
 /**
  * Stars read the receipt; they never replace profit, wages or the ledger. 1★ is tonight's headline goal, 2★ adds two of
@@ -56,3 +59,20 @@ export function evaluateStars(report: Report, headline: HeadlineState, previousP
 
 /** `stars * 1_000_000 + rating * 1000`, the leaderboard score: stars first, then rating. */
 export const packScore = (stars: number, rating: number): number => stars * 1_000_000 + Math.round(rating * 1000);
+
+/**
+ * The three stars as they stand during the night, a preview for the night bar (plan v5, 4.4). It reuses the goal tests and the closing
+ * rating with what has happened so far (dirty seats now stand in for dirty seats at closing). The server's replay is the only result.
+ */
+export type StarPreview = { goal: boolean; challenges: number; beat: boolean; rating: number; beatTarget: number | null; chain: number };
+export function previewStars(s: RestaurantState): StarPreview {
+  const h = s.headline, fx = headlineEffects(h), dirty = s.dirty.length, walkouts = h?.walkouts ?? 0;
+  const rating = nightRating(s, fx, dirty, walkouts), profit = tonight(s).net, served = s.totals.served;
+  const previous = s.history.length ? s.history[s.history.length - 1].profit : null, chain = s.hustle.best;
+  if (s.shift === 'lunch') return { goal: served >= 5 && profit > 0, challenges: rating >= 4 ? 2 : 0, beat: chain >= LUNCH_CHAIN, rating, beatTarget: null, chain };
+  const night = s.history.length + 1, report = { served, missed: s.totals.missed, profit, rating } as Report;
+  const state = { ...(h ?? { id: 'quiet', seed: 0, walkouts: 0, dirtyAtClose: 0 }), dirtyAtClose: dirty } as HeadlineState;
+  const g = h ? GOALS[h.id] : null, goal = night <= FIRST_NIGHTS ? WELCOME.met(report, state) || Boolean(g?.met(report, state)) : Boolean(g?.met(report, state));
+  const target = previous ?? (g ? g.stretch : null);
+  return { goal, challenges: s.dailyChallenges.filter(c => c.rewarded).length, beat: target !== null && (previous === null ? profit >= target : profit > target), rating, beatTarget: target, chain };
+}

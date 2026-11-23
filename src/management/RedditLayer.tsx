@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Award, ChefHat, Coins, Flame, Heart, Moon, Route, Sparkles, Star, Trash2 } from 'lucide-react';
+import { Award, ChefHat, Coins, Flame, Heart, Lightbulb, Moon, Route, Sparkles, Star, Trash2 } from 'lucide-react';
+import { headlineTip } from './headline-tips';
+import { unlocked } from './ladder';
+import { ladderCtx } from './Coach';
+import { tryNext } from './awards';
 import type { AwardId } from './awards';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -7,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { restaurant } from './engine';
 import { money } from './format';
 import { createDailyHeadline, formatDate, shiftDate } from './daily-headline';
-import { CATALOG, RESEARCH, SHIFTS, SHIFT_NAMES, researched, type RestaurantState } from './types';
+import { CATALOG, RESEARCH, SHIFTS, SHIFT_NAMES, capacity, researched, type RestaurantState } from './types';
 import type { BoardView } from '../shared/api';
 import { NOTE_MAX, flairForStreak, neighborLine } from './social';
 import { goalText, LUNCH_STARS } from './stars';
@@ -55,6 +59,8 @@ export function DailyBar() {
   const remote = restaurant.remote;
   if (!remote?.today) return null;
   const { today, result } = remote, streak = result?.streak ?? today.streak, goal = goalText(today.headline.id, restaurant.state.history.length + (result ? 0 : 1), restaurant.state.shift);
+  // From the second night: what to do about today's headline, with the panel that does it (the first night belongs to the guide).
+  const tip = restaurant.state.history.length >= 1 && restaurant.state.phase === 'planning' ? headlineTip(today.headline.id, restaurant.state) : null;
   return <aside aria-label="Today" className="pointer-events-auto mx-auto mt-1.5 max-w-[1600px] rounded-xl border border-paper/70 bg-teal/95 px-3 py-1.5 text-paper shadow-[0_3px_0_#0e2a2766] sm:mt-2 sm:rounded-2xl sm:px-4">
     <div className="flex items-center gap-x-2">
       <span className="shrink-0 text-[10px] font-extrabold uppercase tracking-widest text-gold">{today.neighborhood ? `${today.neighborhood} · ` : ''}{prettyDate(today.date)}</span>
@@ -62,6 +68,7 @@ export function DailyBar() {
       <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold" title="Days in a row with at least one star"><Flame size={14} className={cn(streak > 0 ? 'text-gold' : 'text-paper/40')} />{streak}</span>
     </div>
     <p className="mt-0.5 flex items-center gap-1.5 text-xs leading-snug text-paper/90"><Star size={12} className="shrink-0 fill-gold text-gold" aria-hidden /><span className="truncate"><b>Goal:</b> {goal}</span></p>
+    {tip && <p aria-label="Tonight's tip" className="mt-0.5 flex items-center gap-1.5 text-xs leading-snug text-paper/90"><Lightbulb size={12} className="shrink-0 text-gold" aria-hidden /><span className="min-w-0 flex-1 truncate" title={tip.text}>{tip.text}</span>{tip.panel && unlocked(tip.panel, restaurant.state.history.length, ladderCtx()) && <button type="button" className="-my-1 min-h-7 shrink-0 rounded-md bg-paper/15 px-2 text-[11px] font-extrabold capitalize" onClick={() => { restaurant.nextPanel = tip.panel!; restaurant.notify(); }}>{tip.panel} ›</button>}</p>}
   </aside>;
 }
 
@@ -97,6 +104,7 @@ function ResultCard() {
   // The guide's lesson on the first card lives inside it: the card is a modal, so the overlay cannot point into it.
   const tour = remote?.tour, teach = Boolean(tour && !tour.seen.has('card') && !tour.seen.has('skip') && restaurant.state.history.length === 1);
   const dismiss = (): void => { if (teach) tour!.mark('card'); remote!.dismissResult(); };
+  const next = teach ? null : tryNext(report, night, stars, { seats: capacity(restaurant.state), lunch: result.shift === 'lunch' });
   const verdict = result.shift === 'lunch' ? ['Lunch is over', 'A good lunch', 'A great lunch', 'A perfect lunch'][stars.stars] : stars.stars === 0 ? 'Not quite tonight' : stars.stars === 1 ? 'A good night' : stars.stars === 2 ? 'A great night' : 'A perfect night';
   return <Dialog open onOpenChange={open => { if (!open) dismiss(); }}>
     <DialogContent className="max-h-[90svh] w-[calc(100%-24px)] max-w-md space-y-3 overflow-y-auto rounded-3xl border-paper bg-paper p-5 text-ink">
@@ -112,6 +120,7 @@ function ResultCard() {
       <BankLine />
       {result.xp && <p aria-label="Experience" className="text-center text-xs font-extrabold text-ink/70">+{result.xp.gained} XP · Level {result.xp.level}{result.xp.leveledUp ? ' · a new level: more garden, more seeds' : ''}</p>}
       <p className="flex items-center gap-2 rounded-2xl bg-gold/25 px-3 py-2 text-sm" data-award={night.award.id}><AwardStamp id={night.award.id} /><span><b>{night.award.title}.</b> {night.award.text}</span></p>
+      {next && <p aria-label="Try next" className="flex items-center gap-2 rounded-2xl border-2 border-teal/40 px-3 py-2 text-sm"><span className="min-w-0 flex-1"><b>Try next: </b>{next.text}</span>{next.panel && unlocked(next.panel, restaurant.state.history.length, ladderCtx()) && <button type="button" className="min-h-11 shrink-0 rounded-xl bg-teal px-3 text-xs font-extrabold capitalize text-paper" onClick={() => { dismiss(); restaurant.nextPanel = next.panel!; restaurant.notify(); }}>{next.panel}</button>}</p>}
       {result.shift === 'lunch' ? <ul className="space-y-1 text-sm" aria-label="Lunch goals">
         {[stars.goal, stars.challenges >= 2, stars.beatPrevious].map((met, i) => <li key={i} className={cn('flex gap-2', met ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{met ? '★' : '☆'}</span><span>{i === 0 && <b>Lunch goal: </b>}{LUNCH_STARS[i]}</span></li>)}
       </ul> : <ul className="space-y-1 text-sm">

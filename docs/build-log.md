@@ -4,6 +4,18 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-24 — The headline and the result point to the next move (plan v5, milestone M4)
+
+**Decision:** four small guides around the night. (1) **Tonight's tip**: from the second night, a line under the goal says what to do about today's headline, read from the room as it stands, with a button to the panel ("Comfort counts more for tips tonight: add a plant or a lantern" → Build). (2) **A live star tracker**: during service the goal's star fills when it is met so far, and two chips show the second star (challenges, or the rating at lunch) and the third (the profit to beat, or the combo at lunch). (3) **Try next** on the result card: one line from the receipt (seats, layout, prices, tidiness, the second star, money), with a button to the panel. (4) On the pass, a **Next** tag on the most urgent row, and for the first three nights the five jobs in one line with the current one lit.
+
+**Why:** plan v5 findings D5, D10 and D11: the star rules were invisible during the night, the headline never said what to do about it, and the card said what happened but not what to change.
+
+**How it stays honest:** the tracker is labelled as the night "so far"; the server's replay still decides. The closing rating formula moved, unchanged, into `nightRating` (`rating.ts`), which the engine calls at closing and the tracker calls during the night, so the two cannot drift. The golden hashes and the bot calibration are unchanged. Checked on 14 dates: at the last tick the preview's challenge count always matches the receipt, and its goal matches on at least 85% (a goal settled at closing, such as the inspection's dirty seats, can still flip in the last second).
+
+**Refused:** a "cook it yourself" line in Try next (the card's "Your hands" line already says it); a fourth line in the night bar (the tracker shares the goal's line on a phone).
+
+Devvit or third party: none. Code: `headline-tips.ts`, `rating.ts`, `stars.ts` (`previewStars`), `awards.ts` (`tryNext`), `TonightBar.tsx`, `RedditLayer.tsx`, `Pass.tsx`, `engine.ts` (`nightRating`, `nextPanel`); tests `star-preview.test.ts`, `coach.browser.test.tsx`.
+
 ## 2026-11-24 — The interface grows with the player (plan v5, milestone M3)
 
 **Decision:** on Reddit a new owner sees one system at a time. Night 0: only Open and the pass (the guide teaches them). From night 1: Build, Goals, and Rush and Free on tickets. From night 2: Menu, the Garden and the Test Kitchen. From night 3: Team, 2× and 3× speed, and Hold to prep. From night 5: the Street. Each arrives with one introduction card from the chef, pointing at its tab. On the fourth night a card says the headline now sets the first star's goal. One-time tips explain a decision card, a VIP, the bank's notice, a milestone ready to collect and a crop ready to pick. A dot on Goals or Garden says something there is ready.

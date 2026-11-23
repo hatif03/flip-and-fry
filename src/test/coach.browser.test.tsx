@@ -113,3 +113,26 @@ it('grows the dock with the player and introduces each new tab once', async () =
   expect(r.marks).toContain('intro-menu');
   await expect.element(screen.getByRole('status', { name: 'Guide' })).toHaveTextContent('New: the Garden');
 });
+
+it('from the second night, says what to do about the headline, with the panel that does it', async () => {
+  const seen: TourId[] = ['welcome', 'lunch', 'card', 'build', 'done', 'intro-goals', 'intro-dinner', 'intro-menu', 'intro-garden', 'intro-kitchen'];
+  restaurant.remote = remote(seen);
+  const report = { ...createRestaurant().totals, day: 1, headline: null, challenges: [], wages: 0, rent: 0, debtPayment: 0, research: 0, profit: 0, rating: 4 } as never;
+  restaurant.state.history = [report, report];
+  const screen = await render(<ManagementGame />);
+  const tip = screen.getByLabelText("Tonight's tip");
+  await expect.element(tip).toHaveTextContent('Comfort counts more'); // 9 Dec is "Rain on the roof"
+  await tip.getByRole('button', { name: /build/i }).click();
+  await expect.element(screen.getByRole('complementary', { name: 'Interiors' })).toBeVisible();
+});
+
+it('shows the three stars filling in on the night bar during service', async () => {
+  restaurant.remote = remote(['skip']); restaurant.state.shift = 'dinner'; // a returning owner: the first service ever is always lunch
+  restaurant.state.history = [{ ...createRestaurant().totals, day: 1, headline: null, challenges: [], wages: 0, rent: 0, debtPayment: 0, research: 0, profit: 90, rating: 4 } as never];
+  const screen = await render(<ManagementGame />);
+  document.querySelector<HTMLElement>('[data-tour="open"]')!.click();
+  await expect.poll(() => restaurant.state.phase).toBe('service');
+  await expect.element(screen.getByLabelText(/^Second star: two of three challenges, 0 so far/)).toBeInTheDocument();
+  await expect.element(screen.getByLabelText(/^Third star: beat/)).toBeInTheDocument();
+  await expect.element(screen.getByLabelText(/^First star, tonight's goal/)).toBeInTheDocument();
+});
