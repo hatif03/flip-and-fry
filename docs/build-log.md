@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-24 — The interface grows with the player (plan v5, milestone M3)
+
+**Decision:** on Reddit a new owner sees one system at a time. Night 0: only Open and the pass (the guide teaches them). From night 1: Build, Goals, and Rush and Free on tickets. From night 2: Menu, the Garden and the Test Kitchen. From night 3: Team, 2× and 3× speed, and Hold to prep. From night 5: the Street. Each arrives with one introduction card from the chef, pointing at its tab. On the fourth night a card says the headline now sets the first star's goal. One-time tips explain a decision card, a VIP, the bank's notice, a milestone ready to collect and a crop ready to pick. A dot on Goals or Garden says something there is ready.
+
+**Why:** plan v5 finding D8: about fifty named ideas were reachable before the first service. Hiding a system changes nothing in the engine: it runs with its defaults, as it did for a player who never opened its tab.
+
+**Who sees it:** only Reddit players whose session tracks the tour. A player who skipped the tour is taken to know the game and sees everything. Settings → "Show everything" turns the ladder off on that device (browser storage, wrapped so a blocked storage simply leaves the ladder on). The browser game keeps everything visible.
+
+**Refused:** a toast when a milestone becomes ready (on a phone it covered the Lunch/Dinner picker and blocked the next tap; the dot and the one-time tip say the same without covering anything); hiding systems by changing the engine (it would move calibration).
+
+Devvit or third party: none new (the tour's Redis hash holds the introduction and tip ids). No new permission.
+Code: `src/management/ladder.ts`, `badges.ts`, `tour.ts` (`tipStep`), `Coach.tsx` (`ladderCtx`, `prefs`), `ManagementGame.tsx`, `Pass.tsx`, `RedditLayer.tsx`; tests `ladder.test.ts`, `coach.browser.test.tsx`.
+
 ## 2026-11-24 — Goals, the books and the street; Road ahead; a daily round (plan v5, milestone L0)
 
 **Decision:** the Ledger tab, which held a dozen unrelated things, is split by job. **Goals** (a dock tab) is what to aim for: Road ahead, today's round, the daily challenges, milestones (ready ones on top), research and the regulars. **Money** opens from the cash in the header: the week, the register, tonight's totals, the loan and the last 20 receipts. **Street** holds the neighbors (open doors, visits, cooking together, reminders) and opens from Goals or the neighborhood view. **Road ahead** names the next three goals with progress: a milestone ready to collect, what the next player level opens, the east terrace, research, the nearest milestone. A **daily round** of three small tasks (one in the garden, one at the pass, one more) pays XP once each, and five full rounds in a week open a **weekly crate** ($150 and 30 XP). The Test Kitchen button sits beside Open on phones from the third night, not inside the Ledger.

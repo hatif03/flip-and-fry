@@ -37,7 +37,7 @@ export function ShiftPicker() {
   const remote = restaurant.remote, state = restaurant.state;
   if (!remote?.today || state.phase !== 'planning' || state.history.length === 0) return null;
   const { run, lunchRun } = remote.today, done = { lunch: lunchRun, dinner: run };
-  return <div role="group" aria-label="Choose the service" className="pointer-events-none absolute inset-x-3 bottom-[104px] z-[6] flex justify-center sm:bottom-[112px]">
+  return <div role="group" aria-label="Choose the service" data-tour="shifts" className="pointer-events-none absolute inset-x-3 bottom-[104px] z-[6] flex justify-center sm:bottom-[112px]">
     <div className="pointer-events-auto flex gap-1 rounded-xl border-2 border-teal/80 bg-paper/95 p-1 shadow-md">
       {SHIFTS.map(shift => {
         const got = done[shift]?.stars.stars, on = state.shift === shift;

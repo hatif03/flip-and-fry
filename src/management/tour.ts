@@ -1,12 +1,13 @@
 import { cookZone } from './cook-zone';
 import { DISHES, MOVE_AT, MOVE_PERFECT, STATION_MOVE, shiftLength, type Guest, type RestaurantState } from './types';
+import type { TourId } from '../shared/api';
 
 /**
  * The guide for a new owner's first day, as a pure function of the game's state. It never changes the simulation: the screen
  * freezes the night (pause) and slows the cooking (½×), both of which are presentation, so the night replays the same on the server.
  * Steps move on when the state moves on, not on taps, so a job the team happens to finish still counts.
  */
-export type Beat = 'welcome' | 'open' | 'seat' | 'order' | 'cook' | 'bar' | 'timing' | 'serve' | 'clear' | 'free' | 'shop' | 'place' | 'next';
+export type Beat = 'welcome' | 'open' | 'seat' | 'order' | 'cook' | 'bar' | 'timing' | 'serve' | 'clear' | 'free' | 'shop' | 'place' | 'next' | 'intro' | 'tip';
 export type TourStep = {
   beat: Beat;
   text: string;
@@ -21,6 +22,8 @@ export type TourStep = {
   slow: boolean;
   /** A card with this button instead of a pointer (the player reads, then taps). */
   button?: string;
+  /** For an introduction or a tip: the id the server remembers once it has been read. */
+  seenId?: TourId;
 };
 /** The five jobs of the night, in the order the guide teaches them; each is taught once. */
 export const JOBS: readonly Beat[] = ['seat', 'order', 'cook', 'bar', 'timing', 'serve', 'clear'];
@@ -115,4 +118,24 @@ export function settleTour(prev: TourStep | null, next: TourStep | null, done: S
   if (!prev || !JOBS.includes(prev.beat) || prev.beat === 'bar' || done.has(prev.beat)) return false;
   if (next && next.beat === prev.beat && next.guest === prev.guest && next.table === prev.table) return false;
   done.add(prev.beat); return true;
+}
+
+/**
+ * First-time tips: one line, once, the first time something happens that the guide did not teach (plan v5, 4.2). They never freeze
+ * the night. `extra` carries what the engine state alone does not: a milestone ready to collect, a crop ready in the garden.
+ */
+export function tipStep(s: RestaurantState, seen: ReadonlySet<string>, extra: { milestoneReady: boolean; cropReady: boolean }): TourStep | null {
+  const tip = (id: TourId, text: string, more: Partial<TourStep> = {}): TourStep | null => seen.has(id) ? null : step('tip', text, { button: 'Got it', seenId: id, ...more });
+  if (s.phase === 'service') {
+    if (s.incident) { const t = tip('tip-incident', 'A decision: pick one, or the default happens when the timer runs out. Each choice says what it costs.', { target: 'incident' }); if (t) return t; }
+    const vip = s.guests.find(g => g.special && g.stage !== 'leaving' && g.stage !== 'arriving');
+    if (vip) { const t = tip('tip-vip', 'A VIP (the crown). Some challenges count them, and on the critic’s night one VIP walkout caps you at two stars.', { guest: vip.id }); if (t) return t; }
+    return null;
+  }
+  if (s.phase === 'planning') {
+    if (s.notice === 1) { const t = tip('tip-notice', 'The bank has sent a final notice: one more night at a loss and it stores a few pieces. A profitable night clears it. Fewer staff or more seats help.'); if (t) return t; }
+    if (extra.milestoneReady) { const t = tip('tip-milestone', 'A milestone is done: collect its cash in Goals.', { target: 'tab-goals' }); if (t) return t; }
+    if (extra.cropReady) { const t = tip('tip-crop', 'A crop is ready on the roof. Harvest it in the Garden: home-grown dishes cost nothing and tip more.', { target: 'tab-garden' }); if (t) return t; }
+  }
+  return null;
 }

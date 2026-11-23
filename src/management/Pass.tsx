@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
 import { tableNumber as tableAt } from './layout';
+import { unlocked } from './ladder';
+import { ladderCtx } from './Coach';
 import { COMPS_PER_NIGHT, COOK_BURN, DEAL_COST, INCIDENT_TTL, MOVE_AT, MOVE_PERFECT, STATION_MOVE, SWAP_COST, HOST_DELAY, ORDER_DELAY, shiftLength, DISHES, guestPatienceSeconds, idealPrep, isCozy, type Guest } from './types';
 
 import { cookZone, type CookZone } from './cook-zone';
@@ -67,7 +69,7 @@ function IncidentCard() {
   const title = incident.kind === 'complaint' ? `${guest ? who(guest) : 'A guest'} has a complaint` : incident.kind === 'allergy' ? `${guest ? who(guest) : 'A guest'} mentions an allergy` : 'A supplier is at the door';
   const buttons: { n: number; label: string }[] = incident.kind === 'complaint' ? [{ n: 1, label: 'Comp it' }, { n: 2, label: 'Apologise' }, { n: 0, label: 'Ignore' }]
     : incident.kind === 'allergy' ? [{ n: 1, label: `Swap it · $${SWAP_COST}` }, { n: 0, label: 'Hope for the best' }] : [{ n: 1, label: `Buy the crate · $${DEAL_COST}` }, { n: 0, label: 'No thanks' }];
-  return <div role="group" aria-label="A decision" className="rounded-xl border-2 border-gold bg-gold/15 p-2">
+  return <div role="group" aria-label="A decision" data-tour="incident" className="rounded-xl border-2 border-gold bg-gold/15 p-2">
     <p className="flex items-center justify-between gap-2 px-1 text-sm font-extrabold"><span>{title}</span><span className="shrink-0 text-[11px] text-ink/60">{left}s</span></p>
     <p className="px-1 pb-1.5 text-[11px] text-ink/65">{incident.kind === 'complaint' ? 'Comping keeps them; an apology settles them; ignoring them wears their patience.' : incident.kind === 'allergy' ? 'A swap is safe. Leave it and it might go wrong.' : 'A quarter off ingredients for the rest of the night.'}</p>
     <div className="flex flex-wrap gap-1.5">{buttons.map(b => <button key={b.n} type="button" className={cn('min-h-[44px] flex-1 rounded-xl px-3 text-sm font-extrabold', b.n === 0 ? 'bg-ink/8 text-ink' : 'bg-teal text-paper')} onClick={() => choose(b.n)}>{b.label}</button>)}</div>
@@ -117,7 +119,7 @@ function TicketRow({ guest: g }: { guest: Guest }) {
       <PatienceBar value={value} />
     </div>
     <button data-tour="cook" className={cn('flex min-h-[44px] min-w-[4.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed > 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} aria-hidden />{teamHasIt ? 'Take over' : 'Cook'}</button>
-    {!teamHasIt && <>
+    {!teamHasIt && unlocked('rush', restaurant.state.history.length, ladderCtx()) && <>
       <button className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}>Rush</button>
       <button className="flex min-h-[44px] min-w-[44px] shrink-0 flex-col items-center justify-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold leading-tight disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><span>Free</span><span aria-hidden className="text-[9px] font-bold text-ink/60">{comps} left</span></button>
     </>}

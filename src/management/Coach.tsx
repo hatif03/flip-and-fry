@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChefHat } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { restaurant, type Speed } from './engine';
+import { GOALS, restaurant, type Speed } from './engine';
 import { CATALOG } from './types';
-import { settleTour, tourActive, tourStep, type Beat, type TourContext, type TourStep } from './tour';
+import { settleTour, tipStep, tourActive, tourStep, type Beat, type TourContext, type TourStep } from './tour';
+import { nextIntro, readShowAll, type LadderContext } from './ladder';
 
 /** "Replay the tour" in the help turns this on: the next lunch is taught again. Client-only, for this visit. */
 export const tourReplay = { on: false };
+
+/** "Show everything" (Settings): turns the unlock ladder off on this device. */
+export const prefs = { showAll: readShowAll() };
+/** The ladder's view of this player: on Reddit with a session that keeps the tour, unless they skipped it or chose to see everything. */
+export function ladderCtx(): LadderContext {
+  const tour = restaurant.remote?.tour;
+  return { reddit: Boolean(tour), seen: tour?.seen ?? new Set<string>(), showAll: prefs.showAll };
+}
 
 /** Whether the guide is running now (the hint line stays quiet while it is). */
 export function guideOn(): boolean {
@@ -44,6 +53,13 @@ export function Coach({ building, drafting, hidden }: { building: boolean; draft
   let step = on && ctx ? tourStep(s, ctx) : null;
   if (ctx && settleTour(prev.current, step, done.current)) step = on ? tourStep(s, ctx) : null;
   prev.current = step;
+  // Between the guide's lessons: one introduction card per newly unlocked system, then one-time tips. Never during the guided lunch.
+  if (!step && tour && !hidden && !restaurant.remote?.result && !restaurant.coop && !restaurant.catchingUp && !tour.seen.has('skip') && !guideOn()) {
+    const intro = s.phase === 'planning' ? nextIntro(s.history.length, ladderCtx()) : null;
+    const plots = restaurant.remote?.world?.peek?.(), now = Date.now() + (plots?.offset ?? 0);
+    step = intro ? { beat: 'intro', text: intro.text, target: intro.target, freeze: false, slow: false, button: 'Got it', seenId: intro.id }
+      : tipStep(s, tour.seen, { milestoneReady: GOALS.some(g => !s.claimed.includes(g.id) && g.value(s) >= g.target), cropReady: Boolean(plots?.view.plots.some(p => p.crop && now >= p.readyAt)) });
+  }
 
   // Freeze or slow the night for the step, and give the player back their own speed afterwards.
   const froze = useRef(false), saved = useRef<Speed | null>(null);
@@ -85,6 +101,7 @@ export function Coach({ building, drafting, hidden }: { building: boolean; draft
     else if (step.beat === 'bar') done.current.add('bar');
     else if (step.beat === 'free') { done.current.add('free'); if (!tourReplay.on) tour.mark('lunch'); tourReplay.on = false; }
     else if (step.beat === 'next') { tour.mark('build'); tour.mark('done'); }
+    else if (step.seenId) tour.mark(step.seenId);
     refresh();
   };
   const t = boxes.target, dim = step.freeze || step.beat === 'open' || step.beat === 'shop' || step.beat === 'welcome';

@@ -77,8 +77,8 @@ it('walks a whole lunch: each job frozen until the player does it, the cooking a
 
 it('never runs after the first day', async () => {
   restaurant.remote = remote(); restaurant.state.history = [{ ...createRestaurant().totals } as never, { ...createRestaurant().totals } as never];
-  const screen = await render(<ManagementGame />);
-  await expect.element(screen.getByTestId('coach')).not.toBeInTheDocument();
+  await render(<ManagementGame />); await settle();
+  expect(beat() === undefined || beat() === 'intro').toBe(true); // only the ladder's introduction cards, never the lessons
 });
 
 it('after the first lunch, walks through buying a cosy table, then says what tomorrow is for', async () => {
@@ -94,5 +94,22 @@ it('after the first lunch, walks through buying a cosy table, then says what tom
   await expect.element(screen.getByRole('status', { name: 'Guide' })).toHaveTextContent('Dinner is open now');
   await screen.getByRole('button', { name: 'Got it' }).click();
   expect(r.marks).toEqual(expect.arrayContaining(['build', 'done']));
-  await expect.element(screen.getByTestId('coach')).not.toBeInTheDocument();
+  await expect.poll(() => beat()).toBe('intro'); // the lesson is over; the ladder introduces Goals next
+  await expect.element(screen.getByRole('status', { name: 'Guide' })).toHaveTextContent('New: Goals');
+});
+
+it('grows the dock with the player and introduces each new tab once', async () => {
+  const r = remote(['welcome', 'lunch', 'card', 'build', 'done', 'intro-goals', 'intro-dinner']); restaurant.remote = r;
+  const report = { ...createRestaurant().totals, day: 1, headline: null, challenges: [], wages: 0, rent: 0, debtPayment: 0, research: 0, profit: 0, rating: 4 } as never;
+  restaurant.state.history = [report];
+  const screen = await render(<ManagementGame />);
+  await expect.element(screen.getByRole('button', { name: 'Build', exact: true })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Menu', exact: true })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Team', exact: true })).not.toBeInTheDocument();
+  restaurant.state.history = [report, report]; restaurant.notify();
+  await expect.element(screen.getByRole('button', { name: 'Menu', exact: true })).toBeVisible();
+  await expect.element(screen.getByRole('status', { name: 'Guide' })).toHaveTextContent('New: Menu');
+  await screen.getByRole('button', { name: 'Got it' }).click();
+  expect(r.marks).toContain('intro-menu');
+  await expect.element(screen.getByRole('status', { name: 'Guide' })).toHaveTextContent('New: the Garden');
 });
