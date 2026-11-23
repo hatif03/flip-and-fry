@@ -9,7 +9,7 @@ import type { CashReceipt } from './cash-feedback';
 import type { Action } from './actions';
 import type { CoopListing } from './coop';
 import type { NeighborhoodView, VisitResult } from './social';
-import type { BoardView, LockResponse, TodayResponse, WorldView } from '../shared/api';
+import type { BoardView, LockResponse, TodayResponse, TourId, WorldView } from '../shared/api';
 
 export const GOALS = [
   { id: 'first-service', title: 'A warm welcome', text: 'Serve your first 5 guests', target: 5, reward: 180, value: (s: RestaurantState) => s.lifetimeServed },
@@ -27,8 +27,12 @@ export const GOALS = [
 /** Exact business results computed while the owner was away, not an idle-income estimate. */
 export interface AwaySummary { seconds: number; days: number; served: number; cashChange: number; challengeBonus: number; }
 /** Set by the Reddit client. Services open and close through the server, which owns the park and replays every service. */
+/** ½× is for learning (the guide, the first nights); 2× and 3× are for watching. */
+export type Speed = .5 | 1 | 2 | 3;
 export interface RemoteSession {
   open(): Promise<string | null>;
+  /** What the guide has shown this player, kept on the server. */
+  tour?: { seen: ReadonlySet<TourId>; mark(id: TourId): void };
   readonly today: TodayResponse | null;
   /** The server's receipt for the service that just closed, until the player dismisses it. */
   result: LockResponse | null;
@@ -109,7 +113,8 @@ export class RestaurantEngine {
   private pauseAfterCatchUp: boolean | null = null;
   private routeCache = new Map<string, Point[]>();
   private routeLayout = '';
-  speed: 1 | 2 | 3 = 1;
+  /** How fast the night plays on this screen. Presentation only: it scales the frame clock that feeds the fixed 0.1 s steps, so a night at ½× replays to the same receipt. */
+  speed: Speed = 1;
   saveFailed = false;
   loadWarning = '';
   event = 'Your little rooftop is ready for its first chapter.';
@@ -157,7 +162,7 @@ export class RestaurantEngine {
   /** A hosted service cannot be paused by one side: the other would run on without it. A helper waits for a missing host with holdForHost. */
   holdForHost(value: boolean): void { this.paused = value; this.accumulator = 0; this.notify(); }
   pause(value: boolean): void { if (this.coop && value) return; if (this.catchingUp) { this.pauseAfterCatchUp = value; return; } this.paused = value; this.accumulator = 0; this.changed(); }
-  setSpeed(value: 1 | 2 | 3): void { if (this.catchingUp || this.coop) return; this.speed = value; this.paused = false; this.changed(); }
+  setSpeed(value: Speed): void { if (this.catchingUp || this.coop) return; this.speed = value; this.paused = false; this.changed(); }
   /** Save once when leaving; subsequent pagehide/unmount events must not move the offline checkpoint. */
   suspend(): void { if (!this.backgrounded) this.save(); this.backgrounded = true; this.accumulator = 0; }
   dismissAway(): void { this.awaySummary = null; this.notify(); }

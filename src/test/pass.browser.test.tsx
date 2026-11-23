@@ -17,8 +17,10 @@ const today: TodayResponse = { type: 'today', date: '2026-12-09', headline: crea
 const remote = (): RemoteSession => ({ open: async () => null, today, result: null, dismissResult() {} });
 
 /** A kitchen with no chef, so tickets wait for the owner. Runs until `count` guests are waiting. */
-function openKitchen(count = 1) {
+/** `nights`: services already closed. On Reddit "Hold to prep" joins the cook card from the fourth night. */
+function openKitchen(count = 1, nights = 0) {
   restaurant.reset(); restaurant.welcome(); restaurant.remote = remote(); restaurant.autoRoll = false;
+  restaurant.state.history = Array.from({ length: nights }, (_, i) => ({ ...restaurant.state.totals, day: i + 1, headline: null, challenges: [], wages: 0, rent: 0, debtPayment: 0, research: 0, profit: 0, rating: 4 }) as never);
   restaurant.state.staff = restaurant.state.staff.filter(s => s.role !== 'chef'); restaurant.state.cash = 5000;
   expect(restaurant.open()).toBeNull();
   for (let i = 0; i < 900 && restaurant.state.guests.filter(g => g.stage === 'waiting').length < count; i++) restaurant.tick();
@@ -106,7 +108,7 @@ describe('the pass panel', () => {
 
 describe('prepping by hand at the pass', () => {
   it('shows an optional hold button while you cook, counts the hold, and says how the prep went', async () => {
-    openKitchen(1); const screen = await render(<><ManagementGame /><Toaster /></>); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!;
+    openKitchen(1, 3); const screen = await render(<><ManagementGame /><Toaster /></>); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!;
     expect(restaurant.claimTicket(g.id)).toBeNull(); restaurant.notify();
     const button = screen.getByRole('button', { name: /Hold to prep/ }); await expect.element(button).toBeVisible();
     expect(button.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
@@ -117,9 +119,18 @@ describe('prepping by hand at the pass', () => {
     await expect.element(screen.getByRole('status').filter({ hasText: 'A clean, even prep' })).toBeVisible();
   });
   it('works from the keyboard too: Space holds, and letting go releases', async () => {
-    openKitchen(1); const screen = await render(<ManagementGame />); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!; restaurant.claimTicket(g.id); restaurant.notify();
+    openKitchen(1, 3); const screen = await render(<ManagementGame />); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!; restaurant.claimTicket(g.id); restaurant.notify();
     await expect.element(screen.getByRole('button', { name: /Hold to prep/ })).toBeVisible(); const el = screen.getByRole('button', { name: /Hold to prep/ }).element() as HTMLButtonElement; el.focus();
     el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })); expect(restaurant.state.hands[0]?.holding).toBe(true);
     el.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true })); expect(restaurant.state.hands[0]?.holding).toBe(false);
+  });
+});
+
+describe('a new owner learns two taps first', () => {
+  it('keeps Hold to prep off the cook card for the first three nights on Reddit', async () => {
+    openKitchen(1, 0); const screen = await render(<ManagementGame />); const g = restaurant.state.guests.find(x => x.stage === 'waiting')!;
+    expect(restaurant.claimTicket(g.id)).toBeNull(); restaurant.notify();
+    await expect.element(screen.getByRole('button', { name: 'Plate it' })).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: /Hold to prep/ })).not.toBeInTheDocument();
   });
 });

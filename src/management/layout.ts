@@ -63,3 +63,12 @@ export function placementError(state: RestaurantState, candidate: Furniture): st
 
 /** A table's number as the player sees it: its place among the tables, from 1. The pass and the plates in the room both use this, so they always agree. */
 export const tableNumber = (furniture: readonly Furniture[], id: number): number => furniture.filter(f => f.kind === 'table').findIndex(f => f.id === id) + 1;
+
+/** The tiles where a table would be cosy: within two tiles of any decor piece, the same rule as `isCozy`. Keys are "x:z". The Build grid tints them. */
+export function cozyTiles(furniture: readonly Furniture[], columns: number): Set<string> {
+  const out = new Set<string>();
+  for (const f of furniture) if (CATALOG[f.kind].comfort > 0) for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+    const x = f.x + dx, z = f.z + dz; if (x >= 0 && x < columns && z >= 0 && z < HEIGHT) out.add(`${x}:${z}`);
+  }
+  return out;
+}

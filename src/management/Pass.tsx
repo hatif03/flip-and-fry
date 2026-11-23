@@ -4,14 +4,10 @@ import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
 import { tableNumber as tableAt } from './layout';
-import { COMPS_PER_NIGHT, COOK_BURN, DEAL_COST, INCIDENT_TTL, MOVE_AT, MOVE_PERFECT, STATION_MOVE, SWAP_COST, HOST_DELAY, ORDER_DELAY, shiftLength, DISHES, cookQuality, guestPatienceSeconds, idealPrep, isCozy, type Guest } from './types';
+import { COMPS_PER_NIGHT, COOK_BURN, DEAL_COST, INCIDENT_TTL, MOVE_AT, MOVE_PERFECT, STATION_MOVE, SWAP_COST, HOST_DELAY, ORDER_DELAY, shiftLength, DISHES, guestPatienceSeconds, idealPrep, isCozy, type Guest } from './types';
 
-/** Where the dish is in its cooking, as a share of its normal time. Uses the engine's own bands, so the bar can never disagree with the plate. */
-export type CookZone = 'raw' | 'early' | 'perfect' | 'over' | 'burnt';
-export function cookZone(ratio: number): CookZone {
-  const q = cookQuality(ratio);
-  return q === 3 ? 'perfect' : q === 1 ? 'early' : q === 2 ? 'over' : ratio < 1 ? 'raw' : 'burnt';
-}
+import { cookZone, type CookZone } from './cook-zone';
+export { cookZone, type CookZone };
 const ZONE_TEXT: Record<CookZone, string> = { raw: 'Still raw: wait', early: 'A little early', perfect: 'Perfect: plate it now!', over: 'Slightly over', burnt: 'Burning!' };
 const ZONE_STYLE: Record<CookZone, string> = { raw: 'text-ink/60', early: 'text-gold', perfect: 'text-teal', over: 'text-tomato', burnt: 'text-tomato' };
 /** The bar spans 0 to COOK_BURN times the normal time, so the marker sits at ratio / COOK_BURN. Zone edges follow the engine's bands. */
@@ -97,7 +93,7 @@ function FloorRow({ job: j }: { job: Job }) {
       <PatienceBar value={value} />
     </div>
     {j.kind === 'seat' ? <div className="flex shrink-0 gap-1">{tables.length ? tables.slice(0, 2).map(t => <button key={t.table.id} type="button" data-tour="seat" aria-label={`Seat ${who(g!)} at table ${t.n}${t.cozy ? ', a cosy table' : ''}`} className={cn(bigButton, 'min-w-11 whitespace-nowrap px-2')} onClick={() => tell(restaurant.seat(g!.id, t.table.id, t.seat!))}>Table {t.n}{t.cozy ? <span aria-hidden className="ml-1 text-gold">✦</span> : ''}</button>) : <span className="text-[11px] font-bold text-ink/55">No free table</span>}</div>
-      : <button type="button" className={cn(bigButton, 'min-w-[4.25rem] shrink-0')} onClick={() => tell(j.kind === 'order' ? restaurant.order(g!.id) : j.kind === 'serve' ? restaurant.serve(g!.id) : restaurant.clear(j.tableId!, j.seat!))}>{j.kind === 'order' ? 'Take order' : j.kind === 'serve' ? 'Serve' : 'Clear'}</button>}
+      : <button type="button" data-tour={j.kind} className={cn(bigButton, 'min-w-[4.25rem] shrink-0')} onClick={() => tell(j.kind === 'order' ? restaurant.order(g!.id) : j.kind === 'serve' ? restaurant.serve(g!.id) : restaurant.clear(j.tableId!, j.seat!))}>{j.kind === 'order' ? 'Take order' : j.kind === 'serve' ? 'Serve' : 'Clear'}</button>}
   </div>;
 }
 
@@ -120,7 +116,7 @@ function TicketRow({ guest: g }: { guest: Guest }) {
       <p className="truncate text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <Vip />}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1.5 text-[10px] font-bold text-ink/50">chef has it</span>}</p>
       <PatienceBar value={value} />
     </div>
-    <button className={cn('flex min-h-[44px] min-w-[4.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} aria-hidden />{teamHasIt ? 'Take over' : 'Cook'}</button>
+    <button data-tour="cook" className={cn('flex min-h-[44px] min-w-[4.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed > 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} aria-hidden />{teamHasIt ? 'Take over' : 'Cook'}</button>
     {!teamHasIt && <>
       <button className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}>Rush</button>
       <button className="flex min-h-[44px] min-w-[44px] shrink-0 flex-col items-center justify-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold leading-tight disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><span>Free</span><span aria-hidden className="text-[9px] font-bold text-ink/60">{comps} left</span></button>
@@ -161,7 +157,7 @@ function MoveButton({ guest }: { guest: Guest }) {
 
 function CookCard({ guest }: { guest: Guest }) {
   const dish = DISHES[guest.dish], ratio = guest.cook / dish.seconds, zone = cookZone(ratio), at = Math.min(1, ratio / COOK_BURN) * 100;
-  return <div className="rounded-xl border border-teal/50 bg-teal/5 p-2">
+  return <div data-tour="cook-card" className="rounded-xl border border-teal/50 bg-teal/5 p-2">
     <p className="flex items-center gap-2 text-sm font-extrabold"><Hand size={16} className="text-teal" aria-hidden />You are cooking: {dish.name}</p>
     <div role="progressbar" aria-label="Cooking" aria-valuemin={0} aria-valuemax={COOK_BURN * 100} aria-valuenow={Math.round(ratio * 100)} aria-valuetext={ZONE_TEXT[zone]} className="relative mt-2 h-4 rounded-full" style={{ background: BAR }}>
       <div aria-hidden className="absolute inset-y-0 rounded-sm border-2 border-ink/60" style={{ left: `${(MOVE_AT - MOVE_PERFECT) / COOK_BURN * 100}%`, width: `${MOVE_PERFECT * 2 / COOK_BURN * 100}%` }} />
@@ -169,7 +165,8 @@ function CookCard({ guest }: { guest: Guest }) {
     </div>
     <p role="status" aria-live="polite" className={cn('mt-1 text-sm font-extrabold', ZONE_STYLE[zone])}>{ZONE_TEXT[zone]}</p>
     <MoveButton guest={guest} />
-    <Prep guest={guest} />
+    {/* Prep is optional depth: on Reddit it joins the cook card from the fourth night, so a new owner learns two taps, not three. */}
+    {(!restaurant.remote || restaurant.state.history.length >= 3) && <Prep guest={guest} />}
     <div className="mt-1.5 flex gap-2">
       <button className="min-h-14 flex-1 rounded-xl bg-tomato px-4 text-base font-extrabold text-paper shadow-[0_3px_0_#9a3a29] active:translate-y-0.5 active:shadow-none" onClick={() => tell(restaurant.plate(guest.id))}>Plate it</button>
       <button className="min-h-14 rounded-xl bg-ink/8 px-3 text-xs font-extrabold" aria-label="Put the dish down; the ingredients are lost" onClick={() => tell(restaurant.abandonCook(guest.id))}>Put down</button>

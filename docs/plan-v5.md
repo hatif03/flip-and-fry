@@ -462,12 +462,12 @@ Status: **Planned**, **Doing**, **Done**. Size: **S** under a day, **M** one to 
 
 | ID | Item | Size | Needs | Fixes | Status | Done when |
 |---|---|---|---|---|---|---|
-| B1 | **`tour.ts` step machine** for beats W1 to T11 (4.1), state-driven | M | none | D1, D2 | Planned | Unit tests drive a scripted lunch and see every step in order; a team-finished step still advances |
-| B2 | **`Coach.tsx` overlay:** spotlight, bubble, skip, freeze and ½× handling, reduced motion | M | B1, C5 | D2 | Planned | Browser test: a new player completes the tour; Escape skips; keyboard reaches every control |
-| B3 | **½× speed** (G1) | S | none | D2 | Planned | Speed type updated; a replay test shows the same hash at ½× and 1× |
-| B4 | **Scene targets:** rings on guests and tables through the label registry | M | A3 | D3 | Planned | Screenshot of T2 with the ring on the right guest |
-| B5 | **Result-card and first-build steps** (T9, T10) with the cosy aura | S | B2, F4 | D5 | Planned | Browser test reaches "table placed" from the card |
-| B6 | **Replay proof:** guide pauses and acts; server replay hash matches | S | B2 | n/a | Planned | Test in `src/test/` passes in `test:engines` |
+| B1 | **`tour.ts` step machine** for beats W1 to T11 (4.1), state-driven | M | none | D1, D2 | Done | Unit tests drive a scripted lunch and see every step in order; a team-finished step still advances |
+| B2 | **`Coach.tsx` overlay:** spotlight, bubble, skip, freeze and ½× handling, reduced motion | M | B1, C5 | D2 | Done | Browser test: a new player completes the tour; Escape skips; keyboard reaches every control |
+| B3 | **½× speed** (G1) | S | none | D2 | Done | Speed type updated; a replay test shows the same hash at ½× and 1× |
+| B4 | **Scene targets:** rings on guests and tables through the label registry | M | A3 | D3 | Done | Screenshot of T2 with the ring on the right guest |
+| B5 | **Result-card and first-build steps** (T9, T10) with the cosy aura | S | B2, F4 | D5 | Done | Browser test reaches "table placed" from the card |
+| B6 | **Replay proof:** guide pauses and acts; server replay hash matches | S | B2 | n/a | Done | Test in `src/test/` passes in `test:engines` |
 
 ### C. The ladder and first-time tips
 
@@ -476,8 +476,8 @@ Status: **Planned**, **Doing**, **Done**. Size: **S** under a day, **M** one to 
 | C1 | **Unlock ladder** (4.2) from `history.length`, Reddit only, with Settings → Show everything | M | N1 | D8 | Planned | Browser tests for nights 0, 1, 2, 3 and 5 show the right tabs; a test helper opens everything for older tests |
 | C2 | **Introduction cards** per ladder row | S | C1, B2 | D8 | Planned | Each card shows once; a second device does not show it again (server key) |
 | C3 | **First-time tips** for engine events (4.2 list) | M | B2 | D8 | Planned | A test per tip: triggered once by its event |
-| C4 | **Speeds on the ladder** (G2) and **Hold to prep** from night 3 | S | C1 | D2 | Planned | Night 0 shows ½× and 1× only |
-| C5 | **Tour progress storage**: `tour:<uid>` Redis set, `GET` with today, `POST /api/tour/seen`, allowlisted ids, TTL, rate limit; `localStorage` in the browser game | S | none | n/a | Planned | Server tests against the in-memory store (`fake-store.ts`); build-log entry for the new key |
+| C4 | **Speeds on the ladder** (G2) and **Hold to prep** from night 3 | S | C1 | D2 | Done | Night 0 shows ½× and 1× only |
+| C5 | **Tour progress storage**: `tour:<uid>` Redis set, `GET` with today, `POST /api/tour/seen`, allowlisted ids, TTL, rate limit; `localStorage` in the browser game | S | none | n/a | Done | Server tests against the in-memory store (`fake-store.ts`); build-log entry for the new key |
 
 ### N. Navigation and rewards
 
@@ -504,7 +504,7 @@ Status: **Planned**, **Doing**, **Done**. Size: **S** under a day, **M** one to 
 | F1 | **Host stand and door mat** at the entrance (L1) | S | none | D12 | Planned | Screenshot; the frame-time check holds (`FrameWatch`) |
 | F2 | **Pass counter with a bell**; ready dishes sit there (L3) | M | none | D12 | Planned | Screenshot; the dish disappears when served |
 | F3 | **Tighter service framing on phones** (L5) | S | none | D12 | Done | Phone screenshots before and after in the Log |
-| F4 | **Cosy aura** in Build and on nights 1 to 3 (L4) | S | none | D3 | Planned | Screenshot; the aura matches `isCozy` (unit test on the tile set) |
+| F4 | **Cosy aura** in Build and on nights 1 to 3 (L4) | S | none | D3 | Done | Screenshot; the aura matches `isCozy` (unit test on the tile set) |
 
 ### Z. Part 1, after the freeze
 
@@ -666,3 +666,4 @@ If time runs short before the freeze, ship **M1 and M2**. If L0 does not fit, P1
 | 2026-11-24 | Plan | Written after reading the code and the phone screenshots. Nothing built. |
 | 2026-11-24 | Plan | Extended with Part 2 (the long game) and Part 3 (plan v4 merged, its "E" items renamed X). Renamed from `plan-v5-onboarding.md` to `plan-v5.md`. Nothing built. |
 | 2026-11-24 | M1 | Done: A1 to A8 and F3. Symbols (thumbs-up reputation, crown VIP, lightning Combo; stars only for the night's score), text Rush and Free buttons, two seat buttons reading "Table 3 ✦", number plates over tables in service and Build (one `tableNumber` helper in `layout.ts`), a break-even money line (`moneyLine` in `bills.ts`), a true *How to play* for Reddit (`help-content.ts`) with a ? button at every width, Reddit-correct notices (and the browser-only capital banner hidden on Reddit), the splash sentence, tighter service framing in portrait. Left out: a visible "The pass · your orders" heading (it cost a row of height on phones; the pass rows say what they are) and the listing text in `docs/listing.md` (portal values the author re-enters by hand). Unit 1,066 and browser 248 tests pass. |
+| 2026-11-24 | M2 | Done: C5, B3, B1, B4, B2, B6, F4, B5, and C4 brought forward. The guide (`tour.ts` steps, `Coach.tsx` overlay) welcomes a new owner, points at Open, freezes the first lunch at seat, order, cook, serve and clear, explains the bar, slows the cooking to ½× with live cues ("In the box: Flip now!"), hands the lunch over, teaches the three stars inside the first result card, and walks through buying a cosy table (gold tiles in Build, `cozyTiles` in `layout.ts`). Progress is a Redis hash `tour:<uid>` (90 days) through `POST /api/tour`, returned with today. A ½× speed; on Reddit 2× and 3× and "Hold to prep" wait until night 3. Proof: `guided-replay.test.ts` (frozen and ½× play replays to the same hash on three dates), `tour.test.ts`, `tour-server.test.ts`, `coach.browser.test.tsx`. Help has "Replay the tour on my next lunch". Initial JS 494 of 650 KB. |

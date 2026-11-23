@@ -130,7 +130,7 @@ export default function RestaurantScene(props: SceneProps) {
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} /><FrameWatch />
     <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} garden={garden} service={state.phase === 'service'} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />{restaurant.remote?.world && <GardenYard onBed={onBed} />}
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
-    {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
+    {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} furniture={state.furniture} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}
     {state.staff.map(member => <Employee key={member.id} member={member} />)}
     {state.guests.map(guest => <Customer key={guest.id} guest={guest} patienceSeconds={patienceSeconds} />)}

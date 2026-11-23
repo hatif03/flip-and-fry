@@ -31,6 +31,8 @@ export type TodayResponse = {
   freezes?: number;
   week?: WeekView;
   community: { opens: number; locks: number };
+  /** What the guide has already shown this player (see TOUR_IDS). */
+  tour?: TourId[];
   /** The name a moderator gave the neighborhood in the subreddit settings, already checked. */
   neighborhood?: string | null;
   /** Set when this post is a kitchen someone posted: the kitchen a visitor can stop by. */
@@ -93,3 +95,12 @@ export type WorldResponse = WorldView & { rev: number; park: RestaurantState };
 export type WorldRequest = { rev: number; plot?: number; crop?: string; index?: number };
 /** Experience from a closed service. */
 export type XpGain = { gained: number; level: number; leveledUp: boolean };
+
+/**
+ * What the guide has shown a player, stored on the server so a second device does not repeat it. A fixed allowlist: the server
+ * refuses any other id. 'skip' means the player turned the guide off.
+ */
+export const TOUR_IDS = ['welcome', 'lunch', 'card', 'build', 'done', 'skip',
+  'intro-dinner', 'intro-menu', 'intro-garden', 'intro-kitchen', 'intro-team', 'intro-goal', 'intro-goals', 'intro-street',
+  'tip-incident', 'tip-vip', 'tip-regular', 'tip-walkout', 'tip-burnt', 'tip-notice', 'tip-level', 'tip-crop', 'tip-milestone', 'tip-rush'] as const;
+export type TourId = typeof TOUR_IDS[number];

@@ -43,7 +43,7 @@ describe('the garden tab', () => {
     restaurant.reset(); restaurant.welcome(); let screen = await render(<ManagementGame />);
     await expect.element(screen.getByRole('button', { name: 'Garden', exact: true })).not.toBeInTheDocument(); await screen.unmount();
     await page.viewport(320, 700);
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     screen = await render(<ManagementGame />);
     await expect.element(screen.getByRole('button', { name: 'Garden', exact: true })).toBeVisible();
     for (const button of document.querySelectorAll('nav[aria-label="Restaurant management"] button')) { const rect = button.getBoundingClientRect(); expect(rect.left).toBeGreaterThanOrEqual(0); expect(rect.right).toBeLessThanOrEqual(320); expect(rect.height).toBeGreaterThanOrEqual(44); }
@@ -51,7 +51,7 @@ describe('the garden tab', () => {
   });
 
   it('plants, waters and harvests on the server clock, and the pantry and cash follow', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<><ManagementGame /><Toaster /></>), cash = restaurant.state.cash;
     await screen.getByRole('button', { name: 'Garden', exact: true }).click();
     await expect.element(screen.getByRole('region', { name: 'Level' })).toHaveTextContent('Level 1');
@@ -66,7 +66,7 @@ describe('the garden tab', () => {
   });
 
   it('the between-nights strip says what needs you and opens the garden', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<ManagementGame />), strip = screen.getByRole('navigation', { name: 'Between nights' });
     await expect.element(strip).toHaveTextContent('Plant something'); await expect.element(strip).toHaveTextContent('orders waiting');
     for (const b of strip.element().querySelectorAll('button')) expect(b.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
@@ -76,7 +76,7 @@ describe('the garden tab', () => {
   });
 
   it('shows the order board and delivers an order once the pantry covers it', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<ManagementGame />);
     await screen.getByRole('button', { name: 'Garden', exact: true }).click();
     const board = screen.getByRole('region', { name: 'The order board' }); await expect.element(board).toBeVisible();
@@ -84,14 +84,14 @@ describe('the garden tab', () => {
   });
 
   it('shows the block party and the shared fridge', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<ManagementGame />); await screen.getByRole('button', { name: 'Garden', exact: true }).click();
     const block = screen.getByRole('region', { name: 'The block' }); await expect.element(block).toBeVisible();
     await expect.element(block).toHaveTextContent('Block party'); await expect.element(block).toHaveTextContent('Shared fridge'); await expect.element(block).toHaveTextContent('The fridge is empty');
   });
 
   it('saves the room in a slot from the Build panel and shows it', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<><ManagementGame /><Toaster /></>); await screen.getByRole('button', { name: 'Build', exact: true }).click();
     const slots = screen.getByRole('region', { name: 'Saved layouts' }); await expect.element(slots).toBeVisible(); await expect.element(slots).toHaveTextContent('Slot 1 empty');
     await expect.element(slots.getByRole('button', { name: 'Use the layout in slot 1' })).toBeDisabled();
@@ -100,7 +100,7 @@ describe('the garden tab', () => {
   });
 
   it('the farm view: the Garden tab and the camera button take the camera to the farm, and tapping a bed waters, harvests or opens the seeds', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<><ManagementGame /><Toaster /></>), scene = () => screen.getByTestId('mock-scene').element().getAttribute('data-garden');
     expect(scene()).toBe('false');
     await screen.getByRole('button', { name: 'Garden', exact: true }).click(); expect(scene()).toBe('true');
@@ -119,7 +119,7 @@ describe('the garden tab', () => {
   });
 
   it('every button is at least 44 px tall', async () => {
-    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull();
+    const session = new Session(restaurant, network(), { set: () => 0, clear: () => undefined }); expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // a returning player: the guide has its own tests
     const screen = await render(<ManagementGame />); await screen.getByRole('button', { name: 'Garden', exact: true }).click();
     await expect.element(screen.getByRole('region', { name: 'The garden' })).toBeVisible();
     for (const b of document.querySelectorAll('aside[aria-label="The rooftop garden"] button')) expect(b.getBoundingClientRect().height, b.textContent ?? '').toBeGreaterThanOrEqual(44);

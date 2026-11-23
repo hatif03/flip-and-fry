@@ -10,6 +10,7 @@ import { pickVisitors } from './presence';
 import { casUpdate, withinRate, type Store } from './store';
 import { dueJobs, loadWorld, saveWorld } from './worldstore';
 import { addPartyStars } from './block';
+import { tourSeen } from './tour';
 
 /** Everything here is deterministic and talks only to `Store`, so the rules run unchanged in tests and on Devvit. */
 export type Deps = { store: Store; now: () => number };
@@ -276,13 +277,13 @@ export async function getToday(deps: Deps, user: Player): Promise<{ ok: true; va
   const [rawRun, rawOpen, rawLunchRun, rawLunchOpen, community, streak] = await Promise.all([
     deps.store.hGet(keys.runs(date), user.id), deps.store.hGet(keys.opens(date), user.id), deps.store.hGet(keys.runs(date, 'lunch'), user.id), deps.store.hGet(keys.opens(date, 'lunch'), user.id), deps.store.hGetAll(keys.community(date)), streakState(deps.store, user.id, date),
   ]);
-  const week = await weekStars(deps.store, user.id, date);
+  const week = await weekStars(deps.store, user.id, date), tour = await tourSeen(deps.store, user.id);
   const opened = rawOpen ? (JSON.parse(rawOpen) as StoredOpen) : rawLunchOpen ? (JSON.parse(rawLunchOpen) as StoredOpen) : null;
   await touchProfile(deps, user);
   return { ok: true, value: {
     type: 'today', date, headline, rev: loaded.rev, park: loaded.state,
     open: opened ? { snapshot: opened.snapshot, date } : null,
     run: rawRun ? (JSON.parse(rawRun) as StoredRun) : null, lunchRun: rawLunchRun ? (JSON.parse(rawLunchRun) as StoredRun) : null, streak: streak.streak, freezes: streak.freezes, week,
-    community: { opens: Number(community.opens ?? 0), locks: Number(community.locks ?? 0) },
+    community: { opens: Number(community.opens ?? 0), locks: Number(community.locks ?? 0) }, tour,
   } };
 }

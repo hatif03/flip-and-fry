@@ -94,8 +94,11 @@ function ResultCard() {
   const result = remote?.result, today = remote?.today;
   if (!result || !today) return null;
   const { report, stars, night } = result, tomorrow = shiftDate(today.date, 1);
+  // The guide's lesson on the first card lives inside it: the card is a modal, so the overlay cannot point into it.
+  const tour = remote?.tour, teach = Boolean(tour && !tour.seen.has('card') && !tour.seen.has('skip') && restaurant.state.history.length === 1);
+  const dismiss = (): void => { if (teach) tour!.mark('card'); remote!.dismissResult(); };
   const verdict = result.shift === 'lunch' ? ['Lunch is over', 'A good lunch', 'A great lunch', 'A perfect lunch'][stars.stars] : stars.stars === 0 ? 'Not quite tonight' : stars.stars === 1 ? 'A good night' : stars.stars === 2 ? 'A great night' : 'A perfect night';
-  return <Dialog open onOpenChange={open => { if (!open) remote!.dismissResult(); }}>
+  return <Dialog open onOpenChange={open => { if (!open) dismiss(); }}>
     <DialogContent className="max-h-[90svh] w-[calc(100%-24px)] max-w-md space-y-3 overflow-y-auto rounded-3xl border-paper bg-paper p-5 text-ink">
       <div>
         <DialogTitle className="font-display text-3xl leading-none">{verdict}</DialogTitle>
@@ -116,6 +119,7 @@ function ResultCard() {
           <li className={cn('flex gap-2', stars.challenges >= 2 ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.challenges >= 2 ? '★' : '☆'}</span><span><b>Two of three challenges:</b> {stars.challenges} done</span></li>
           <li className={cn('flex gap-2', stars.beatPrevious ? 'text-teal' : 'text-ink/60')}><span aria-hidden>{stars.beatPrevious ? '★' : '☆'}</span><span><b>A better night than before</b></span></li>
         </ul>}
+      {teach && <p data-tour="stars" aria-label="Guide" className="flex gap-2 rounded-2xl border-2 border-teal bg-teal/10 p-3 text-sm"><span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-teal text-paper"><ChefHat size={18} /></span><span><b>These are your three stars.</b> Each night has three: tonight’s goal, then two of the three daily challenges (at dinner), then a better night than before. A star a day grows your streak.</span></p>}
       <TodaysBoard shift={result.shift} />
       {night.neighbors.length > 0 && <section aria-label="Neighbors tonight" className="space-y-1 rounded-2xl bg-white/40 p-3"><p className="text-[10px] font-extrabold uppercase tracking-wider text-ink/50">Neighbors from the thread</p><ul className="space-y-0.5 text-xs">{night.neighbors.map(n => <li key={n.name}>{neighborLine(n)}</li>)}</ul></section>}
       <details className="group rounded-2xl bg-white/30 px-3 py-2"><summary className="min-h-[44px] cursor-pointer list-none py-2.5 text-sm font-extrabold text-teal marker:hidden">The night in detail</summary><div className="space-y-3 pb-2">
@@ -144,7 +148,7 @@ function ResultCard() {
       {result.week && <p className="text-xs text-ink/70" aria-label="This week"><b>This week:</b> {result.week.stars} ★{result.week.tier ? ` · ${result.week.tier}` : ''}{result.week.next ? ` · ${result.week.next.at - result.week.stars} more for ${result.week.next.name}` : ' · the top tier'}.</p>}
       <p className="text-xs text-ink/70" aria-label="Tomorrow"><b>Tomorrow:</b> {prettyDate(tomorrow)} · {createDailyHeadline(tomorrow).title}.{nextUnlock(result.park) && <> <b>Next unlock:</b> {nextUnlock(result.park)}.</>}</p>
       {remote!.postResult && result.shift !== 'lunch' && <ShareActions streak={result.streak} />}
-      <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => { const first = restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price; remote!.dismissResult(); if (first) { restaurant.nextPanel = 'build'; restaurant.notify(); } }}>{restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price ? `Spend your ${money(restaurant.state.cash)}` : 'Continue'}</button></div>
+      <div className="sticky bottom-0 -mx-5 -mb-5 bg-paper px-5 pb-5 pt-2 shadow-[0_-8px_8px_-6px_#fff2d7]"><button className="game-button game-button-primary min-h-12 w-full" onClick={() => { const first = restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price; dismiss(); if (first) { restaurant.nextPanel = 'build'; restaurant.notify(); } }}>{restaurant.state.history.length === 1 && restaurant.state.cash >= CATALOG.table.price ? `Spend your ${money(restaurant.state.cash)}` : 'Continue'}</button></div>
     </DialogContent>
   </Dialog>;
 }

@@ -15,6 +15,7 @@ import { loadArcade, saveArcade } from '../core/arcade';
 import { recordPresence } from '../core/presence';
 import { commitAction, endCoop, joinCoop, listCoop, publishSync, relayRequest, startCoop } from '../core/coop';
 import { getBoard } from '../core/board';
+import { markTourSeen } from '../core/tour';
 import { awardXp, claimParty, collectCraft, deliver, getWorld, harvest, leaveInFridge, plant, rush, saveLayout, startCraft, useLayout, takeFromFridge, upgrade, water } from '../core/world';
 import { serviceXp } from '../../management/crops';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
@@ -208,6 +209,12 @@ api.get('/avatar', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const r = await avatarFor(deps, avatarApi, user, c.req.query('name'));
   return 'error' in r ? failure(c, r) : c.json({ type: 'avatar', ...r.value });
+});
+api.post('/tour', async c => {
+  const user = await player(); if (!user) return c.json(needLogin, 401);
+  const body = z.object({ id: z.string().max(32) }).safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);
+  const r = await markTourSeen(deps.store, user.id, body.data.id);
+  return 'error' in r ? c.json<ErrorResponse>({ type: 'error', error: r.error }, r.status) : c.json({ type: 'tour', seen: r.value });
 });
 api.get('/reminder', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);

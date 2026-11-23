@@ -4,7 +4,7 @@ import { shiftLength } from '../management/types';
 import type { RemoteSession, RestaurantEngine } from '../management/engine';
 import { stateHash } from '../management/replay';
 import { houseStyle, type NeighborhoodView, type VisitResult } from '../management/social';
-import type { BoardView, ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse, WorldResponse, WorldView } from '../shared/api';
+import type { BoardView, ErrorResponse, LockResponse, OpenResponse, SaveResponse, TodayResponse, TourId, WorldResponse, WorldView } from '../shared/api';
 
 /** One round trip to /api. Injected so the session is tested against the real server rules without a network. */
 export type Http = (method: 'GET' | 'POST', path: string, body?: unknown, headers?: Record<string, string>) => Promise<{ status: number; body: unknown }>;
@@ -43,6 +43,15 @@ export class Session implements RemoteSession {
   private wasService = false;
   private sentFirstGuest = false;
   private sentHalfway = false;
+  /** What the guide has shown this player: loaded with today, marked on the server as the guide moves on. A failed mark only means it may show again. */
+  readonly tour = {
+    seen: new Set<TourId>(),
+    mark: (id: TourId): void => {
+      if (this.tour.seen.has(id)) return;
+      this.tour.seen.add(id); this.engine.notify();
+      void this.http('POST', '/api/tour', { id }).catch(() => undefined);
+    },
+  };
 
   constructor(private readonly engine: RestaurantEngine, private readonly http: Http, private readonly scheduler: Scheduler = { set: (fn, ms) => setTimeout(fn, ms), clear: h => clearTimeout(h as ReturnType<typeof setTimeout>) }, private readonly journeys: Journeys = noJourneys) {}
 
@@ -59,7 +68,7 @@ export class Session implements RemoteSession {
     if (r.status !== 200 || isError(r.body)) return message(r);
     const today = r.body as TodayResponse;
     void this.world.load();
-    this.today = today; this.rev = today.rev; this.social = { posted: Boolean(today.run?.commentId), flair: null, followed: false }; this.pending = []; this.cancelTimer(); this.openDate = null;
+    this.today = today; this.rev = today.rev; for (const id of today.tour ?? []) this.tour.seen.add(id); this.social = { posted: Boolean(today.run?.commentId), flair: null, followed: false }; this.pending = []; this.cancelTimer(); this.openDate = null;
     if (today.open) {
       // A service was opened and never closed (a reload mid-service). It replays from its first tick, which is the same night.
       this.engine.adopt(today.open.snapshot);

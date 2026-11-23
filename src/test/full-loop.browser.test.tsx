@@ -58,7 +58,7 @@ afterEach(() => { restaurant.remote = null; restaurant.autoRoll = true; });
 
 it('plays a whole night: open, cook at the pass, the server\'s result card, post, flair, follow, leave the door open', async () => {
   const timers = { set: () => 0, clear: () => undefined }, session = new Session(restaurant, network(), timers);
-  expect(await session.start()).toBeNull();
+  expect(await session.start()).toBeNull(); session.tour.seen.add('skip'); // the guide has its own tests (coach.browser.test.tsx)
   const screen = await render(<><ManagementGame /><Toaster /></>);
   await expect.element(screen.getByRole('complementary', { name: 'Today' })).toHaveTextContent('Rain on the roof');
 

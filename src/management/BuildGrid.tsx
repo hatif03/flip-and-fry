@@ -2,18 +2,21 @@ import { memo, useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import { CELL, HEIGHT, entrance, type Furniture, type Point } from './types';
 import { alignmentSegments, footprintBounds, gridSegments, type GridVertex } from './build-grid';
+import { cozyTiles } from './layout';
 
 const ignoreRaycast = () => undefined;
 
 /** A planning-only, floor-anchored grid. Decorative lines never steal tile taps. */
-export const BuildGrid = memo(function BuildGrid({ columns, draft, onTile }: { columns: number; draft: Furniture | null; onTile: (point: Point) => void }) {
+export const BuildGrid = memo(function BuildGrid({ columns, draft, onTile, furniture = [] }: { columns: number; draft: Furniture | null; onTile: (point: Point) => void; furniture?: readonly Furniture[] }) {
   const lines = useMemo(() => gridSegments(columns), [columns]);
+  // The cosy aura: tiles within two of a decor piece glow gold, so a table placed there is visibly cosy (✦) before it is bought.
+  const cozy = useMemo(() => cozyTiles(furniture.filter(f => f.id !== draft?.id), columns), [furniture, draft?.id, columns]);
   const guides = useMemo(() => draft ? alignmentSegments(draft, columns) : null, [draft, columns]);
   return <group name="build-grid" userData={{ columns, rows: HEIGHT }}>
     {Array.from({ length: columns * HEIGHT }, (_, i) => {
       const x = i % columns, z = Math.floor(i / columns);
       return <mesh key={i} name={`build-cell-${x}-${z}`} position={[x * CELL, .081, z * CELL]} rotation={[-Math.PI / 2, 0, 0]} onClick={event => { event.stopPropagation(); onTile({ x, z }); }}>
-        <planeGeometry args={[CELL, CELL]} /><meshBasicMaterial color="#FFF2D7" transparent opacity={(x + z) % 2 ? .08 : .16} depthWrite={false} toneMapped={false} />
+        <planeGeometry args={[CELL, CELL]} />{cozy.has(`${x}:${z}`) ? <meshBasicMaterial color="#F2B743" transparent opacity={(x + z) % 2 ? .3 : .4} depthWrite={false} toneMapped={false} /> : <meshBasicMaterial color="#FFF2D7" transparent opacity={(x + z) % 2 ? .08 : .16} depthWrite={false} toneMapped={false} />}
       </mesh>;
     })}
     <Line points={lines} segments color="#233D3B" lineWidth={3} transparent opacity={.4} depthWrite={false} toneMapped={false} raycast={ignoreRaycast} />
