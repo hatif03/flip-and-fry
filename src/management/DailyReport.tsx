@@ -68,9 +68,9 @@ export function DailyReport({ report, previous, restaurantName, closing, onConti
         <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-dashed border-ink/20 pt-4 text-center">{[['Guests served', report.served], ['Missed guests', report.missed], ['Day rating', `${report.rating.toFixed(1)}/5`]].map(([label, value]) => <div key={label}><dt className="text-[10px] text-ink/65">{label}</dt><dd className="mt-1 font-display text-xl tabular-nums">{value}</dd></div>)}</dl>
       </div>
       <div className="shrink-0 border-t border-ink/10 px-5 pb-5 pt-3 sm:px-7">
-        <p className="mb-3 text-center text-[11px] text-ink/60">Saved in Ledger · your team keeps working</p>
+        <p className="mb-3 text-center text-[11px] text-ink/60">Saved in the books · your team keeps working</p>
         {onInteriors && <button type="button" onClick={onInteriors} className="mb-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal/20 bg-teal/5 px-3 text-sm font-extrabold text-teal hover:bg-teal/10"><ShoppingBag size={17} aria-hidden="true" />Shop interiors</button>}
-        <button className="game-button game-button-primary min-h-12 w-full text-lg" onClick={closing ? onContinue : onClose}>{closing ? `Plan day ${report.day + 1}` : 'Back to ledger'}<ArrowRight size={18} aria-hidden="true" /></button>
+        <button className="game-button game-button-primary min-h-12 w-full text-lg" onClick={closing ? onContinue : onClose}>{closing ? `Plan day ${report.day + 1}` : 'Back to the books'}<ArrowRight size={18} aria-hidden="true" /></button>
       </div>
     </DialogContent>
   </Dialog>;

@@ -16,7 +16,7 @@ import { recordPresence } from '../core/presence';
 import { commitAction, endCoop, joinCoop, listCoop, publishSync, relayRequest, startCoop } from '../core/coop';
 import { getBoard } from '../core/board';
 import { markTourSeen } from '../core/tour';
-import { awardXp, claimParty, collectCraft, deliver, getWorld, harvest, leaveInFridge, plant, rush, saveLayout, startCraft, useLayout, takeFromFridge, upgrade, water } from '../core/world';
+import { awardXp, claimCrate, claimParty, collectCraft, deliver, getWorld, harvest, leaveInFridge, plant, rush, saveLayout, startCraft, useLayout, takeFromFridge, upgrade, water } from '../core/world';
 import { serviceXp } from '../../management/crops';
 import { isDoorOpen, listDoors, readBulletin, setDoor, visitDoor } from '../core/doors';
 import { kitchenOfPost, postKitchen } from '../core/kitchen-post';
@@ -99,7 +99,7 @@ api.post('/lock', async c => {
   const journeyId = c.req.header('x-devvit-journey-id');
   if (journeyId) { try { await telemetry.endJourney(officialEnd(journeyId, r.value)); } catch (error) { console.error(`journey end failed: ${error}`); } }
   // Experience from the replayed night (never from a client claim). Optional: a failure here never changes the receipt.
-  let xp = null; try { xp = await awardXp(deps, user.id, serviceXp(r.value.stars.stars, r.value.report.served, r.value.park.hustle.best)); } catch (error) { console.error(`xp failed: ${error}`); }
+  let xp = null; try { xp = await awardXp(deps, user.id, serviceXp(r.value.stars.stars, r.value.report.served, r.value.park.hustle.best), { served: r.value.report.served, stars: r.value.stars.stars, chain: r.value.park.hustle.best }); } catch (error) { console.error(`xp failed: ${error}`); }
   return c.json({ ...r.value, xp });
 });
 
@@ -108,7 +108,7 @@ api.get('/world', async c => {
   const user = await player(); if (!user) return c.json(needLogin, 401);
   const r = await getWorld(deps, user); return 'error' in r ? failure(c, r) : c.json(r.value);
 });
-for (const [path, run] of [['plant', (u: Player, b: z.infer<typeof worldBody>) => plant(deps, u, b.rev, b.plot ?? -1, b.crop as never)], ['water', (u: Player, b: z.infer<typeof worldBody>) => water(deps, u, b.rev, b.plot ?? -1)], ['harvest', (u: Player, b: z.infer<typeof worldBody>) => harvest(deps, u, b.rev, b.plot ?? -1)], ['deliver', (u: Player, b: z.infer<typeof worldBody>) => deliver(deps, u, b.rev, b.index ?? -1)], ['upgrade', (u: Player, b: z.infer<typeof worldBody>) => upgrade(deps, u, b.rev, b.index ?? -1)], ['rush', (u: Player, b: z.infer<typeof worldBody>) => rush(deps, u, b.rev, b.index ?? -1)], ['claim', (u: Player, b: z.infer<typeof worldBody>) => claimParty(deps, u, b.rev, b.index ?? -1)], ['leave', (u: Player, b: z.infer<typeof worldBody>) => leaveInFridge(deps, u, b.rev, b.crop as never)], ['take', (u: Player, b: z.infer<typeof worldBody>) => takeFromFridge(deps, u, b.rev, b.crop as never)], ['layoutsave', (u: Player, b: z.infer<typeof worldBody>) => saveLayout(deps, u, b.rev, b.index ?? -1)], ['layoutuse', (u: Player, b: z.infer<typeof worldBody>) => useLayout(deps, u, b.rev, b.index ?? -1)], ['craft', (u: Player, b: z.infer<typeof worldBody>) => startCraft(deps, u, b.rev, b.crop ?? '')], ['collect', (u: Player, b: z.infer<typeof worldBody>) => collectCraft(deps, u, b.rev, b.crop ?? '')]] as const) {
+for (const [path, run] of [['plant', (u: Player, b: z.infer<typeof worldBody>) => plant(deps, u, b.rev, b.plot ?? -1, b.crop as never)], ['water', (u: Player, b: z.infer<typeof worldBody>) => water(deps, u, b.rev, b.plot ?? -1)], ['harvest', (u: Player, b: z.infer<typeof worldBody>) => harvest(deps, u, b.rev, b.plot ?? -1)], ['crate', (u: Player, b: z.infer<typeof worldBody>) => claimCrate(deps, u, b.rev)], ['deliver', (u: Player, b: z.infer<typeof worldBody>) => deliver(deps, u, b.rev, b.index ?? -1)], ['upgrade', (u: Player, b: z.infer<typeof worldBody>) => upgrade(deps, u, b.rev, b.index ?? -1)], ['rush', (u: Player, b: z.infer<typeof worldBody>) => rush(deps, u, b.rev, b.index ?? -1)], ['claim', (u: Player, b: z.infer<typeof worldBody>) => claimParty(deps, u, b.rev, b.index ?? -1)], ['leave', (u: Player, b: z.infer<typeof worldBody>) => leaveInFridge(deps, u, b.rev, b.crop as never)], ['take', (u: Player, b: z.infer<typeof worldBody>) => takeFromFridge(deps, u, b.rev, b.crop as never)], ['layoutsave', (u: Player, b: z.infer<typeof worldBody>) => saveLayout(deps, u, b.rev, b.index ?? -1)], ['layoutuse', (u: Player, b: z.infer<typeof worldBody>) => useLayout(deps, u, b.rev, b.index ?? -1)], ['craft', (u: Player, b: z.infer<typeof worldBody>) => startCraft(deps, u, b.rev, b.crop ?? '')], ['collect', (u: Player, b: z.infer<typeof worldBody>) => collectCraft(deps, u, b.rev, b.crop ?? '')]] as const) {
   api.post(`/world/${path}`, async c => {
     const user = await player(); if (!user) return c.json(needLogin, 401);
     const body = worldBody.safeParse(await c.req.json().catch(() => null)); if (!body.success) return c.json<ErrorResponse>({ type: 'error', error: 'Invalid request.' }, 400);

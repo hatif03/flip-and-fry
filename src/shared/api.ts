@@ -1,3 +1,4 @@
+import type { RoundView } from '../management/round';
 import type { NightSummary } from '../management/awards';
 import type { DailyHeadline } from '../management/daily-headline';
 import type { DoorSummary } from '../management/social';
@@ -79,6 +80,8 @@ export type PlotView = { index: number; crop: CropId | null; readyAt: number; pl
 /** A station a builder can upgrade, what it is now, and what the next step costs (or null at the top). */
 export type StationView = { id: number; kind: string; name: string; level: number; next: { toLevel: 2 | 3; cost: number; seconds: number; levelNeeded: number } | null };
 export type WorldView = {
+  /** Today's three tasks and the week toward the crate. */
+  round?: RoundView;
   type: 'world'; now: number; xp: number; level: number; nextXp: number | null; slots: number; plots: PlotView[];
   orders: (Order & { done: boolean; canFill: boolean })[]; pantry: Pantry; cash: number;
   /** The block: the weekly party and the shared fridge. */

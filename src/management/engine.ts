@@ -69,7 +69,7 @@ export interface RemoteSession {
   /** Today's board: official results on this subreddit, from the server's replays. Optional and read-only. */
   board?(shift?: 'lunch' | 'dinner'): Promise<BoardView | { error: string }>;
   /** The rooftop garden, the pantry and the order board, run on the server's clock. Only between services. */
-  world?: { /** The last garden view the session loaded, with the offset from this device's clock to the server's, or null before the first. */ peek?(): { view: WorldView; offset: number } | null; load(): Promise<WorldView | { error: string }>; act(path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take' | 'craft' | 'collect' | 'layoutsave' | 'layoutuse', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> };
+  world?: { /** The last garden view the session loaded, with the offset from this device's clock to the server's, or null before the first. */ peek?(): { view: WorldView; offset: number } | null; load(): Promise<WorldView | { error: string }>; act(path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take' | 'craft' | 'collect' | 'layoutsave' | 'layoutuse' | 'crate', body: { plot?: number; crop?: string; index?: number }): Promise<WorldView | { error: string }> };
 }
 export interface StorageAdapter { getItem(key: string): string | null; setItem(key: string, value: string): void; }
 const resetStaff = (staff: Staff): void => { staff.task = 'idle'; staff.guestId = null; staff.stationId = null; staff.timer = 0; staff.route = []; };

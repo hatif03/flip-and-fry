@@ -93,7 +93,8 @@ it('shows real closing numbers and pays milestones only once', async () => {
   await expect.element(screen.getByTestId('report-profit')).toHaveTextContent(money(report.profit));
   await expect.element(screen.getByRole('table', { name: 'Day 1 income and expenses' })).toBeInTheDocument();
   const clock = restaurant.state.clock; restaurant.update(.1); expect(restaurant.state.clock).toBeGreaterThan(clock);
-  await screen.getByRole('button', { name: 'Back to ledger' }).click();
+  await screen.getByRole('button', { name: 'Back to the books' }).click();
+  await screen.getByRole('button', { name: 'Goals', exact: true }).click(); // milestones live in Goals
   const before = restaurant.state.cash;
   await screen.getByRole('button', { name: 'Collect reward', exact: false }).first().click();
   expect(restaurant.state.cash).toBe(before + 180);
@@ -151,7 +152,7 @@ it('reopens a saved daily summary without changing money, wages or the current d
   restaurant.state.history = [{ ...sampleReport }]; restaurant.state.day = 2;
   restaurant.train(10);
   const screen = await render(<ManagementGame />);
-  await screen.getByRole('button', { name: 'Ledger', exact: true }).click();
+  await screen.getByRole('button', { name: /^Money:/ }).click();
   const summary = screen.getByRole('button', { name: 'View Day 1 summary' });
   await expect.element(summary).toHaveTextContent('Total revenue$320');
   await expect.element(summary).toHaveTextContent('Labor costs$60');
@@ -159,7 +160,7 @@ it('reopens a saved daily summary without changing money, wages or the current d
   await summary.click();
   await expect.element(screen.getByRole('heading', { name: 'Day 1 summary' })).toBeVisible();
   await expect.element(screen.getByTestId('report-labor')).toHaveTextContent('$60');
-  await screen.getByRole('button', { name: 'Back to ledger' }).click();
+  await screen.getByRole('button', { name: 'Back to the books' }).click();
   expect(JSON.stringify(restaurant.state)).toBe(before);
   await summary.click();
   await userEvent.keyboard('{Escape}');
@@ -170,10 +171,10 @@ it('keeps ongoing service running while reviewing history', async () => {
   restaurant.state.history = [{ ...sampleReport }]; restaurant.state.day = 2;
   const screen = await render(<ManagementGame />);
   await screen.getByRole('button', { name: /Open restaurant/ }).click();
-  await screen.getByRole('button', { name: 'Ledger', exact: true }).click();
+  await screen.getByRole('button', { name: /^Money:/ }).click();
   await screen.getByRole('button', { name: 'View Day 1 summary' }).click();
   expect(restaurant.paused).toBe(false);
-  await screen.getByRole('button', { name: 'Back to ledger' }).click();
+  await screen.getByRole('button', { name: 'Back to the books' }).click();
   expect(restaurant.paused).toBe(false);
   const clock = restaurant.state.clock; restaurant.update(.1); expect(restaurant.state.clock).toBeGreaterThan(clock);
 });
@@ -209,11 +210,11 @@ it.each([320, 390, 768])('keeps the report and next-day action usable at %spx, w
   const scroll = screen.getByTestId('report-scroll').element();
   expect(scroll.scrollWidth).toBeLessThanOrEqual(scroll.clientWidth);
   expect(scroll.scrollHeight).toBeGreaterThan(scroll.clientHeight);
-  const button = screen.getByRole('button', { name: 'Back to ledger' }).element().getBoundingClientRect();
+  const button = screen.getByRole('button', { name: 'Back to the books' }).element().getBoundingClientRect();
   expect(button.bottom).toBeLessThan(740); expect(button.height).toBeGreaterThanOrEqual(44);
   scroll.scrollTop = scroll.scrollHeight;
   await expect.element(screen.getByRole('rowheader', { name: 'Loan repayment' })).toBeVisible();
-  await screen.getByRole('button', { name: 'Back to ledger' }).click();
+  await screen.getByRole('button', { name: 'Back to the books' }).click();
   expect(restaurant.state.day).toBe(2);
   await screen.getByRole('button', { name: 'View Day 1 summary' }).click();
   await expect.element(screen.getByTestId('report-profit')).toHaveTextContent('$110');

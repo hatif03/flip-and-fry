@@ -2,7 +2,7 @@ import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 import { restaurant } from '@/management/engine';
 import { InteriorsPanel } from '@/management/InteriorsPanel';
-import { LedgerPanel, TeamPanel } from '@/management/Panels';
+import { GoalsPanel, TeamPanel } from '@/management/Panels';
 import { createRestaurant } from '@/management/types';
 import '@/index.css';
 
@@ -13,21 +13,21 @@ describe('research on the ledger', () => {
     const state = createRestaurant(); state.research.budget = 20; const set: number[] = [], original = restaurant.setResearch.bind(restaurant);
     restaurant.setResearch = budget => { set.push(budget); return null; };
     try {
-      const screen = await render(<LedgerPanel state={state} action={() => undefined} onReport={() => undefined} />);
+      const screen = await render(<GoalsPanel state={state} action={() => undefined} />);
       await expect.element(screen.getByRole('button', { name: 'Research $20 a night' })).toHaveClass('border-teal');
       await screen.getByRole('button', { name: 'Research $40 a night' }).click(); expect(set).toEqual([40]);
     } finally { restaurant.setResearch = original; }
   });
   it('shows progress toward each study and which are ready', async () => {
     const state = createRestaurant(); state.research.points = 150;
-    const screen = await render(<LedgerPanel state={state} action={() => undefined} onReport={() => undefined} />);
+    const screen = await render(<GoalsPanel state={state} action={() => undefined} />);
     await expect.element(screen.getByText('Ready ✓')).toBeVisible();
-    await expect.element(screen.getByText('150/220')).toBeVisible();
+    await expect.element(screen.getByRole('region', { name: 'Research' }).getByText('150/220')).toBeVisible();
     await expect.element(screen.getByRole('progressbar', { name: 'Staff cloth research' })).toBeVisible();
   });
   it('locks the budget buttons while the doors are open', async () => {
     const state = createRestaurant(); state.phase = 'service';
-    const screen = await render(<LedgerPanel state={state} action={() => undefined} onReport={() => undefined} />);
+    const screen = await render(<GoalsPanel state={state} action={() => undefined} />);
     await expect.element(screen.getByRole('button', { name: 'Research $40 a night' })).toBeDisabled();
   });
 });

@@ -31,7 +31,7 @@ export function Garden() {
   const seen = world?.peek?.();
   useEffect(() => { if (seen && seen.view !== view) apply(seen.view); }, [seen, view, apply]);
   if (!world) return <p className="text-sm text-ink/65">The garden grows on Reddit, where it keeps time while you are away.</p>;
-  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take' | 'craft' | 'collect' | 'layoutsave' | 'layoutuse', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
+  const act = async (path: 'plant' | 'water' | 'harvest' | 'deliver' | 'upgrade' | 'rush' | 'claim' | 'leave' | 'take' | 'craft' | 'collect' | 'layoutsave' | 'layoutuse' | 'crate', body: { plot?: number; crop?: string; index?: number }, done?: string): Promise<void> => {
     setBusy(true); const r = await world.act(path, body); setBusy(false);
     if ('error' in r) { toast.error(r.error); return; }
     apply(r); if (done) toast.success(done); cue(path === 'harvest' ? 'pop' : path === 'upgrade' || path === 'rush' ? 'hammer' : path === 'deliver' ? 'coin' : 'plop');

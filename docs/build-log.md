@@ -4,6 +4,19 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-24 — Goals, the books and the street; Road ahead; a daily round (plan v5, milestone L0)
+
+**Decision:** the Ledger tab, which held a dozen unrelated things, is split by job. **Goals** (a dock tab) is what to aim for: Road ahead, today's round, the daily challenges, milestones (ready ones on top), research and the regulars. **Money** opens from the cash in the header: the week, the register, tonight's totals, the loan and the last 20 receipts. **Street** holds the neighbors (open doors, visits, cooking together, reminders) and opens from Goals or the neighborhood view. **Road ahead** names the next three goals with progress: a milestone ready to collect, what the next player level opens, the east terrace, research, the nearest milestone. A **daily round** of three small tasks (one in the garden, one at the pass, one more) pays XP once each, and five full rounds in a week open a **weekly crate** ($150 and 30 XP). The Test Kitchen button sits beside Open on phones from the third night, not inside the Ledger.
+
+**Why:** plan v5 findings D8 and D9 (everything at once, rewards nobody finds) and R4 and R6 (no visible long arc, day 30 the same as day 3). The round gives every day a short reason to visit the garden and play a service, without a timer that blocks anything.
+
+**How it stays honest:** the round lives in the world (`world:<uid>`, the same 30-day key) and moves only from server routes (plant, water, harvest, deliver, start a batch) and from the lock's replayed receipt (guests served, stars, best combo). The day's tasks are fixed by the date and the level the day began at, so a level-up does not swap them. The crate is claimed through the world's revision-checked change, refused while a service is open.
+
+**Refused or changed:** seven rounds for the crate (five of seven, so one busy weekend does not lose a week); a round task that needs a purchase; tasks that count anything a client reports. **Deferred:** the skyline growing with the player level (P2), because it is 3D placement that needs a visual check.
+
+Devvit or third party: Redis only (a `round` field in the existing world value). No new permission. New route `POST /api/world/crate`.
+Code: `src/management/round.ts`, `road-ahead.ts`, `RoadAhead.tsx`, `DailyRound.tsx`, `Panels.tsx` (`GoalsPanel`, `MoneyPanel`, `StreetPanel`), `ManagementGame.tsx`, `TasksStrip.tsx`, `help-content.ts`, `src/server/core/world.ts` (`onRound`, `awardXp`, `claimCrate`), `worldstore.ts`, `src/server/routes/api.ts`, `src/shared/api.ts`; tests `round.test.ts`, `road-ahead.test.ts`, and the Ledger tests moved to Goals and Money.
+
 ## 2026-11-24 — A guided first lunch (plan v5, milestone M2)
 
 **Decision:** a new owner's first lunch is taught in the game itself. Basil the chef welcomes them, points at Open, and then **freezes the night** at each job until the player does it: seat (with what ✦ cosy means), take the order, cook, serve, clear. Before the first dish he explains the bar, then runs the cooking at **½×** with live cues ("In the box: Flip now!", "Green: Plate it!"). Then he hands the rest of lunch over with the whole job in one line. The first result card explains the three stars inside it. After that card the guide walks through buying a table on a **gold (cosy) tile** in Build, and ends with what dinner and tomorrow are for. Skip is on every step and Escape skips; Help offers "Replay the tour on my next lunch".

@@ -26,7 +26,7 @@ it.each([[320, 568], [390, 844], [768, 800], [1280, 800]])('keeps the red alert,
   expect(screen.getByTestId('restaurant-scene').element().getBoundingClientRect().top).toBeGreaterThanOrEqual(bounds.bottom);
   reachable(alert.getByRole('button', { name: 'Close for renovation' }).element());
   reachable(screen.getByRole('button', { name: 'Pause service' }).element());
-  for (const tab of ['Build', 'Team', 'Menu', 'Ledger']) {
+  for (const tab of ['Build', 'Team', 'Menu', 'Goals']) {
     await screen.getByRole('button', { name: tab, exact: true }).click();
     const panel = screen.getByRole('complementary').element(), box = panel.getBoundingClientRect();
     expect(box.top).toBeGreaterThanOrEqual(bounds.bottom);
@@ -67,7 +67,7 @@ it('closes with one keyboard action, does not charge immediately or unpause, and
   await expect.element(screen.getByRole('heading', { name: 'Low reopening funds' })).toBeVisible();
   expect(restaurant.state.phase).toBe('planning'); expect(restaurant.state.cash).toBe(20); expect(restaurant.state.history).toHaveLength(1);
   await screen.getByRole('button', { name: 'Review finances' }).click();
-  await expect.element(screen.getByRole('complementary', { name: 'The owner’s ledger' })).toBeVisible();
+  await expect.element(screen.getByRole('complementary', { name: 'The owner’s books' })).toBeVisible();
   await screen.getByRole('button', { name: /Take recovery loan/ }).click();
   await expect.element(screen.getByTestId('capital-warning')).not.toBeInTheDocument();
   expect(restaurant.state.cash).toBe(620); expect(restaurant.state.debt).toBe(600);

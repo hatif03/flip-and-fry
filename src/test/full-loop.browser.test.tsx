@@ -120,7 +120,9 @@ it('plays a whole night: open, cook at the pass, the server\'s result card, post
   await card.getByRole('button', { name: /^(Continue|Spend your)/ }).click();
   // Wait for the card to be gone (it zooms out), so nothing is animating over the next click.
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
-  await screen.getByRole('button', { name: 'Ledger', exact: true }).click();
+  await screen.getByRole('button', { name: 'Goals', exact: true }).click();
+  const street = screen.getByRole('button', { name: /^Your street/ }); await expect.element(street).toBeInTheDocument();
+  (street.element() as HTMLElement).click(); // direct, like the door below: the panel's settling animation can keep it from looking "stable"
   const door = screen.getByRole('switch', { name: 'Leave my door open' });
   await expect.element(door).toBeVisible();
   door.element().scrollIntoView({ block: 'center' }); (door.element() as HTMLElement).click(); // a direct click: under load the panel's settling animation can keep the element from ever looking "stable"

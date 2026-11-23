@@ -1,4 +1,5 @@
 import type { CropId } from '../../management/crops';
+import type { Round } from '../../management/round';
 import type { Store } from './store';
 
 /**
@@ -12,14 +13,14 @@ export type Job = { furnitureId: number; toLevel: 2 | 3; readyAt: number };
 export type Craft = { good: string; readyAt: number };
 /** A saved arrangement of the room: where each piece (by its id) stands. */
 export type Layout = { items: { id: number; x: number; z: number; rotation: number }[] };
-export type World = { layouts: (Layout | null)[]; xp: number; plots: (Plot | null)[]; orders: { date: string; done: number[] }; jobs: Job[]; rushDate: string; crafts: Craft[] };
+export type World = { layouts: (Layout | null)[]; xp: number; plots: (Plot | null)[]; orders: { date: string; done: number[] }; jobs: Job[]; rushDate: string; crafts: Craft[]; round?: Round };
 export const WORLD_TTL = 30 * 86400;
 export const worldKey = (uid: string): string => `world:${uid}`;
 export const freshWorld = (): World => ({ layouts: [null, null, null], xp: 0, plots: [null, null], orders: { date: '', done: [] }, jobs: [], rushDate: '', crafts: [] });
 
 export async function loadWorld(store: Store, uid: string): Promise<World> {
   const raw = await store.get(worldKey(uid)); if (!raw) return freshWorld();
-  try { const w = JSON.parse(raw) as Partial<World>; return { layouts: [0, 1, 2].map(i => w.layouts?.[i] ?? null), xp: w.xp ?? 0, plots: w.plots ?? [null, null], orders: w.orders ?? { date: '', done: [] }, jobs: w.jobs ?? [], rushDate: w.rushDate ?? '', crafts: w.crafts ?? [] }; } catch { return freshWorld(); }
+  try { const w = JSON.parse(raw) as Partial<World>; return { layouts: [0, 1, 2].map(i => w.layouts?.[i] ?? null), xp: w.xp ?? 0, plots: w.plots ?? [null, null], orders: w.orders ?? { date: '', done: [] }, jobs: w.jobs ?? [], rushDate: w.rushDate ?? '', crafts: w.crafts ?? [], ...(w.round ? { round: w.round } : {}) }; } catch { return freshWorld(); }
 }
 export async function saveWorld(store: Store, uid: string, world: World, now: number): Promise<void> {
   await store.set(worldKey(uid), JSON.stringify(world), { expiration: new Date(now + WORLD_TTL * 1000) });

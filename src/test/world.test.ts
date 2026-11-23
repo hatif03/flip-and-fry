@@ -99,7 +99,9 @@ describe('the order board', () => {
     expect(w.pantry.tomato).toBeGreaterThanOrEqual(5);
     const filled = w.orders.find(o => o.canFill && !o.done); if (!filled) throw new Error('no order could be filled'); const cash = w.cash, xp = w.xp;
     const after = good(await deliver(deps, alice, await rev(), filled.index));
-    expect(after.cash).toBe(cash + filled.reward); expect(after.xp).toBe(xp + filled.xp); expect(after.orders[filled.index].done).toBe(true);
+    // Filling an order can also finish today's round task "Fill an order", which pays its own XP once.
+    const roundTask = w.round?.tasks.find(t => t.kind === 'order' && !t.done);
+    expect(after.cash).toBe(cash + filled.reward); expect(after.xp).toBe(xp + filled.xp + (roundTask?.xp ?? 0)); expect(after.orders[filled.index].done).toBe(true);
     expect(await deliver(deps, alice, after.rev, filled.index)).toMatchObject({ ok: false, error: 'You already filled that one.' });
     void order;
   });

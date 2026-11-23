@@ -5,6 +5,13 @@ import type { PlotView, WorldResponse, WorldView, XpGain } from '../../shared/ap
 import { casUpdate, withinRate } from './store';
 import { PARTY_TIERS, claimTier, fridgeLeave, fridgeTake, fridgeUntake, fridgeUnleave, fridgeView, partyView, unclaimTier } from './block';
 import { loadWorld, saveWorld, worldKey, type World } from './worldstore';
+import { CRATE, CRATE_AT, bumpRound, roundFor, roundView, type TaskKind } from '../../management/round';
+
+/** One event for the daily round: progress, and the task's XP once it is finished. */
+function onRound(world: World, now: number, kind: TaskKind, value: number): World {
+  const b = bumpRound(world.round, utcDate(now), levelFor(world.xp), kind, value);
+  return { ...world, round: b.round, xp: world.xp + b.xp };
+}
 import { hasLiveOpen, loadPark, settleUpgrades, TTL, utcDate, keys, type Deps, type Fail, type Park, type Player } from './game';
 
 /**
@@ -39,7 +46,7 @@ function view(world: World, park: RestaurantState, now: number, block: WorldView
   const jobs = world.jobs.map(j => ({ furnitureId: j.furnitureId, name: CATALOG[park.furniture.find(f => f.id === j.furnitureId)?.kind ?? 'prep'].name, toLevel: j.toLevel, readyAt: j.readyAt, rushCost: rushCost(Math.max(0, j.readyAt - now)) }));
   const workshop = GOODS.map(good => { const r = RECIPES[good], job = world.crafts.find(c => c.good === good);
     return { good, name: r.name, level: r.level, seconds: r.seconds, yield: r.yield, inputs: r.inputs, readyAt: job ? job.readyAt : null, unlocked: level >= r.level, canStart: level >= r.level && !job && r.inputs.every(i => (park.pantry[i.crop] ?? 0) >= i.n) }; });
-  return { type: 'world', now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations, block, workshop, layouts: world.layouts.map(l => l ? { pieces: l.items.length, fits: layoutFits(l, park) } : null) };
+  return { type: 'world', round: roundView(world.round, date, level), now, xp: world.xp, level, nextXp: nextLevelAt(world.xp), slots, plots, orders, pantry: park.pantry as Pantry, cash: park.cash, builders: { count: buildersFor(level), jobs, rushUsed: world.rushDate === date }, stations, block, workshop, layouts: world.layouts.map(l => l ? { pieces: l.items.length, fits: layoutFits(l, park) } : null) };
 }
 
 async function blockOf(deps: Deps, uid: string): Promise<WorldView['block']> {
@@ -94,7 +101,7 @@ export const plant = (deps: Deps, user: Player, rev: number, plotIndex: number, 
   if (park.cash < CROPS[crop].seed) return `Seeds cost $${CROPS[crop].seed}.`;
   const next: World = { ...world, plots: Array.from({ length: Math.max(world.plots.length, plotIndex + 1) }, (_, i) => world.plots[i] ?? null) };
   next.plots[plotIndex] = { crop, plantedAt: now, readyAt: now + CROPS[crop].seconds * 1000, watered: false };
-  return { world: next, park: s => { if (s.cash < CROPS[crop].seed) return `Seeds cost $${CROPS[crop].seed}.`; s.cash -= CROPS[crop].seed; return null; } };
+  return { world: onRound(next, now, 'plant', 1), park: s => { if (s.cash < CROPS[crop].seed) return `Seeds cost $${CROPS[crop].seed}.`; s.cash -= CROPS[crop].seed; return null; } };
 });
 
 export const water = (deps: Deps, user: Player, rev: number, plotIndex: number) => change(deps, user, rev, (world, _park, now) => {
@@ -102,7 +109,7 @@ export const water = (deps: Deps, user: Player, rev: number, plotIndex: number) 
   if (now >= p.readyAt) return 'It is ready: harvest it.';
   if (p.watered) return 'Already watered.';
   const next: World = { ...world, plots: world.plots.map((x, i) => i === plotIndex ? { ...p, readyAt: p.readyAt - Math.floor((p.readyAt - now) * WATER_CUT), watered: true } : x) };
-  return { world: next };
+  return { world: onRound(next, now, 'water', 1) };
 });
 
 export const harvest = (deps: Deps, user: Player, rev: number, plotIndex: number) => change(deps, user, rev, (world, _park, now) => {
@@ -110,7 +117,7 @@ export const harvest = (deps: Deps, user: Player, rev: number, plotIndex: number
   if (now < p.readyAt) return 'Not ready yet.';
   const units = now - p.readyAt >= WILT_AFTER * 1000 ? wiltedYield(p.crop) : CROPS[p.crop].yield;
   const next: World = { ...world, xp: world.xp + CROPS[p.crop].xp, plots: world.plots.map((x, i) => i === plotIndex ? null : x) };
-  return { world: next, park: s => { s.pantry[p.crop] = (s.pantry[p.crop] ?? 0) + units; return null; } };
+  return { world: onRound(next, now, 'harvest', 1), park: s => { s.pantry[p.crop] = (s.pantry[p.crop] ?? 0) + units; return null; } };
 });
 
 export const deliver = (deps: Deps, user: Player, rev: number, index: number) => change(deps, user, rev, (world, _park, now) => {
@@ -119,7 +126,7 @@ export const deliver = (deps: Deps, user: Player, rev: number, index: number) =>
   const done = world.orders.date === date ? world.orders.done : [];
   if (done.includes(index)) return 'You already filled that one.';
   const next: World = { ...world, xp: world.xp + order.xp, orders: { date, done: [...done, index] } };
-  return { world: next, park: s => {
+  return { world: onRound(next, now, 'order', 1), park: s => {
     for (const w of order.wants) if ((s.pantry[w.crop] ?? 0) < w.n) return 'Not enough in the pantry yet.';
     for (const w of order.wants) { s.pantry[w.crop] = (s.pantry[w.crop] ?? 0) - w.n; if (!s.pantry[w.crop]) delete s.pantry[w.crop]; }
     s.cash += order.reward; return null;
@@ -127,11 +134,22 @@ export const deliver = (deps: Deps, user: Player, rev: number, index: number) =>
 });
 
 /** Experience from a closed service, added to the world the lock does not otherwise touch. Returns what was gained and the level reached. */
-export async function awardXp(deps: Deps, uid: string, gained: number): Promise<XpGain> {
-  const world = await loadWorld(deps.store, uid), before = levelFor(world.xp);
-  world.xp += gained; await saveWorld(deps.store, uid, world, deps.now());
-  const level = levelFor(world.xp); return { gained, level, leveledUp: level > before };
+export async function awardXp(deps: Deps, uid: string, gained: number, night?: { served: number; stars: number; chain: number }): Promise<XpGain> {
+  let world = await loadWorld(deps.store, uid); const before = levelFor(world.xp), start = world.xp, now = deps.now();
+  world.xp += gained;
+  // The daily round's service tasks, from the replayed receipt only.
+  if (night) { world = onRound(world, now, 'serve', night.served); world = onRound(world, now, 'stars', night.stars); world = onRound(world, now, 'combo', night.chain); }
+  await saveWorld(deps.store, uid, world, now);
+  const level = levelFor(world.xp); return { gained: world.xp - start, level, leveledUp: level > before };
 }
+
+/** The weekly crate: cash and XP once a week, after CRATE_AT full rounds. */
+export const claimCrate = (deps: Deps, user: Player, rev: number) => change(deps, user, rev, (world, _park, now) => {
+  const r = roundFor(world.round, utcDate(now), levelFor(world.xp));
+  if (r.crate) return 'This week’s crate is already open.';
+  if (r.full < CRATE_AT) return `Finish ${CRATE_AT - r.full} more daily ${CRATE_AT - r.full === 1 ? 'round' : 'rounds'} this week to open the crate.`;
+  return { world: { ...world, round: { ...r, crate: true }, xp: world.xp + CRATE.xp }, park: s => { s.cash += CRATE.cash; return null; } };
+});
 
 /** Put a builder on the next level of a station: it costs a share of the piece's price now and takes real time. One job per builder. */
 export const upgrade = (deps: Deps, user: Player, rev: number, furnitureId: number) => change(deps, user, rev, (world, park, now) => {
@@ -193,7 +211,7 @@ export const startCraft = (deps: Deps, user: Player, rev: number, good: string) 
   if (levelFor(world.xp) < recipe.level) return `${recipe.name} opens at level ${recipe.level}.`;
   if (world.crafts.some(c => c.good === good)) return 'That batch is already cooking.';
   if (!recipe.inputs.every(i => (park.pantry[i.crop] ?? 0) >= i.n)) return 'Not enough produce in the pantry.';
-  return { world: { ...world, crafts: [...world.crafts, { good, readyAt: now + recipe.seconds * 1000 }] }, park: s => {
+  return { world: onRound({ ...world, crafts: [...world.crafts, { good, readyAt: now + recipe.seconds * 1000 }] }, now, 'craft', 1), park: s => {
     for (const i of recipe.inputs) { if ((s.pantry[i.crop] ?? 0) < i.n) return 'Not enough produce in the pantry.'; s.pantry[i.crop] = (s.pantry[i.crop] ?? 0) - i.n; if (!s.pantry[i.crop]) delete s.pantry[i.crop]; }
     return null;
   } };

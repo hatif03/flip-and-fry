@@ -35,6 +35,8 @@ export const HELP: HelpSection[] = [
     'Menu: switch dishes on and set prices. Far above the fair price, guests walk away.',
     'Team: hire and train chefs and servers.',
     'Garden: grow ingredients on real timers. Dishes made from them cost nothing and tip more.',
+    'Goals: what to aim for next, today’s round of three small jobs (a weekly crate for five full rounds), challenges and milestones.',
+    'Tap your cash for the books: the week’s takings and every night’s receipt.',
     'Wages and rent are paid at closing. Night after night at a loss, the bank takes a few pieces into storage. It never takes the restaurant.',
   ] },
   { id: 'symbols', title: 'What the symbols mean', Icon: Shapes, lines: [

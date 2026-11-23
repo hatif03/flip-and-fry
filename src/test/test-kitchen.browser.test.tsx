@@ -99,9 +99,8 @@ describe('the touch controls drive the same input as the keyboard', () => {
 });
 
 describe('getting there from the restaurant', () => {
-  it('offers the Test Kitchen (in the Ledger on a phone), and swaps the views', async () => {
+  it('offers the Test Kitchen beside Open, on a phone too, and swaps the views', async () => {
     const screen = await render(<Index />);
-    await userEvent.click(screen.getByRole('button', { name: 'Ledger', exact: true })); // on a phone the Test Kitchen lives in the Ledger panel
     await userEvent.click(screen.getByRole('button', { name: /^Test Kitchen/ }));
     await expect.element(screen.getByTestId('test-kitchen')).toBeVisible();
     await screen.getByRole('button', { name: 'Back to your restaurant' }).click();

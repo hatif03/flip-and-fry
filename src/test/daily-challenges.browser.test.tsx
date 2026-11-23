@@ -50,7 +50,8 @@ it('shows earned payouts and archives progress without a collect action or payin
   await screen.getByRole('button', { name: 'Read latest report: Day 1' }).click();
   await expect.element(screen.getByTestId('report-challenge-bonus')).toHaveTextContent('+$50');
   await expect.element(screen.getByRole('region', { name: 'Day 1 challenges' })).toHaveTextContent('Expired');
-  await screen.getByRole('button', { name: 'Back to ledger' }).click(); expect(restaurant.state.cash).toBe(before);
+  await screen.getByRole('button', { name: 'Back to the books' }).click(); expect(restaurant.state.cash).toBe(before);
+  await screen.getByRole('button', { name: 'Goals', exact: true }).click();
   await expect.element(screen.getByRole('region', { name: 'Day 2 challenges' })).toBeVisible();
   expect(challengeBonus(restaurant.state.dailyChallenges)).toBe(0);
 });
