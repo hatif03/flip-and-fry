@@ -15,5 +15,5 @@ export function splashText(data: Record<string, unknown> | undefined, username?:
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     try { const headline = createDailyHeadline(date); return { eyebrow: formatDate(date), title: headline.title, blurb: headline.blurb, byline }; } catch { /* not a real date: use the plain card */ }
   }
-  return { eyebrow: '', title: 'Flip and Fry', blurb: 'Run a rooftop restaurant staffed by animals. Today’s headline changes the whole night.', byline };
+  return { eyebrow: '', title: 'Flip and Fry', blurb: 'Run the pass of a rooftop restaurant: cook the orders, earn up to three stars, come back for tomorrow’s headline.', byline };
 }

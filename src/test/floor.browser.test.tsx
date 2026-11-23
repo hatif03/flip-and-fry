@@ -42,9 +42,9 @@ describe('the floor in the pass', () => {
   });
   it('the hustle chain shows on the night bar while it is live', async () => {
     open(() => restaurant.state.guests.some(g => g.stage === 'queued'));
-    const screen = await render(<ManagementGame />); await expect.element(screen.getByRole('status', { name: /Hustle chain/ })).not.toBeInTheDocument();
+    const screen = await render(<ManagementGame />); await expect.element(screen.getByRole('status', { name: /Combo/ })).not.toBeInTheDocument();
     await screen.getByRole('button', { name: /^Seat .* at table/ }).first().click();
-    await expect.element(screen.getByRole('status', { name: /Hustle chain 1/ })).toBeVisible();
+    await expect.element(screen.getByRole('status', { name: /Combo 1/ })).toBeVisible();
   });
 });
 

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Frown, Meh, Smile, Star } from 'lucide-react';
+import { Crown, Frown, Meh, Smile } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NeighborAvatar } from './NeighborAvatar';
 import type { GuestMood, Thought } from './satisfaction';
@@ -19,7 +19,7 @@ export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, val
   return <>
     {thought && <span aria-hidden="true" data-thought className={cn('pointer-events-none mb-0.5 whitespace-nowrap rounded-full border bg-paper px-1.5 text-[10px] font-extrabold leading-4 shadow-sm', thought.tone === 'bad' ? 'border-tomato/60 text-tomato' : 'border-teal/50 text-teal')}>{neighbor && <NeighborAvatar name={neighbor} className="mr-1" />}{thought.text}</span>}
     <div role="meter" aria-label={`Guest ${id} satisfaction`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}
-    aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' Star guest — counts toward today’s challenge when served.' : ''}${thought ? ` Thinking: ${thought.text}.` : ''}`}
+    aria-valuetext={`${value}% — ${moods[mood]}. ${stages[stage]}.${special ? ' VIP guest — counts toward today’s challenge when served.' : ''}${thought ? ` Thinking: ${thought.text}.` : ''}`}
     data-special={special} data-guest-id={id} data-mood={mood} data-stage={stage}
     className="pointer-events-none flex h-5 w-14 select-none items-center gap-1 rounded-full border border-ink/20 bg-paper px-1 shadow-sm sm:h-6 sm:w-16">
     <Face aria-hidden="true" strokeWidth={2.5} className={cn('size-3 shrink-0 sm:size-3.5', mood === 'unhappy' ? 'text-tomato' : mood === 'uneasy' ? 'fill-gold text-ink' : mood === 'served' ? 'fill-gold text-teal' : 'text-teal')} />
@@ -27,6 +27,6 @@ export const GuestSatisfactionBar = memo(function GuestSatisfactionBar({ id, val
       <rect width="100" height="12" className="fill-ink/15" />
       <rect data-testid="satisfaction-fill" width={value} height="12" className={mood === 'unhappy' ? 'fill-tomato' : mood === 'uneasy' ? 'fill-gold' : 'fill-teal'} />
     </svg>
-    {special && <Star aria-hidden="true" className="size-2.5 shrink-0 fill-gold text-ink" strokeWidth={1.5} />}
+    {special && <Crown aria-hidden="true" className="size-2.5 shrink-0 fill-gold text-ink" strokeWidth={1.5} />}
   </div></>;
 });

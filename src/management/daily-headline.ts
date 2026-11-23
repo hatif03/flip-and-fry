@@ -133,7 +133,7 @@ const TEXT: Record<HeadlineId, { title: string; blurb: string }[]> = {
     { title: 'The delivery came up short', blurb: 'Meat is dearer than yesterday. Price with care.' },
   ],
   critic: [
-    { title: 'A critic is in the neighborhood', blurb: 'Every star guest is watching. Keep them happy.' },
+    { title: 'A critic is in the neighborhood', blurb: 'Every VIP is watching. Keep them happy.' },
     { title: 'A food blogger is in town', blurb: 'Someone with a camera is choosing where to eat. Do not let a table walk out.' },
     { title: 'The guidebook inspector is out', blurb: 'One bad plate gets written down. Send out your best.' },
   ],

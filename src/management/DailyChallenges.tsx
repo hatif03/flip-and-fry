@@ -1,10 +1,11 @@
-import { Check, Flame, Leaf, Sparkles, Star, Target, Timer, Users, Wallet } from 'lucide-react';
+import { Check, Crown, Flame, Leaf, Sparkles, Star, Target, Timer, Users, Wallet } from 'lucide-react';
+import { restaurant } from './engine';
 import { cn } from '@/lib/utils';
 import { challengeBonus, challengeObjective, challengeTitles } from './daily-challenges';
 import { money } from './format';
 import type { DailyChallenge } from './types';
 
-const icons: Partial<Record<DailyChallenge['kind'], typeof Star>> = { special: Star, salad: Leaf, burger: Flame, served: Users, quick: Timer, revenue: Wallet, tips: Sparkles };
+const icons: Partial<Record<DailyChallenge['kind'], typeof Star>> = { special: Crown, salad: Leaf, burger: Flame, served: Users, quick: Timer, revenue: Wallet, tips: Sparkles };
 
 /** Read-only challenge board: real service credits rewards automatically, including offline. */
 export function DailyChallenges({ challenges, day, archived = false, pendingUntilTomorrow = false }: { challenges: readonly DailyChallenge[]; day: number; archived?: boolean; pendingUntilTomorrow?: boolean }) {
@@ -13,7 +14,7 @@ export function DailyChallenges({ challenges, day, archived = false, pendingUnti
     <div className="flex items-center justify-between gap-2"><span className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest text-teal"><Target size={15} />Daily challenges</span><span className="rounded-full bg-paper px-2 py-1 text-[10px] font-extrabold">Day {day}</span></div>
     <h3 className="mt-2 text-xl">{archived ? 'The day’s little victories' : 'A little extra ambition'}</h3>
     {!challenges.length ? <p className="mt-2 text-xs leading-relaxed text-ink/65">{pendingUntilTomorrow ? 'Your saved service is already underway. Three fresh challenges will start next service day; today’s progress is unchanged.' : 'Open the restaurant to reveal 3 random challenges, chosen for your menu. Rewards are added automatically when you complete them.'}</p> : <>
-      <p className="mb-3 mt-1 text-xs leading-relaxed text-ink/65">{archived ? 'Final progress. Unfinished challenges expired at closing.' : 'Finish before this service day ends. Rewards are paid automatically, even offline.'}</p>
+      <p className="mb-3 mt-1 text-xs leading-relaxed text-ink/65">{archived ? 'Final progress. Unfinished challenges expired at closing.' : restaurant.remote ? 'Finish two of the three tonight for your second star. Cash bonuses are paid automatically.' : 'Finish before this service day ends. Rewards are paid automatically, even offline.'}</p>
       <ul className="space-y-2">{challenges.map(challenge => {
         const Icon = icons[challenge.kind] ?? Target, objective = challengeObjective(challenge);
         const currency = challenge.kind === 'revenue' || challenge.kind === 'tips';
@@ -24,7 +25,7 @@ export function DailyChallenges({ challenges, day, archived = false, pendingUnti
         </li>;
       })}</ul>
       <p role={archived ? undefined : 'status'} aria-live={archived ? undefined : 'polite'} className="mt-3 flex flex-wrap justify-between gap-1 text-xs font-extrabold text-teal"><span>{done}/3 completed</span><span>{money(bonus)} bonus paid</span></p>
-      {!archived && <p className="mt-2 text-[10px] leading-relaxed text-ink/65"><Star className="mr-1 inline size-3 fill-gold text-ink" aria-hidden="true" />Gold-star guests are special customers. Only paid meals count. New challenges arrive next service day; progress does not carry over.</p>}
+      {!archived && <p className="mt-2 text-[10px] leading-relaxed text-ink/65"><Crown className="mr-1 inline size-3 fill-gold text-ink" aria-hidden="true" />VIP guests wear a crown. Only paid meals count. New challenges arrive next service day; progress does not carry over.</p>}
     </>}
   </section>;
 }

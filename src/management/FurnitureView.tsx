@@ -33,7 +33,7 @@ export const FurnitureBody = memo(function FurnitureBody({ kind }: { kind: Furni
 
 export function FurnitureView({ item, selected, onSelect }: { item: Furniture; selected: boolean; onSelect: (id: number) => void }) {
   const n = CATALOG[item.kind].size, size = n * CELL;
-  return <group position={[(item.x + (n - 1) / 2) * CELL, .07, (item.z + (n - 1) / 2) * CELL]} rotation={[0, -item.rotation * Math.PI / 2, 0]} onClick={e => { e.stopPropagation(); onSelect(item.id); }}>
+  return <group name={`furniture-${item.id}`} position={[(item.x + (n - 1) / 2) * CELL, .07, (item.z + (n - 1) / 2) * CELL]} rotation={[0, -item.rotation * Math.PI / 2, 0]} onClick={e => { e.stopPropagation(); onSelect(item.id); }}>
     <FurnitureBody kind={item.kind} />
     {selected && <Line points={[[-size / 2, .04, -size / 2], [size / 2, .04, -size / 2], [size / 2, .04, size / 2], [-size / 2, .04, size / 2], [-size / 2, .04, -size / 2]]} color="#F2B743" lineWidth={3} />}
   </group>;

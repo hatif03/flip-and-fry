@@ -35,7 +35,7 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
 const NO_COVER: Cover = { bottom: 0, right: 0 };
 export interface Cover { bottom: number; right: number; left?: number }
 interface Framing { zoom: number; ox: number; oy: number }
-function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, cover, garden }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean; cover: Cover; garden: boolean }) {
+function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, cover, garden, service = false }: { columns: number; zoom: number; angle: number; cityView: boolean; cityDistrict: CityDistrict; building: boolean; cover: Cover; garden: boolean; service?: boolean }) {
   const { camera, size } = useThree();
   const goal = useRef<Framing | null>(null), now = useRef<Framing | null>(null), key = useRef('');
   const apply = (f: Framing) => { const cam = camera as THREE.OrthographicCamera; cam.zoom = f.zoom; cam.setViewOffset(size.width, size.height, f.ox, f.oy, size.width, size.height); cam.updateProjectionMatrix(); };
@@ -51,13 +51,13 @@ function SceneClock({ columns, zoom, angle, cityView, cityDistrict, building, co
     const extent = bounds.getSize(new THREE.Vector3());
     // Frame the room in the part of the canvas no panel covers, then shift it to the middle of that part. The canvas keeps its size.
     const left = cover.left ?? 0, visibleW = Math.max(120, size.width - cover.right - left), visibleH = Math.max(120, size.height - cover.bottom);
-    goal.current = { zoom: Math.min(visibleW / (extent.x + 1.3), visibleH / (extent.y + 1.3)) * zoom * (wide || building || garden ? 1 : .86), ox: (cover.right - left) / 2, oy: cover.bottom / 2 };
+    goal.current = { zoom: Math.min(visibleW / (extent.x + 1.3), visibleH / (extent.y + 1.3)) * zoom * (wide || building || garden || service && size.height > size.width ? 1 : .86), ox: (cover.right - left) / 2, oy: cover.bottom / 2 };
     // A new camera position (rotate, neighborhood view) cuts; a panel opening, zooming or resizing glides.
     const next = `${wide}:${angle}:${cityDistrict}:${columns}:${garden}`, still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!now.current || key.current !== next || still) { key.current = next; now.current = { ...goal.current }; apply(now.current); }
     camera.userData.cityView = wide; camera.userData.district = wide ? cityDistrict : 'restaurant';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building, garden, cover.bottom, cover.right, cover.left]);
+  }, [camera, size, columns, zoom, angle, cityView, cityDistrict, building, garden, service, cover.bottom, cover.right, cover.left]);
   useFrame((_, dt) => {
     const c = now.current, g = goal.current; if (!c || !g) return;
     if (Math.abs(g.zoom - c.zoom) < .01 && Math.abs(g.ox - c.ox) < .5 && Math.abs(g.oy - c.oy) < .5) { if (c.zoom !== g.zoom || c.ox !== g.ox || c.oy !== g.oy) { Object.assign(c, g); apply(c); } return; }
@@ -128,7 +128,7 @@ export default function RestaurantScene(props: SceneProps) {
   return <SceneBoundary><div className="relative h-full w-full"><Canvas orthographic shadows dpr={pixel.enabled ? 1 : [1, 1.5]} style={pixel.enabled ? { imageRendering: 'pixelated' } : undefined} camera={{ position: [18, 22, 28], zoom: 35, near: .1, far: 250 }} gl={{ antialias: !pixel.enabled, alpha: false }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.12; gl.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); restaurant.pause(true); setLost(true); }); }}>
     {pixel.enabled && <PixelPass k={pixel.k} />}
     <CityWeather columns={columns} mode={weatherMode} building={building} onChange={onWeatherChange} /><FrameWatch />
-    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} garden={garden} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />{restaurant.remote?.world && <GardenYard onBed={onBed} />}
+    <SceneClock columns={columns} zoom={zoom} angle={angle} cityView={cityView} cityDistrict={cityDistrict} building={building} cover={cover} garden={garden} service={state.phase === 'service'} /><CityScenery columns={columns} /><CityPark /><CityBulletin /><CityLife columns={columns} audioEnabled={trafficAudio} building={building} /><Terrace columns={columns} name={state.name} stars={signStars(state.reputation)} /><RoofGarden />{restaurant.remote?.world && <GardenYard onBed={onBed} />}
     {state.furniture.filter(f => f.id !== draft?.id).map(item => <FurnitureView key={item.id} item={item} selected={selected === item.id} onSelect={id => { if (draft) { const f = state.furniture.find(f => f.id === id); if (f) onTile({ x: f.x, z: f.z }); } else onSelect(id); }} />)}
     {building && <BuildGrid columns={columns} draft={draft} onTile={onTile} />}
     {draft && <Ghost item={draft} valid={!placementError(state, draft)} />}
@@ -142,5 +142,5 @@ export default function RestaurantScene(props: SceneProps) {
     {state.dirty.map(key => { const [id, seat] = key.split(':').map(Number), table = state.furniture.find(f => f.id === id); if (!table) return null; const p = localPoint(table, seat ? .82 : .18, .4); return <group key={key} position={[p.x * CELL, 1.115, p.z * CELL]}><Cylinder radius={.22} height={.035} color="#B9AD94" /></group>; })}
     <RestaurantLabelPositions labels={labels} />
     <Suspense fallback={null} />
-  </Canvas><RestaurantLabels state={state} labels={labels} receipts={restaurant.incomeReceipts} paused={restaurant.paused} speed={restaurant.speed} />{lost && <div className="absolute inset-0 grid place-items-center bg-ink/70 p-4"><div className="paper p-6"><h2>Graphics paused</h2><p className="my-3">Reload to reconnect to your saved restaurant.</p><button className="game-button" onClick={() => window.location.reload()}>Reload restaurant</button></div></div>}</div></SceneBoundary>;
+  </Canvas><RestaurantLabels state={state} labels={labels} receipts={restaurant.incomeReceipts} paused={restaurant.paused} speed={restaurant.speed} plates={!cityView && !garden && (state.phase === 'service' || building)} />{lost && <div className="absolute inset-0 grid place-items-center bg-ink/70 p-4"><div className="paper p-6"><h2>Graphics paused</h2><p className="my-3">Reload to reconnect to your saved restaurant.</p><button className="game-button" onClick={() => window.location.reload()}>Reload restaurant</button></div></div>}</div></SceneBoundary>;
 }

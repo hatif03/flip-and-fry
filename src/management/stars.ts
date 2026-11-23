@@ -14,7 +14,7 @@ export const GOALS: Record<HeadlineId, Goal> = {
   rush: { text: 'Serve 14 guests and keep the rating at 3.8 or better', met: r => r.served >= 14 && r.rating >= 3.8, stretch: 340 },
   rain: { text: 'Finish with a rating of 4.0 or better', met: r => r.rating >= 4, stretch: 320 },
   supplier: { text: 'Make $230 profit despite the butcher', met: r => r.profit >= 230, stretch: 290 },
-  critic: { text: 'Every star guest leaves happy and at most 3 guests are missed', met: (r, h) => h.walkouts === 0 && r.missed <= 3, stretch: 360 },
+  critic: { text: 'Every VIP leaves happy and at most 3 guests are missed', met: (r, h) => h.walkouts === 0 && r.missed <= 3, stretch: 360 },
   payday: { text: 'Make $240 profit while guests feel generous', met: r => r.profit >= 240, stretch: 400 },
   inspection: { text: 'At most one dirty seat at closing and a rating of 3.5 or better', met: (r, h) => h.dirtyAtClose <= 1 && r.rating >= 3.5, stretch: 340 },
 };
@@ -31,7 +31,7 @@ export const goalText = (id: HeadlineId, night: number, shift: Shift = 'dinner')
  * A lunch is a short service with no daily challenges, so it has its own three lines, the same on every headline: 1 serve five and finish
  * in profit, 2 a rating of 4 or better, 3 a chain of four good actions at the pass (the hustle meter), which only hands can build.
  */
-export const LUNCH_STARS = ['Serve 5 guests and finish in profit', 'Finish with a rating of 4.0 or better', 'Chain 4 good moves at the pass'] as const;
+export const LUNCH_STARS = ['Serve 5 guests and finish in profit', 'Finish with a rating of 4.0 or better', 'Reach a ×4 combo at the pass'] as const;
 export const LUNCH_CHAIN = 4;
 
 export interface Stars {

@@ -84,7 +84,7 @@ describe('the first week: a new owner who only taps Open', () => {
     expect(NEXT_21.filter(date => ran(coach, date, 4, 'dinner').goal).length).toBeLessThan(NEXT_21.length / 2);
   });
   it('the welcome goal text names what to do, and is the one shown only on the first three dinners', () => {
-    expect(FIRST_NIGHTS).toBe(3); expect(goalText('critic', 1)).toBe('Serve 8 guests'); expect(goalText('critic', 3)).toBe(goalText('rush', 2)); expect(goalText('critic', 4)).toBe('Every star guest leaves happy and at most 3 guests are missed');
+    expect(FIRST_NIGHTS).toBe(3); expect(goalText('critic', 1)).toBe('Serve 8 guests'); expect(goalText('critic', 3)).toBe(goalText('rush', 2)); expect(goalText('critic', 4)).toBe('Every VIP leaves happy and at most 3 guests are missed');
     expect(goalText('critic', 9, 'lunch')).toBe(LUNCH_STARS[0]);
   });
 });

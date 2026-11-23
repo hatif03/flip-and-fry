@@ -29,6 +29,7 @@ function network(): Http {
     const body = raw === undefined ? undefined : JSON.parse(JSON.stringify(raw)) as { rev: number; date: string; actions: unknown };
     const out = (r: { ok: true; value: unknown } | { ok: false; status: number; error: string; conflict?: boolean }) => 'error' in r ? { status: r.status, body: { type: 'error', error: r.error, conflict: r.conflict } } : { status: 200, body: JSON.parse(JSON.stringify(r.value)) };
     if (path === '/api/today') return out(await getToday(deps, alice));
+    if (method === 'GET') return { status: 404, body: { type: 'error', error: 'Not in this test.' } };
     const log = actionLogSchema.parse(body!.actions) as Action[];
     return path === '/api/open' ? out(await openService(deps, alice, body!.rev, log)) : out(await lockService(deps, alice, body!.date, log));
   };

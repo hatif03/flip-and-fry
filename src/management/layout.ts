@@ -60,3 +60,6 @@ export function layoutError(items: Furniture[], columns: number): string | null 
 export function placementError(state: RestaurantState, candidate: Furniture): string | null {
   return layoutError([...state.furniture.filter(f => f.id !== candidate.id), candidate], width(state));
 }
+
+/** A table's number as the player sees it: its place among the tables, from 1. The pass and the plates in the room both use this, so they always agree. */
+export const tableNumber = (furniture: readonly Furniture[], id: number): number => furniture.filter(f => f.kind === 'table').findIndex(f => f.id === id) + 1;

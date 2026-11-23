@@ -1,5 +1,7 @@
 # Plan v4: the Test Kitchen, kept, joined to the restaurant and grown
 
+> **Merged into [`plan-v5.md`](plan-v5.md) on 24 November 2026** (Part 3 and the K, X and V items of its tracker). Nothing here was built. Do not update this tracker; update plan v5's.
+
 Written 19 November 2026 at the author's request: *"I want the test kitchen to stay. Integrate it into the gameplay and expand it. Make new plans for it. Keep track of what is left, we will do it later."* Nothing in this plan is built yet. The table in section 3 is the tracker; update the **Status** column and add a line to the **Log** at the end whenever something moves.
 
 ## 1. What the Test Kitchen is today (facts, from the code)

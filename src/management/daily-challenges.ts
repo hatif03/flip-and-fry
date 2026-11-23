@@ -45,14 +45,14 @@ export function advanceDailyChallenges(challenges: DailyChallenge[], guest: Pick
 /** Bonuses are separate from service profit, both in current-day UI and immutable receipts. */
 export const challengeBonus = (challenges: readonly DailyChallenge[]): number => challenges.reduce((sum, c) => sum + (c.rewarded ? c.reward : 0), 0);
 
-const otherTitles = { special: 'Star treatment', served: 'A full house', quick: 'Hot off the pass', revenue: 'Ring it up', tips: 'A little extra love' } as const;
+const otherTitles = { special: 'VIP treatment', served: 'A full house', quick: 'Hot off the pass', revenue: 'Ring it up', tips: 'A little extra love' } as const;
 export const challengeTitles = { ...otherTitles, ...Object.fromEntries(DISH_IDS.map(id => [id, DISHES[id].favorite])) } as Record<DailyChallenge['kind'], string>;
 
 /** Human-readable objective shared by the board, receipt and accessibility labels. */
 export function challengeObjective(challenge: DailyChallenge): string {
   const n = challenge.target;
   switch (challenge.kind) {
-    case 'special': return `Serve ${n} star guests`;
+    case 'special': return `Serve ${n} VIP guests`;
     case 'served': return `Serve ${n} guests`;
     case 'quick': return `Serve ${n} meals within 25s of seating`;
     case 'revenue': return `Earn $${n} in sales + tips`;

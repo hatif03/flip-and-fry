@@ -6,14 +6,15 @@ import { GuestSatisfactionBar } from './GuestSatisfactionBar';
 import { GuestPayment } from './GuestPayment';
 import { RECEIPT_SECONDS, type CashReceipt } from './cash-feedback';
 import { guestMood, guestSatisfaction, guestThought, satisfactionHeight } from './satisfaction';
-import { guestPatienceSeconds, type RestaurantState } from './types';
+import { guestPatienceSeconds, isCozy, type RestaurantState } from './types';
+import { tableNumber } from './layout';
 import { separateLabels, type LabelPoint } from './label-layout';
 
 /** A shared projection registry keeps labels in the main DOM tree, not separate React roots. */
 export type LabelRegistry = RefObject<Map<string, HTMLDivElement>>;
 
 /** DOM-owned labels clean up safely when guests leave, service closes, or the restaurant resets. */
-export function RestaurantLabels({ state, labels, receipts = [], paused = false, speed = 1 }: { state: RestaurantState; labels: LabelRegistry; receipts?: readonly CashReceipt[]; paused?: boolean; speed?: number }) {
+export function RestaurantLabels({ state, labels, receipts = [], paused = false, speed = 1, plates = false }: { state: RestaurantState; labels: LabelRegistry; receipts?: readonly CashReceipt[]; paused?: boolean; speed?: number; plates?: boolean }) {
   const patience = guestPatienceSeconds(state);
   return <div className="pointer-events-none absolute inset-0 overflow-hidden" data-testid="restaurant-labels">
     {state.guests.map(guest => {
@@ -24,6 +25,14 @@ export function RestaurantLabels({ state, labels, receipts = [], paused = false,
         <span aria-hidden="true" data-label-line className="pointer-events-none absolute left-1/2 top-1/2 -z-10 w-px origin-top bg-ink/35" />
         {receipt && <GuestPayment key={receipt.id} receipt={receipt} age={state.clock - receipt.clock} paused={paused} speed={speed} />}
         <GuestSatisfactionBar special={guest.special} id={guest.id} value={value} mood={guestMood(value, guest.stage, guest.happy)} stage={guest.stage} thought={guestThought(guest, patience)} neighbor={guest.visitor} />
+      </div>;
+    })}
+    {plates && state.furniture.filter(f => f.kind === 'table').map(table => {
+      // The table's number, as the pass names it ("Table 2: order"). A cosy table (decor within two tiles) wears ✦.
+      const id = `furniture-${table.id}`, cozy = isCozy(state.furniture, table);
+      return <div key={id} ref={element => { if (element) labels.current.set(id, element); else labels.current.delete(id); }} data-anchor-height="1.5" data-table-plate={tableNumber(state.furniture, table.id)}
+        className="pointer-events-none invisible absolute left-0 top-0 z-[1] w-max">
+        <span className="flex min-w-6 items-center justify-center gap-0.5 rounded-md border-2 border-ink/70 bg-paper px-1 font-display text-xs leading-5 text-ink shadow-sm" aria-hidden="true">{tableNumber(state.furniture, table.id)}{cozy && <span className="text-[10px] text-gold">✦</span>}</span>
       </div>;
     })}
     {state.staff.filter(member => member.task === 'cooking').map(member => {

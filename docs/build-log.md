@@ -4,6 +4,41 @@ This is the running record for Flip and Fry (formerly Too Many Cooks) on Devvit.
 
 New entries go at the top, under this introduction. Use the format at the bottom. Do not record secrets, access tokens, or private user data.
 
+## 2026-11-24 — Clear symbols, true help, numbered tables (plan v5, milestone M1)
+
+**Decision:** every symbol now means one thing. Stars are only the night's score; reputation is a thumbs-up out of 5; a "star guest" is a **VIP** with a crown; the hustle chain is shown as **Combo** with a lightning icon (the flame is the streak's alone). Rush and Comp are text buttons ("Rush", "Free · 2 left"). The seat buttons show the two best tables as "Table 3 ✦", and every table has a number plate in the room during service and in Build, from one `tableNumber` helper, so "Table 2: order" points at something you can see. The night bar's money reads "$24 to break even" or "Profit so far +$12" instead of a bare "−$48". The ? button shows at every width and opens a *How to play* written for the Reddit game (`src/management/help-content.ts`); the old one described the browser game (offline days, renovation). The splash says what the game is in one sentence and its button reads "Play today's service". In portrait, service frames the room edge to edge.
+
+**Why:** plan v5 findings D1 to D7 and D12: the author found the game hard to understand at first; the code showed one star icon with four meanings, numbers in the pass with nothing to match in the room, and help text from the browser version hidden on phones.
+
+**Refused:** three seat buttons (they did not fit "Table n" on a 360 px phone; the team seats anyone you skip); showing the capital-warning banner on Reddit (its only action, closing for renovation, is refused there by design: the daily service runs its full length).
+
+No engine rule changed: no new state field, no golden refresh. Also fixed: the journeys test's fake server now answers the garden's GET, which had left five unhandled rejections in every run. Devvit or third party: none.
+Code: `Pass.tsx`, `TonightBar.tsx`, `bills.ts`, `RestaurantLabels.tsx`, `FurnitureView.tsx`, `layout.ts`, `ManagementGame.tsx`, `help-content.ts`, `Panels.tsx`, `InteriorsPanel.tsx`, `DailyChallenges.tsx`, `GuestSatisfactionBar.tsx`, `daily-challenges.ts`, `stars.ts`, `RestaurantScene.tsx`, `src/client/splash*`; tests `bills.test.ts`, `table-number.test.ts`.
+
+## 2026-11-24 — Plan v5 grows: the long game, and plan v4 merged into it
+
+**Decision:** the author wants the game to be something people return to every day and build something substantial in, like RollerCoaster Tycoon or Clash of Clans, and asked for plan v4 (the Test Kitchen, never started) to be brought into plan v5. [`plan-v5.md`](plan-v5.md) now has three parts: learn it, the long game, and the Test Kitchen. Its tracker is the live one; `plan-v4-kitchen.md` stays for history, and its "E" items are renamed "X" in the new tracker so they do not clash. Nothing is built.
+
+**Why:** the code shows the restaurant runs out of things to become in about two weeks of daily play. The roof grows once (10 to 14 tiles wide), staff stop at 6 and at level 3, stations at level 3, player levels at 10 (about day 10 to 12 at 120 to 150 XP a day), research after 3 items and milestones after 10. The headline goals are fixed numbers, so a grown restaurant meets them without trying.
+
+**What was chosen:** a spine of seven restaurant tiers (stall to legend, about ten weeks for a daily player). Each tier is a builder project that opens room, a new kind of room (lounge, drinks bar, takeaway window, private room, second floor, chef's table) and more staff, and scales the goals so stars stay earned. Around it come staff who grow with traits, collections (recipe book, regulars' album, decor sets, trophies), a daily round of tasks, a weekly food festival, a free cosmetic season track, a block level for the subreddit, and a skyline that grows. Pacing is set by a 70-day progression simulator, not guessed. All night-rule changes land once as engine version 3, after the submission. Before the freeze, only pieces that change no night rule: Road ahead, the daily round and the skyline.
+
+**Refused:** idle income across days (the earlier refusal stands: it spends the headline without the player); payments or a paid season track; raids, stealing or any loss to another player; votes or comments as game inputs; an unverified kitchen score reaching stars, streak, tier or season (plan v4's trust rule kept).
+
+Devvit or third party: planned Redis state for the daily round, seasons, festivals and the block level (each with a TTL), the scheduler for the season reset with a lazy twin, the media capability for a scorecard image later. No new permission. Plan: `docs/plan-v5.md`.
+
+## 2026-11-24 — Plan v5: easy to learn, clear to play
+
+**Decision:** the author said the game is hard to understand at first and asked for a plan to teach it from the ground up. [`plan-v5.md`](plan-v5.md) holds the diagnosis (twelve findings, each with the file behind it), the design and a tracker. Nothing is built.
+
+**Why:** reading the code and the phone screenshots found that nothing names the loop (set up, serve, stars), the first lunch is unguided while the team takes every job within 3 to 4 seconds, the pass says "Table 2" while no table in the scene has a number, the star icon means four things, the star rules are hidden during the night, and the *How to play* dialog still describes the browser game and is hidden on phones.
+
+**What was chosen:** a guided first lunch that is the player's real, verified lunch. It freezes the night at each beat with `pause` and slows the cooking step to ½×. Both are presentation only: the server replays tick-stamped actions with no wall-clock check, and pass actions are accepted while paused. Then an unlock ladder by nights played (Reddit only, with "Show everything"), one meaning per symbol, a live star tracker, a tip for each headline, a "Try next" line on the card, a Goals tab in place of the Ledger, and signposts in the room (table numbers, a host stand, a pass counter, a cosy aura).
+
+**Refused:** a separate tutorial level (a second engine instance and a fake server, and the real night would still be unexplained); a tour library (plain React and CSS are enough); any engine or starter-layout change before the 5 December freeze (longer team fallbacks for new players and a new starter layout wait, because they move the calibration and the golden hashes).
+
+Devvit or third party: a planned Redis set `tour:<uid>` (TTL 90 days) for what the guide has shown; no new permission. Plan: `docs/plan-v5.md`.
+
 ## 2026-11-19 — Plan v4: the Test Kitchen stays and gets a plan
 
 **Decision:** the author wants the Test Kitchen kept, joined to the restaurant's gameplay and expanded. [`plan-v4-kitchen.md`](plan-v4-kitchen.md) holds the plan and a tracker (every item has an id, a size, what it needs, a status and a "done when"). Nothing is built.

@@ -66,7 +66,7 @@ it('uses static readable completed, expired and zero-progress states', async () 
     { day: 1, kind: 'salad', target: 8, progress: 0, rewarded: false, reward: 70 },
   ];
   const screen = await render(<DailyChallenges challenges={challenges} day={1} archived />);
-  await expect.element(screen.getByRole('progressbar', { name: 'Serve 10 star guests' })).toHaveValue(10);
+  await expect.element(screen.getByRole('progressbar', { name: 'Serve 10 VIP guests' })).toHaveValue(10);
   await expect.element(screen.getByText('Paid +$85', { exact: true })).toBeVisible();
   await expect.element(screen.getByText('$201 / $350', { exact: true })).toBeVisible();
   expect(screen.container.querySelectorAll('[class*="animate-"]').length).toBe(0);
@@ -75,7 +75,7 @@ it('identifies a star guest accessibly inside the existing pointer-transparent s
   const screen = await render(<GuestSatisfactionBar id={20} value={75} mood="content" stage="waiting" special />);
   const meter = screen.getByRole('meter', { name: 'Guest 20 satisfaction' });
   await expect.element(meter).toHaveAttribute('data-special', 'true');
-  await expect.element(meter).toHaveAttribute('aria-valuetext', '75% — Comfortable. Waiting to order. Star guest — counts toward today’s challenge when served.');
+  await expect.element(meter).toHaveAttribute('aria-valuetext', '75% — Comfortable. Waiting to order. VIP guest — counts toward today’s challenge when served.');
   expect(getComputedStyle(meter.element()).pointerEvents).toBe('none');
   expect(meter.element().getBoundingClientRect().width).toBeLessThanOrEqual(64);
 });

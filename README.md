@@ -17,9 +17,11 @@
 
 ## How to play
 
+Run the pass of a rooftop restaurant: cook the orders, earn up to three stars, come back for tomorrow's headline.
+
 1. Open today's post. The headline (for example *Rain on the roof*) and a goal for the night are at the top.
 2. **Build:** place tables, planters, lanterns and kitchen equipment. **Team:** hire and train. **Menu:** switch dishes on and set prices.
-3. Tap **Open** (your first service is a one-minute **lunch**; after that choose lunch or dinner). **You run the pass.** Parties wait at the door: tap a table to **seat** them (a cosy table tips more), **take their order**, **cook** it (tap **Cook**, or **Take over** from a chef who has just started; **Flip**, **Stir** or **Toss** when the marker is in the box; plate in the green zone), **serve** it and **clear** the table. Each quick move adds to your **hustle** chain, which raises tips. One **decision** at a time comes up (a complaint, an allergy, a supplier). **Rush** moves a ticket up, **Comp** keeps a guest who is about to walk. Your team does all of it more slowly if you leave it, but a night where you do nothing earns few stars, and the result card says so. If you lose money night after night the bank sends a final notice, then takes a few of your pieces into storage; it never takes the restaurant. A neighbor can help at your pass (**Cook together**).
+3. Tap **Open** (your first service is a one-minute **lunch**; after that choose lunch or dinner). **You run the pass.** Parties wait at the door: tap a table to **seat** them (a ✦ cosy table, with decor nearby, tips more), **take their order**, **cook** it (tap **Cook**, or **Take over** from a chef who has just started; **Flip**, **Stir** or **Toss** when the marker is in the box; plate in the green zone), **serve** it and **clear** the table. Each quick move adds to your **combo** (⚡), which raises tips. One **decision** at a time comes up (a complaint, an allergy, a supplier). **Rush** moves a ticket up, **Free meal** keeps a guest who is about to walk. Your team does all of it more slowly if you leave it, but a night where you do nothing earns few stars, and the result card says so. If you lose money night after night the bank sends a final notice, then takes a few of your pieces into storage; it never takes the restaurant. A neighbor can help at your pass (**Cook together**).
 4. When the night ends the server replays it and gives you up to three stars: the headline goal, two of three daily challenges, and beating your last night. Your first three nights have a gentler goal (serve 8 guests and finish in profit), so a new owner always sees a star.
 5. **Between nights**, tend the **Garden** (Reddit only): plant, water and harvest crops on real timers, spend the harvest in your dishes (free ingredients, tips 15% more), fill the order board for cash and XP, turn produce into stock, dough and pickles in the workshop, put your builder on a better stove, give each chef a station, and save three layouts of your room to switch between. Level up for more plots, seeds and a second builder.
 6. Come back tomorrow. A new headline arrives, your streak grows, and the neighbors have been busy.
@@ -36,7 +38,7 @@ The weekday picks the kind of night; the numbers behind it do not change. Each k
 | Tue | The boulevard is busy | Guests arrive faster |
 | Wed | Rain on the roof | Slower walking, comfort counts more for tips |
 | Thu | The butcher raised prices | Grill ingredients cost 50% more |
-| Fri | A critic is in the neighborhood | More star guests; one walkout caps the night at 2 stars |
+| Fri | A critic is in the neighborhood | More VIP guests; one VIP walkout caps the night at 2 stars |
 | Sat | Payday | Guests are less put off by a high price |
 | Sun | The inspector comes at closing | Dirty seats at closing hurt the rating |
 

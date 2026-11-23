@@ -1,8 +1,9 @@
-import { ChefHat, Gift, Hand, Zap } from 'lucide-react';
+import { ChefHat, Crown, Hand } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { challengeObjective, challengeTitles } from './daily-challenges';
 import { restaurant } from './engine';
+import { tableNumber as tableAt } from './layout';
 import { COMPS_PER_NIGHT, COOK_BURN, DEAL_COST, INCIDENT_TTL, MOVE_AT, MOVE_PERFECT, STATION_MOVE, SWAP_COST, HOST_DELAY, ORDER_DELAY, shiftLength, DISHES, cookQuality, guestPatienceSeconds, idealPrep, isCozy, type Guest } from './types';
 
 /** Where the dish is in its cooking, as a share of its normal time. Uses the engine's own bands, so the bar can never disagree with the plate. */
@@ -17,6 +18,8 @@ const ZONE_STYLE: Record<CookZone, string> = { raw: 'text-ink/60', early: 'text-
 const BAR = 'linear-gradient(to right, #b9ad94 0 30%, #F2B743 30% 42.5%, #4f9a5c 42.5% 62.5%, #e48a43 62.5% 80%, #DC533C 80% 100%)';
 
 const tell = (error: string | null) => { if (error) toast.error(error); };
+/** A VIP guest: a crown, never a star (stars are only ever the night's score). */
+const Vip = () => <span className="ml-1 inline-flex align-[-2px]" title="VIP guest"><Crown size={13} aria-hidden className="fill-gold text-ink" /><span className="sr-only">VIP</span></span>;
 
 /**
  * The orders and the dish in your hands. Only on Reddit, only while the doors are open. Every new order lands here, so there is always something to do:
@@ -57,7 +60,7 @@ export function floorJobs(): Job[] {
   for (const key of s.dirty) { const [tableId, seat] = key.split(':').map(Number); jobs.push({ key: `clear${key}`, left: .7, kind: 'clear', tableId, seat }); }
   return jobs.sort((a, b) => a.left - b.left);
 }
-const tableNumber = (id: number): number => restaurant.state.furniture.filter(f => f.kind === 'table').findIndex(f => f.id === id) + 1;
+const tableNumber = (id: number): number => tableAt(restaurant.state.furniture, id);
 const who = (g: Guest): string => g.regular ?? g.visitor ?? `a ${g.species}`;
 
 /** The one decision of the moment: a complaint, an allergy, a supplier. Doing nothing takes the default after a few seconds. */
@@ -90,10 +93,10 @@ function FloorRow({ job: j }: { job: Job }) {
   const secs = j.kind === 'seat' ? Math.ceil(HOST_DELAY - g!.waiting) : j.kind === 'order' ? Math.ceil(ORDER_DELAY - g!.timer) : null;
   return <div className={rowClass(value < .3)}>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-extrabold leading-tight">{title}{g?.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{secs !== null && <span className="ml-1.5 text-[10px] font-bold text-ink/50">team in {Math.max(0, secs)}s</span>}</p>
+      <p className="truncate text-sm font-extrabold leading-tight">{title}{g?.special && <Vip />}{secs !== null && <span className="ml-1.5 text-[10px] font-bold text-ink/50">team in {Math.max(0, secs)}s</span>}</p>
       <PatienceBar value={value} />
     </div>
-    {j.kind === 'seat' ? <div className="flex shrink-0 gap-1">{tables.length ? tables.slice(0, 3).map(t => <button key={t.table.id} type="button" aria-label={`Seat ${who(g!)} at table ${t.n}${t.cozy ? ', a cosy table' : ''}`} className={cn(bigButton, 'min-w-11 px-2')} onClick={() => tell(restaurant.seat(g!.id, t.table.id, t.seat!))}>{t.cozy ? '✦' : ''}T{t.n}</button>) : <span className="text-[11px] font-bold text-ink/55">No free table</span>}</div>
+    {j.kind === 'seat' ? <div className="flex shrink-0 gap-1">{tables.length ? tables.slice(0, 2).map(t => <button key={t.table.id} type="button" data-tour="seat" aria-label={`Seat ${who(g!)} at table ${t.n}${t.cozy ? ', a cosy table' : ''}`} className={cn(bigButton, 'min-w-11 whitespace-nowrap px-2')} onClick={() => tell(restaurant.seat(g!.id, t.table.id, t.seat!))}>Table {t.n}{t.cozy ? <span aria-hidden className="ml-1 text-gold">✦</span> : ''}</button>) : <span className="text-[11px] font-bold text-ink/55">No free table</span>}</div>
       : <button type="button" className={cn(bigButton, 'min-w-[4.25rem] shrink-0')} onClick={() => tell(j.kind === 'order' ? restaurant.order(g!.id) : j.kind === 'serve' ? restaurant.serve(g!.id) : restaurant.clear(j.tableId!, j.seat!))}>{j.kind === 'order' ? 'Take order' : j.kind === 'serve' ? 'Serve' : 'Clear'}</button>}
   </div>;
 }
@@ -114,13 +117,13 @@ function TicketRow({ guest: g }: { guest: Guest }) {
   const s = restaurant.state, comps = COMPS_PER_NIGHT - s.comps, value = Math.max(0, 1 - g.waiting / guestPatienceSeconds(s)), teamHasIt = g.stage === 'cooking';
   return <div className={rowClass(value < .3)}>
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <span className="ml-1 text-gold" title="Star guest">★</span>}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1.5 text-[10px] font-bold text-ink/50">chef has it</span>}</p>
+      <p className="truncate text-sm font-extrabold leading-tight">{DISHES[g.dish].name}{g.special && <Vip />}{g.priority && <span className="ml-1 text-[10px] font-extrabold uppercase text-teal">first</span>}{teamHasIt && <span className="ml-1.5 text-[10px] font-bold text-ink/50">chef has it</span>}</p>
       <PatienceBar value={value} />
     </div>
     <button className={cn('flex min-h-[44px] min-w-[4.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-extrabold text-paper', teamHasIt ? 'bg-ink/70' : 'bg-teal motion-safe:animate-pulse')} onClick={() => { const result = restaurant.claimTicket(g.id); tell(result); if (!result && restaurant.speed !== 1) { restaurant.setSpeed(1); toast('Slowed to 1× while you cook.'); } }}><ChefHat size={16} aria-hidden />{teamHasIt ? 'Take over' : 'Cook'}</button>
     {!teamHasIt && <>
-      <button className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}><Zap size={16} aria-hidden /></button>
-      <button className="relative grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><Gift size={16} aria-hidden /><span aria-hidden className="absolute right-0.5 top-0.5 text-[9px] font-extrabold">{comps}</span></button>
+      <button className="grid min-h-[44px] min-w-[44px] shrink-0 place-items-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold disabled:opacity-40" disabled={g.priority} aria-label={`Rush ${DISHES[g.dish].name} to the front of the line`} onClick={() => tell(restaurant.rush(g.id))}>Rush</button>
+      <button className="flex min-h-[44px] min-w-[44px] shrink-0 flex-col items-center justify-center rounded-xl bg-ink/8 px-2 text-xs font-extrabold leading-tight disabled:opacity-40" disabled={comps <= 0} aria-label={`Comp ${DISHES[g.dish].name}: free meal, the guest stays. ${comps} left tonight`} onClick={() => tell(restaurant.comp(g.id))}><span>Free</span><span aria-hidden className="text-[9px] font-bold text-ink/60">{comps} left</span></button>
     </>}
   </div>;
 }

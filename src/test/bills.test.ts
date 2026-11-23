@@ -1,5 +1,5 @@
 import { RestaurantEngine } from '@/management/engine';
-import { billsTonight, earnedSoFar, tonight } from '@/management/bills';
+import { billsTonight, earnedSoFar, moneyLine, tonight } from '@/management/bills';
 import { reputationLine } from '@/management/RedditLayer';
 
 function runNight(e: RestaurantEngine) { e.autoRoll = false; expect(e.open()).toBeNull(); for (let i = 0; i < 4000 && e.state.phase === 'service'; i++) e.tick(); }
@@ -26,5 +26,13 @@ describe('the bills shown during service are the bills the engine charges at clo
 describe('the reputation line on the result card', () => {
   it('says whether tomorrow is busier, quieter or the same', () => {
     expect(reputationLine(3.5, 3.7)).toMatch(/more guests tomorrow/); expect(reputationLine(3.5, 3.2)).toMatch(/Fewer guests tomorrow/); expect(reputationLine(3.5, 3.52)).toMatch(/holds at 3\.5/);
+  });
+});
+
+describe('the money line on the night bar says what the till means', () => {
+  it('names the distance to break even before the bills are covered, and the profit after', () => {
+    expect(moneyLine(-48)).toBe('$48 to break even');
+    expect(moneyLine(0)).toBe('Profit so far +$0');
+    expect(moneyLine(125)).toBe('Profit so far +$125');
   });
 });
